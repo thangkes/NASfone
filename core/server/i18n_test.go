@@ -57,3 +57,16 @@ func TestLoginPageLanguages(t *testing.T) {
 		t.Fatal("English login page")
 	}
 }
+
+func TestLegacyPathsRedirect(t *testing.T) {
+	srv := httptest.NewServer(NewHandler(Options{Root: t.TempDir()}))
+	defer srv.Close()
+	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	res, err := c.Get(srv.URL + "/__pnas/login?next=%2F")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusFound || res.Header.Get("Location") != "/" {
+		t.Fatalf("got %d %q", res.StatusCode, res.Header.Get("Location"))
+	}
+}

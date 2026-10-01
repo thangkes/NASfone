@@ -282,6 +282,12 @@ class MainActivity : Activity() {
 
     // ---------------------------------------------------------------- render
 
+    // Last rendered content per section: status updates arrive every ~2 s
+    // (traffic counters), so sections are rebuilt only when what they show changed.
+    private var accountKey = ""
+    private var addrKey = ""
+    private var logKey = ""
+
     private fun render() {
         val st = Core.status
         val backend = st.optString("backendState")
@@ -298,6 +304,41 @@ class MainActivity : Activity() {
         stateTv.setTextColor(Color.parseColor(if (running) "#1F9D55" else "#D64545"))
         toggleBtn.text = if (running) L("Dừng server", "Stop server") else L("Khởi động server", "Start server")
 
+        val newAccountKey = listOf(running, backend, st.optString("loginName"), st.optString("tailnetName"), st.optString("authURL")).joinToString("|")
+        if (newAccountKey != accountKey) {
+            accountKey = newAccountKey
+            renderAccount(st, backend, running)
+        }
+        loginBtn.isEnabled = running && backend != "Running"
+        logoutBtn.isEnabled = running && backend == "Running"
+
+        val newAddrKey = listOf(running, st.optString("dnsName"), st.optJSONArray("tailscaleIPs")?.toString(), st.optString("funnelURL")).joinToString("|")
+        if (newAddrKey != addrKey) {
+            addrKey = newAddrKey
+            renderAddresses(st, running)
+        }
+        funnelTv.text = when {
+            st.optString("funnelError").isNotEmpty() ->
+                "⚠ ${st.optString("funnelError")}\n" + L("App tự thử lại mỗi 20 giây sau khi bạn sửa.", "The app retries every 20 seconds after you fix it.")
+            st.optString("funnelURL").isNotEmpty() -> L("Đang mở công khai: ", "Public at: ") + st.optString("funnelURL")
+            prefs.funnel -> L("Sẽ mở khi tailnet kết nối xong.", "Opens once the tailnet is connected.")
+            else -> L("Tắt — chỉ truy cập qua LAN và tailnet.", "Off — reachable only through the tailnet.")
+        }
+        funnelHelpBtn.visibility = if (st.optString("funnelHelpURL").isNotEmpty()) View.VISIBLE else View.GONE
+
+        val files = Environment.isExternalStorageManager()
+        val battery = (getSystemService(POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(packageName)
+        permTv.text = "${if (files) "✔" else "✘"} " + L("Truy cập tất cả file", "All files access") +
+            "\n${if (battery) "✔" else "✘"} " + L("Bỏ tối ưu pin", "Battery optimization disabled")
+
+        val logText = Core.logLines().takeLast(80).joinToString("\n")
+        if (logText != logKey) {
+            logKey = logText
+            logTv.text = logText
+        }
+    }
+
+    private fun renderAccount(st: JSONObject, backend: String, running: Boolean) {
         accountBox.removeAllViews()
         if (running) {
             val login = st.optString("loginName")
@@ -314,9 +355,9 @@ class MainActivity : Activity() {
         } else {
             accountBox.addView(text(L("Khởi động server để đăng nhập.", "Start the server to sign in."), 14f))
         }
-        loginBtn.isEnabled = running && backend != "Running"
-        logoutBtn.isEnabled = running && backend == "Running"
+    }
 
+    private fun renderAddresses(st: JSONObject, running: Boolean) {
         addrBox.removeAllViews()
         if (running) {
             val dns = st.optString("dnsName")
@@ -328,22 +369,6 @@ class MainActivity : Activity() {
         } else {
             addrBox.addView(text("—", 14f))
         }
-
-        funnelTv.text = when {
-            st.optString("funnelError").isNotEmpty() ->
-                "⚠ ${st.optString("funnelError")}\n" + L("App tự thử lại mỗi 20 giây sau khi bạn sửa.", "The app retries every 20 seconds after you fix it.")
-            st.optString("funnelURL").isNotEmpty() -> L("Đang mở công khai: ", "Public at: ") + st.optString("funnelURL")
-            prefs.funnel -> L("Sẽ mở khi tailnet kết nối xong.", "Opens once the tailnet is connected.")
-            else -> L("Tắt — chỉ truy cập qua LAN và tailnet.", "Off — reachable only through the tailnet.")
-        }
-        funnelHelpBtn.visibility = if (st.optString("funnelHelpURL").isNotEmpty()) View.VISIBLE else View.GONE
-
-        val files = Environment.isExternalStorageManager()
-        val battery = (getSystemService(POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(packageName)
-        permTv.text = "${if (files) "✔" else "✘"} " + L("Truy cập tất cả file", "All files access") +
-            "\n${if (battery) "✔" else "✘"} " + L("Bỏ tối ưu pin", "Battery optimization disabled")
-
-        logTv.text = Core.logLines().takeLast(80).joinToString("\n")
     }
 
     private fun renderCode() {

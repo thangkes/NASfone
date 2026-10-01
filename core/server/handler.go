@@ -73,6 +73,11 @@ func NewHandler(opt Options) http.Handler {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Links from before the rename (PocketNAS used /__pnas/...) go to the start page.
+	if strings.HasPrefix(r.URL.Path, "/__pnas/") {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	switch r.URL.Path {
 	case loginPath:
 		h.login(w, r)
