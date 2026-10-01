@@ -56,18 +56,35 @@ func whoFrom(ctx context.Context) Who {
 }
 
 // WithVia tags requests with the listener they arrived on ("LAN", "Tailnet", "Funnel").
+// A connection-level label set with WithConnInfo takes precedence.
 func WithVia(h http.Handler, via string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), viaKey{}, via)))
 	})
 }
 
+type connInfoKey struct{}
+
+type connInfo struct{ via, ip string }
+
+// WithConnInfo records, per connection (http.Server.ConnContext), how a
+// client arrived and its real IP when the TCP peer is a relay (Funnel).
+func WithConnInfo(ctx context.Context, via, ip string) context.Context {
+	return context.WithValue(ctx, connInfoKey{}, connInfo{via: via, ip: ip})
+}
+
 func viaFrom(r *http.Request) string {
+	if ci, ok := r.Context().Value(connInfoKey{}).(connInfo); ok && ci.via != "" {
+		return ci.via
+	}
 	v, _ := r.Context().Value(viaKey{}).(string)
 	return v
 }
 
 func clientIP(r *http.Request) string {
+	if ci, ok := r.Context().Value(connInfoKey{}).(connInfo); ok && ci.ip != "" {
+		return ci.ip
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

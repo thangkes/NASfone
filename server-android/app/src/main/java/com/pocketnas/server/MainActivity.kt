@@ -71,6 +71,8 @@ class MainActivity : Activity() {
     private var adminCode: String? = null
     private var userCode: String? = null
     private var lastDevicesJson = ""
+    private lateinit var pairedBox: LinearLayout
+    private var lastPairedJson = ""
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
@@ -78,6 +80,7 @@ class MainActivity : Activity() {
             try {
                 renderCode()
                 renderDevices()
+                renderPaired()
             } catch (e: Exception) {
                 Core.log("Lỗi hiển thị: $e")
             }
@@ -145,7 +148,11 @@ class MainActivity : Activity() {
         codeInfoTv = text("", 13f).apply { gravity = Gravity.CENTER }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
 
-        section(col, "Thiết bị đã đăng nhập")
+        section(col, "Ứng dụng đã ghép (Windows / Android)")
+        pairedBox = vbox().also { col.addView(it) }
+        col.addView(button("＋ Ghép thiết bị mới") { newPairing() })
+
+        section(col, "Phiên trình duyệt (đăng nhập bằng mã 6 số)")
         devBox = vbox().also { col.addView(it) }
         col.addView(button("Thu hồi tất cả") {
             AlertDialog.Builder(this)
@@ -385,6 +392,125 @@ class MainActivity : Activity() {
                     thread { Mobile.revokeDevice(id); runOnUiThread { lastDevicesJson = ""; renderDevices() } }
                 })
             })
+        }
+    }
+
+    /** Danh sách app đã ghép đôi bằng cặp khóa, kèm đổi quyền và thu hồi. */
+    private fun renderPaired() {
+        if (!::pairedBox.isInitialized) return
+        val json = if (Core.running) Mobile.pairedDevices() else "[]"
+        if (json == lastPairedJson) return
+        lastPairedJson = json
+        pairedBox.removeAllViews()
+        val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+        if (arr.length() == 0) {
+            pairedBox.addView(text(if (Core.running) "Chưa ghép ứng dụng nào." else "—", 14f))
+            return
+        }
+        for (i in 0 until arr.length()) {
+            val d = arr.getJSONObject(i)
+            val id = d.getString("id")
+            val name = d.getString("name")
+            val admin = d.optString("role") == "admin"
+            val fp = d.optString("fp").take(16).uppercase().chunked(4).joinToString("-")
+            val head = text((if (admin) "● ADMIN  " else "● USER  ") + name, 14f, bold = true).apply {
+                setTextColor(Color.parseColor(if (admin) "#B42318" else "#2F6FED"))
+            }
+            val info = text(
+                "${platformLabel(d.optString("platform"))} • khóa $fp\n" +
+                    "Lần cuối ${parseTime(d.optString("lastSeen"))} qua ${d.optString("via")} • ghép lúc ${parseTime(d.optString("created"))}",
+                12f
+            )
+            val actions = hbox()
+            actions.addView(button(if (admin) "Hạ xuống User" else "Nâng lên Admin") {
+                val to = if (admin) "user" else "admin"
+                AlertDialog.Builder(this)
+                    .setTitle("Đổi quyền \"$name\"?")
+                    .setMessage(if (admin) "Thiết bị chỉ còn quyền xem và tải về." else "Thiết bị sẽ có toàn quyền: tải lên, ghi đè, xóa.")
+                    .setPositiveButton("Đổi") { _, _ -> thread { Mobile.setPairedRole(id, to); runOnUiThread { lastPairedJson = ""; renderPaired() } } }
+                    .setNegativeButton("Hủy", null)
+                    .show()
+            }, weighted())
+            actions.addView(button("Thu hồi") {
+                AlertDialog.Builder(this)
+                    .setTitle("Thu hồi \"$name\"?")
+                    .setMessage("Thiết bị bị ngắt ngay và không kết nối lại được. Muốn dùng lại phải ghép đôi lại.")
+                    .setPositiveButton("Thu hồi") { _, _ -> thread { Mobile.revokePaired(id); runOnUiThread { lastPairedJson = ""; renderPaired() } } }
+                    .setNegativeButton("Hủy", null)
+                    .show()
+            }, weighted())
+            pairedBox.addView(vbox().apply {
+                setPadding(0, dp(6), 0, dp(6))
+                addView(head)
+                addView(info)
+                addView(actions)
+            })
+        }
+    }
+
+    private fun platformLabel(p: String) = when (p) {
+        "windows" -> "Windows"
+        "android" -> "Android"
+        "ios" -> "iOS"
+        "macos" -> "macOS"
+        else -> p
+    }
+
+    /** Chọn quyền rồi hiện lời mời ghép đôi dạng QR + nút sao chép. */
+    private fun newPairing() {
+        if (!Core.running) { toast("Khởi động server trước"); return }
+        AlertDialog.Builder(this)
+            .setTitle("Ghép thiết bị mới — chọn quyền")
+            .setItems(arrayOf("USER — chỉ xem & tải về", "ADMIN — toàn quyền (tải lên, ghi đè, xóa)")) { _, which ->
+                showInvite(if (which == 1) "admin" else "user")
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun showInvite(role: String) {
+        thread {
+            val inv = try {
+                JSONObject(Mobile.newPairInvite(role))
+            } catch (e: Exception) {
+                runOnUiThread { toast(e.message ?: "Không tạo được lời mời") }
+                return@thread
+            }
+            val invite = inv.getString("invite")
+            val png = try { Mobile.qrpng(invite, 8) } catch (_: Exception) { null }
+            runOnUiThread {
+                val box = vbox().apply { setPadding(dp(20), dp(8), dp(20), 0); gravity = Gravity.CENTER_HORIZONTAL }
+                if (png != null) {
+                    val bmp = android.graphics.BitmapFactory.decodeByteArray(png, 0, png.size)
+                    box.addView(android.widget.ImageView(this).apply {
+                        setImageDrawable(android.graphics.drawable.BitmapDrawable(resources, bmp).apply {
+                            isFilterBitmap = false // keep QR modules sharp when scaled
+                        })
+                        setBackgroundColor(Color.WHITE)
+                    }, LinearLayout.LayoutParams(dp(260), dp(260)))
+                }
+                val roleText = if (role == "admin") "ADMIN — toàn quyền" else "USER — chỉ xem & tải về"
+                val expires = inv.getLong("expires")
+                val info = text("", 13f).apply { gravity = Gravity.CENTER }
+                box.addView(info)
+                val dialog = AlertDialog.Builder(this)
+                    .setTitle("Lời mời ghép đôi")
+                    .setView(box)
+                    .setPositiveButton("Sao chép lời mời") { _, _ -> copy(invite) }
+                    .setNegativeButton("Đóng", null)
+                    .show()
+                val h = Handler(Looper.getMainLooper())
+                val tickInfo = object : Runnable {
+                    override fun run() {
+                        val left = ((expires - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+                        info.text = "Quyền: $roleText\nVân tay server: ${inv.optString("fp")}\n" +
+                            (if (left > 0) "Dùng 1 lần • hết hạn sau %d:%02d".format(left / 60, left % 60) else "Đã hết hạn — tạo lời mời mới") +
+                            "\n\nQuét bằng app PocketNAS trên điện thoại, hoặc sao chép rồi dán vào app trên máy tính."
+                        if (left > 0 && dialog.isShowing) h.postDelayed(this, 1000)
+                    }
+                }
+                tickInfo.run()
+            }
         }
     }
 

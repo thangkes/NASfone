@@ -1,9 +1,12 @@
 package mobile
 
 import (
+	"crypto/tls"
 	"net"
 	"sync"
 	"sync/atomic"
+
+	"tailscale.com/ipn"
 )
 
 // traffic counts open connections and bytes moved across all listeners.
@@ -51,4 +54,22 @@ func (c *countingConn) Write(p []byte) (int, error) {
 func (c *countingConn) Close() error {
 	c.once.Do(func() { c.t.open.Add(-1) })
 	return c.Conn.Close()
+}
+
+// funnelConnOf digs through our counting wrapper and the TLS layer to find
+// the *ipn.FunnelConn tsnet uses for connections relayed from the internet.
+func funnelConnOf(c net.Conn) *ipn.FunnelConn {
+	for i := 0; i < 4 && c != nil; i++ {
+		switch v := c.(type) {
+		case *ipn.FunnelConn:
+			return v
+		case *countingConn:
+			c = v.Conn
+		case *tls.Conn:
+			c = v.NetConn()
+		default:
+			return nil
+		}
+	}
+	return nil
 }

@@ -572,7 +572,15 @@ func (n *node) startFunnel() {
 	}
 	n.status.FunnelError, n.status.FunnelHelp = "", ""
 	srv := &http.Server{
-		Handler:           server.WithVia(n.handler, "Funnel"),
+		Handler: server.WithVia(n.handler, "Funnel"),
+		// The :443 listener serves both the public Funnel and tailnet peers
+		// using the https name; tell them apart and keep the real client IP.
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			if fc := funnelConnOf(c); fc != nil {
+				return server.WithConnInfo(ctx, "Funnel", fc.Src.Addr().String())
+			}
+			return server.WithConnInfo(ctx, "Tailnet", "")
+		},
 		ReadHeaderTimeout: 30 * time.Second,
 		// TLS handshake failures (e.g. no certificate yet) are otherwise only
 		// printed to stderr, which is invisible on Android.

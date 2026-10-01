@@ -1,9 +1,13 @@
 package mobile
 
 import (
+	"crypto/tls"
 	"io"
 	"net"
+	"net/netip"
 	"testing"
+
+	"tailscale.com/ipn"
 )
 
 func TestTrafficCounting(t *testing.T) {
@@ -31,5 +35,20 @@ func TestTrafficCounting(t *testing.T) {
 	<-done
 	if tr.bytesIn.Load() != 5 || tr.bytesOut.Load() != 11 || tr.open.Load() != 0 {
 		t.Fatalf("in=%d out=%d open=%d", tr.bytesIn.Load(), tr.bytesOut.Load(), tr.open.Load())
+	}
+}
+
+func TestFunnelConnOf(t *testing.T) {
+	a, b := net.Pipe()
+	defer a.Close()
+	defer b.Close()
+	fc := &ipn.FunnelConn{Conn: a, Src: netip.MustParseAddrPort("203.0.113.7:5555")}
+	var tr traffic
+	wrapped := &countingConn{Conn: tls.Server(fc, &tls.Config{}), t: &tr}
+	if got := funnelConnOf(wrapped); got != fc {
+		t.Fatal("FunnelConn not found through wrappers")
+	}
+	if funnelConnOf(&countingConn{Conn: a, t: &tr}) != nil {
+		t.Fatal("plain conn reported as Funnel")
 	}
 }
