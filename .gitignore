@@ -1,0 +1,24 @@
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+.idea/
+*.iml
+
+# Go / Windows
+*.exe
+/core/build/
+/client-windows/build/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# gomobile output (build with scripts/build-server.ps1)
+server-android/app/libs/
+client-android/app/libs/

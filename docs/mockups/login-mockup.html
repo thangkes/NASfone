@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PocketNAS – Mockup đăng nhập</title>
+<style>
+:root{
+  --bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;
+  --acc:#2f6fed;--acc-fg:#fff;--ok:#1f9d55;--warn:#c27c0e;--bad:#d64545;--chip:#eef2fd;
+  --phone:#11151c;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1218;--card:#181c24;--fg:#e6e9ef;--muted:#949cad;--line:#2a303c;
+  --acc:#5b8cff;--acc-fg:#0b0e14;--ok:#3ccf7c;--warn:#e5a53a;--bad:#f06a6a;--chip:#1f2737;--phone:#000;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header.top{padding:16px;text-align:center}
+header.top h1{margin:0;font-size:20px}
+header.top p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.wrap{display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap;padding:0 16px 32px}
+.panel-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+/* ---------- Web ---------- */
+.browser{width:min(520px,100%);background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.dots i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--line);margin-right:4px}
+.url{flex:1;background:var(--bg);border-radius:6px;padding:4px 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.web{padding:28px 24px}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.logo{width:36px;height:36px;border-radius:9px;background:var(--acc);display:grid;place-items:center;color:var(--acc-fg);font-weight:800}
+.brand b{font-size:18px}
+.tabs{display:flex;background:var(--bg);border-radius:9px;padding:3px;margin-bottom:16px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);padding:8px;border-radius:7px;font:inherit;font-size:13px;cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--fg);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+label.f{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+input[type=text],input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18em;text-align:center;text-transform:uppercase}
+.chk{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:14px}
+.chk input{margin-top:4px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--acc);color:var(--acc-fg)}
+.btn.full{width:100%;margin-top:18px}
+.btn.ghost{background:var(--chip);color:var(--fg);font-weight:500}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--line)}
+.msg{margin-top:12px;font-size:13px;min-height:1.5em}
+.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
+.files{border:1px solid var(--line);border-radius:8px;margin-top:12px}
+.files div{padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px;display:flex;justify-content:space-between}
+.files div:last-child{border-bottom:0}
+.files span{color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+/* ---------- Phone ---------- */
+.phone{width:340px;max-width:100%;background:var(--phone);border-radius:34px;padding:12px}
+.screen{background:var(--bg);border-radius:24px;overflow:hidden;height:680px;display:flex;flex-direction:column}
+.sb{display:flex;justify-content:space-between;padding:8px 18px 4px;font-size:12px;color:var(--muted)}
+.appbar{padding:6px 16px 10px;display:flex;align-items:center;justify-content:space-between}
+.appbar b{font-size:18px}
+.pill{font-size:11px;padding:3px 8px;border-radius:99px;background:var(--chip);color:var(--ok);font-weight:600}
+.scroll{overflow:auto;padding:0 12px 16px;flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.card h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.otp{font:700 30px/1.1 ui-monospace,Consolas,monospace;letter-spacing:.12em;text-align:center;margin:6px 0}
+.meter{height:5px;background:var(--line);border-radius:99px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--acc);transition:width 1s linear}
+.small{font-size:12px;color:var(--muted)}
+.btns{display:flex;gap:6px;margin-top:10px}
+.btns .btn{flex:1}
+.addr{font:13px ui-monospace,Consolas,monospace;display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.dev{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.dev:first-of-type{border-top:0}
+.dev .ic{width:32px;height:32px;border-radius:8px;background:var(--chip);display:grid;place-items:center;font-size:16px;flex:none}
+.dev .meta{flex:1;min-width:0}
+.dev .meta b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev .meta span{font-size:11px;color:var(--muted)}
+.key{font:12px ui-monospace,Consolas,monospace;background:var(--bg);border-radius:6px;padding:6px 8px;word-break:break-all;margin-top:6px}
+.log{font-size:12px;padding:4px 0;border-top:1px dashed var(--line)}
+.log:first-of-type{border-top:0}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;place-items:center;padding:16px}
+.modal.show{display:grid}
+.modal .box{background:var(--card);border-radius:14px;padding:18px;width:min(320px,100%)}
+.modal h4{margin:0 0 6px}
+.notes{max-width:1100px;margin:0 auto;padding:0 16px 40px;color:var(--muted);font-size:13px}
+.notes code{background:var(--chip);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>PocketNAS – Mockup luồng đăng nhập</h1>
+  <p>Bản demo tương tác (dữ liệu giả, chạy hoàn toàn trên trang). Bên trái là trình duyệt, bên phải là app trên Honor.</p>
+</header>
+
+<div class="wrap">
+  <!-- ================= WEB ================= -->
+  <section>
+    <p class="panel-label">Trình duyệt trên máy tính / điện thoại khác</p>
+    <div class="browser">
+      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://pocketnas.ten-tailnet.ts.net/login</span></div>
+      <div class="web" id="webLogin">
+        <div class="brand"><div class="logo">P</div><div><b>PocketNAS</b><div class="small">Đăng nhập để truy cập dữ liệu</div></div></div>
+        <div class="tabs">
+          <button class="on" data-tab="otp">Mã một lần</button>
+          <button data-tab="key">Khóa truy cập</button>
+        </div>
+
+        <div id="tab-otp">
+          <label class="f" for="otpIn">Mã đăng nhập hiển thị trên app</label>
+          <input id="otpIn" class="code" type="text" maxlength="9" placeholder="XXXX-XXXX" autocomplete="one-time-code">
+          <div class="hint">Mở app PocketNAS → “Mã đăng nhập một lần”. Mã dùng 1 lần, hết hạn sau 5 phút.</div>
+        </div>
+        <div id="tab-key" hidden>
+          <label class="f" for="keyIn">Khóa truy cập (sao chép từ app)</label>
+          <input id="keyIn" type="password" placeholder="pnk_…" autocomplete="off">
+          <div class="hint">Dùng cho thiết bị cố định. Khóa cũng là mật khẩu WebDAV.</div>
+        </div>
+
+        <label class="chk"><input type="checkbox" id="remember" checked>
+          <span>Ghi nhớ thiết bị này<br><span class="small">Lần sau tự đăng nhập, không cần mã. Có thể thu hồi từ app bất cứ lúc nào.</span></span></label>
+        <div id="nameWrap">
+          <label class="f" for="devName">Tên thiết bị (hiện trong app)</label>
+          <input id="devName" type="text">
+        </div>
+
+        <button class="btn full" id="loginBtn">Đăng nhập</button>
+        <div class="msg" id="webMsg"></div>
+      </div>
+
+      <div class="web" id="webHome" hidden>
+        <div class="row">
+          <div class="brand" style="margin:0"><div class="logo">P</div><div><b>PocketNAS</b><div class="small" id="whoami"></div></div></div>
+          <div style="display:flex;gap:6px"><button class="btn ghost sm" id="logoutBtn">Đăng xuất</button></div>
+        </div>
+        <div class="files">
+          <div>📁 Ảnh <span>—</span></div>
+          <div>📁 Tài liệu <span>—</span></div>
+          <div>🎬 video-du-lich.mp4 <span>1.2 GB</span></div>
+          <div>📄 hop-dong.pdf <span>840 KB</span></div>
+        </div>
+        <div class="msg small" id="sessInfo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PHONE ================= -->
+  <section>
+    <p class="panel-label">App PocketNAS trên Honor</p>
+    <div class="phone"><div class="screen">
+      <div class="sb"><span id="clock">09:41</span><span>Wi-Fi • 82%</span></div>
+      <div class="appbar"><b>PocketNAS</b><span class="pill">● Đang chạy</span></div>
+      <div class="scroll">
+
+        <div class="card">
+          <h3>Địa chỉ truy cập</h3>
+          <div class="addr"><span>pocketnas.ten-tailnet.ts.net</span><button class="btn ghost sm" data-copy="https://pocketnas.ten-tailnet.ts.net">Sao chép</button></div>
+          <div class="addr"><span>100.101.12.34 <span class="small">Tailscale</span></span><button class="btn ghost sm" data-copy="http://100.101.12.34:8080">Sao chép</button></div>
+          <div class="addr"><span>192.168.1.23 <span class="small">Wi-Fi</span></span><button class="btn ghost sm" data-copy="http://192.168.1.23:8080">Sao chép</button></div>
+        </div>
+
+        <div class="card">
+          <h3>Mã đăng nhập một lần <span class="small" id="otpLeft"></span></h3>
+          <div class="otp" id="otp">— — — —</div>
+          <div class="meter"><i id="otpBar" style="width:0"></i></div>
+          <div class="btns">
+            <button class="btn sm" id="newOtp">Tạo mã</button>
+            <button class="btn ghost sm" id="copyOtp">Sao chép</button>
+          </div>
+          <div class="small" style="margin-top:6px">Dùng 1 lần • hết hạn 5 phút • sai 5 lần là hủy mã</div>
+        </div>
+
+        <div class="card">
+          <h3>Khóa truy cập <button class="btn ghost sm" id="newKey">+ Tạo khóa</button></h3>
+          <div class="small">Mỗi thiết bị/ứng dụng (RaiDrive, FolderSync…) một khóa riêng. Mở khóa bằng vân tay để xem.</div>
+          <div id="keyList"></div>
+        </div>
+
+        <div class="card">
+          <h3>Thiết bị đã ghi nhớ <button class="btn danger sm" id="revokeAll">Thu hồi tất cả</button></h3>
+          <div id="devList"></div>
+        </div>
+
+        <div class="card">
+          <h3>Hoạt động gần đây</h3>
+          <div id="logList"></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+</div>
+
+<div class="notes">
+  <b>Ghi chú mockup:</b> mã thử nghiệm luôn có sẵn sau khi bấm <code>Tạo mã</code>. Khóa truy cập tạo ở app có thể dán vào tab “Khóa truy cập”.
+  Trạng thái “ghi nhớ” lưu trong <code>localStorage</code> của trang này để mô phỏng cookie thiết bị; bản thật dùng cookie <code>HttpOnly</code>.
+</div>
+
+<div class="modal" id="bio"><div class="box">
+  <h4>Xác thực</h4>
+  <p class="small">Mô phỏng: app yêu cầu vân tay / mã khóa màn hình trước khi hiện khóa.</p>
+  <div class="btns"><button class="btn ghost sm" id="bioNo">Hủy</button><button class="btn sm" id="bioYes">👆 Xác nhận</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const OTP_TTL = 300;
+  const LS = 'pnas_mock_v1';
+
+  // ---------- state ----------
+  let st = load() || { devices: [], keys: [], logs: [], session: null };
+  let otp = null; // {code, exp, tries}
+  function load(){ try { return JSON.parse(localStorage.getItem(LS)); } catch(e){ return null; } }
+  function save(){ try { localStorage.setItem(LS, JSON.stringify(st)); } catch(e){} }
+
+  function rnd(n, alpha){ const a = new Uint32Array(n); crypto.getRandomValues(a); return Array.from(a, x => alpha[x % alpha.length]).join(''); }
+  function now(){ return Date.now(); }
+  function fmtTime(t){ const d = new Date(t); return d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) + ' ' + d.toLocaleDateString('vi-VN'); }
+  function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1600); }
+  function copy(text){
+    const done = () => toast('Đã sao chép');
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    function fallback(){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch(e){ toast('Không sao chép được'); } ta.remove(); }
+  }
+  function log(m){ st.logs.unshift({ t: now(), m }); st.logs = st.logs.slice(0, 8); save(); render(); }
+  function guessName(){
+    const ua = navigator.userAgent;
+    const br = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Trình duyệt';
+    const os = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'không rõ';
+    return br + ' trên ' + os;
+  }
+  function icon(name){ return /Android|iOS|iPhone/i.test(name) ? '📱' : /RaiDrive|FolderSync|WebDAV|khóa/i.test(name) ? '🔑' : '💻'; }
+
+  // ---------- phone: OTP ----------
+  function newOtp(){
+    const c = rnd(8, ALPHA);
+    otp = { code: c.slice(0,4) + '-' + c.slice(4), exp: now() + OTP_TTL*1000, tries: 0 };
+    log('Tạo mã đăng nhập mới');
+  }
+  function tick(){
+    const d = new Date(); $('#clock').textContent = d.toTimeString().slice(0,5);
+    if (otp && now() > otp.exp) { otp = null; log('Mã đăng nhập đã hết hạn'); }
+    if (otp){
+      const left = Math.max(0, Math.round((otp.exp - now())/1000));
+      $('#otp').textContent = otp.code;
+      $('#otpLeft').textContent = Math.floor(left/60) + ':' + String(left%60).padStart(2,'0');
+      $('#otpBar').style.width = (left/OTP_TTL*100) + '%';
+    } else {
+      $('#otp').textContent = '— — — —'; $('#otpLeft').textContent = ''; $('#otpBar').style.width = '0';
+    }
+  }
+  $('#newOtp').onclick = newOtp;
+  $('#copyOtp').onclick = () => otp ? copy(otp.code) : toast('Chưa có mã');
+
+  // ---------- phone: keys ----------
+  let pendingReveal = null;
+  $('#newKey').onclick = () => {
+    const name = prompt('Tên thiết bị/ứng dụng dùng khóa này:', 'RaiDrive – Laptop');
+    if (!name) return;
+    const k = { id: rnd(6, ALPHA), name: name.trim(), secret: 'pnk_' + rnd(32, 'abcdefghijkmnpqrstuvwxyz23456789'), created: now(), lastUsed: null, shown: false };
+    st.keys.unshift(k); save(); log('Tạo khóa truy cập: ' + k.name);
+  };
+  function askBio(fn){ pendingReveal = fn; $('#bio').classList.add('show'); }
+  $('#bioNo').onclick = () => { pendingReveal = null; $('#bio').classList.remove('show'); };
+  $('#bioYes').onclick = () => { $('#bio').classList.remove('show'); if (pendingReveal) pendingReveal(); pendingReveal = null; };
+
+  // ---------- phone: render lists ----------
+  function render(){
+    // keys
+    const kl = $('#keyList'); kl.innerHTML = '';
+    if (!st.keys.length) kl.innerHTML = '<div class="small" style="margin-top:8px">Chưa có khóa nào.</div>';
+    st.keys.forEach(k => {
+      const el = document.createElement('div'); el.className = 'dev';
+      el.innerHTML = '<div class="ic">🔑</div><div class="meta"><b></b><span></span><div class="key"></div></div>';
+      el.querySelector('b').textContent = k.name;
+      el.querySelector('span').textContent = 'Tạo ' + fmtTime(k.created) + (k.lastUsed ? ' • dùng ' + fmtTime(k.lastUsed) : ' • chưa dùng');
+      const kv = el.querySelector('.key'); kv.textContent = k.shown ? k.secret : 'pnk_••••••••••••••••••••••••' + k.secret.slice(-4);
+      const b = document.createElement('div'); b.className = 'btns';
+      const bShow = btn(k.shown ? 'Ẩn' : 'Hiện', 'ghost', () => k.shown ? (k.shown = false, render()) : askBio(() => { k.shown = true; render(); }));
+      const bCopy = btn('Sao chép', 'ghost', () => askBio(() => copy(k.secret)));
+      const bDel = btn('Thu hồi', 'danger', () => { if (confirm('Thu hồi khóa "' + k.name + '"?')) { st.keys = st.keys.filter(x => x !== k); if (st.session && st.session.keyId === k.id) st.session = null; save(); log('Thu hồi khóa: ' + k.name); renderWeb(); } });
+      b.append(bShow, bCopy, bDel); el.querySelector('.meta').appendChild(b);
+      kl.appendChild(el);
+    });
+    // devices
+    const dl = $('#devList'); dl.innerHTML = '';
+    if (!st.devices.length) dl.innerHTML = '<div class="small">Chưa có thiết bị nào được ghi nhớ.</div>';
+    st.devices.forEach(d => {
+      const el = document.createElement('div'); el.className = 'dev';
+      el.innerHTML = '<div class="ic"></div><div class="meta"><b></b><span></span></div>';
+      el.querySelector('.ic').textContent = icon(d.name);
+      el.querySelector('b').textContent = d.name;
+      el.querySelector('span').textContent = d.via + ' • lần cuối ' + fmtTime(d.lastSeen) + ' • hết hạn ' + new Date(d.exp).toLocaleDateString('vi-VN');
+      el.appendChild(btn('Thu hồi', 'danger', () => { st.devices = st.devices.filter(x => x !== d); if (st.session && st.session.devId === d.id) st.session = null; save(); log('Thu hồi thiết bị: ' + d.name); renderWeb(); }));
+      dl.appendChild(el);
+    });
+    // logs
+    const ll = $('#logList'); ll.innerHTML = '';
+    if (!st.logs.length) ll.innerHTML = '<div class="small">Chưa có hoạt động.</div>';
+    st.logs.forEach(l => { const el = document.createElement('div'); el.className = 'log'; el.textContent = fmtTime(l.t) + ' — ' + l.m; ll.appendChild(el); });
+  }
+  function btn(text, kind, fn){ const b = document.createElement('button'); b.className = 'btn sm ' + (kind || ''); b.textContent = text; b.onclick = fn; return b; }
+  $('#revokeAll').onclick = () => { if (!st.devices.length) return; if (confirm('Thu hồi tất cả thiết bị đã ghi nhớ?')) { st.devices = []; st.session = null; save(); log('Thu hồi tất cả thiết bị'); renderWeb(); } };
+  document.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy));
+
+  // ---------- web ----------
+  let tab = 'otp';
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+    $('#tab-otp').hidden = tab !== 'otp'; $('#tab-key').hidden = tab !== 'key'; $('#webMsg').textContent = '';
+  });
+  $('#devName').value = guessName();
+  $('#remember').onchange = e => $('#nameWrap').hidden = !e.target.checked;
+  $('#otpIn').addEventListener('input', e => {
+    let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    if (v.length > 4) v = v.slice(0,4) + '-' + v.slice(4);
+    e.target.value = v;
+  });
+  function err(m){ const w = $('#webMsg'); w.className = 'msg err'; w.textContent = m; }
+
+  $('#loginBtn').onclick = () => {
+    const remember = $('#remember').checked;
+    const name = ($('#devName').value || guessName()).trim();
+    if (tab === 'otp'){
+      const v = $('#otpIn').value.trim().toUpperCase();
+      if (!otp) return err('Mã không hợp lệ hoặc đã hết hạn.');
+      if (v !== otp.code){
+        otp.tries++;
+        if (otp.tries >= 5){ otp = null; log('Nhập sai mã 5 lần — mã đã bị hủy'); return err('Sai quá 5 lần. Hãy tạo mã mới trên app.'); }
+        return err('Mã không đúng (' + (5 - otp.tries) + ' lần thử còn lại).');
+      }
+      otp = null; // single use
+      startSession({ name, remember, via: 'Mã một lần' });
+    } else {
+      const v = $('#keyIn').value.trim();
+      const k = st.keys.find(x => x.secret === v);
+      if (!k) return err('Khóa không hợp lệ hoặc đã bị thu hồi.');
+      k.lastUsed = now();
+      startSession({ name, remember, via: 'Khóa: ' + k.name, keyId: k.id });
+    }
+  };
+  function startSession({ name, remember, via, keyId }){
+    let devId = null;
+    if (remember){
+      const d = { id: rnd(10, ALPHA), name, via, created: now(), lastSeen: now(), exp: now() + 90*864e5 };
+      st.devices.unshift(d); devId = d.id;
+      log('Thiết bị mới được ghi nhớ: ' + name);
+    } else {
+      log('Đăng nhập phiên tạm: ' + name);
+    }
+    st.session = { name, devId, keyId, remember, at: now() };
+    save(); $('#otpIn').value = ''; $('#keyIn').value = ''; $('#webMsg').textContent = '';
+    render(); renderWeb();
+  }
+  $('#logoutBtn').onclick = () => { log('Đăng xuất: ' + (st.session && st.session.name)); st.session = null; save(); renderWeb(); };
+
+  function renderWeb(){
+    const s = st.session;
+    // a remembered session is only valid while its device record still exists
+    const valid = s && (!s.devId || st.devices.some(d => d.id === s.devId)) && (!s.keyId || st.keys.some(k => k.id === s.keyId));
+    if (s && !valid){ st.session = null; save(); }
+    $('#webLogin').hidden = !!valid; $('#webHome').hidden = !valid;
+    if (valid){
+      $('#whoami').textContent = 'Đã đăng nhập • ' + s.name;
+      $('#sessInfo').textContent = s.devId ? 'Thiết bị này được ghi nhớ 90 ngày (tự gia hạn khi dùng). Thu hồi trong app để đăng xuất từ xa.' : 'Phiên tạm: hết khi đóng trình duyệt.';
+      const d = st.devices.find(x => x.id === s.devId); if (d){ d.lastSeen = now(); save(); }
+    }
+  }
+
+  render(); renderWeb(); tick(); setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

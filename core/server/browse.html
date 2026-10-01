@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PocketNAS</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;--acc:#2f6fed;--acc-fg:#fff;--bad:#d64545;--chip:#eef2fd}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c24;--fg:#e6e9ef;--muted:#949cad;--line:#2a303c;--acc:#5b8cff;--acc-fg:#0b0e14;--bad:#f06a6a;--chip:#1f2737}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+header .who{font-size:13px;color:var(--muted)}
+nav{font-size:15px;margin-bottom:12px;word-break:break-all}
+nav a{color:var(--acc);text-decoration:none}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.btn{border:0;border-radius:8px;padding:8px 12px;font:inherit;font-size:14px;cursor:pointer;background:var(--chip);color:var(--fg)}
+.btn.pri{background:var(--acc);color:var(--acc-fg);font-weight:600}
+.list{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row a.name{flex:1;min-width:0;color:var(--fg);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{color:var(--muted);font-size:12px;white-space:nowrap}
+.act{background:none;border:0;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 4px}
+.act:hover{color:var(--bad)}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+#status{font-size:13px;color:var(--muted);min-height:1.5em;margin:8px 0}
+#drop{display:none;position:fixed;inset:0;background:rgba(47,111,237,.15);border:3px dashed var(--acc);place-items:center;font-size:20px;font-weight:600}
+#drop.on{display:grid}
+details{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+summary{cursor:pointer;font-weight:600}
+#speedOut{font:13px ui-monospace,Consolas,monospace;white-space:pre-wrap;margin-top:8px}
+@media (max-width:560px){.meta.date{display:none}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <b>PocketNAS</b>
+  <span><span class="who">{{.Who.Name}}</span>{{if .Who.DeviceID}} <button class="btn" onclick="logout()">Đăng xuất</button>{{end}}</span>
+</header>
+<nav>{{range $i, $c := .Crumbs}}{{if $i}} / {{end}}<a href="{{$c.Href}}">{{$c.Name}}</a>{{end}}</nav>
+
+<div class="bar">
+  <button class="btn pri" onclick="document.getElementById('f').click()">⬆ Tải file lên</button>
+  <button class="btn" onclick="document.getElementById('d').click()">⬆ Tải thư mục lên</button>
+  <button class="btn" onclick="mkdir()">＋ Thư mục mới</button>
+  <input id="f" type="file" multiple hidden>
+  <input id="d" type="file" webkitdirectory hidden>
+</div>
+<div id="status"></div>
+
+<div class="list">
+{{range .Entries}}
+  <div class="row">
+    <span>{{if .IsDir}}📁{{else}}📄{{end}}</span>
+    <a class="name" href="{{.Href}}">{{.Name}}</a>
+    <span class="meta">{{if not .IsDir}}{{size .Size}}{{end}}</span>
+    <span class="meta date">{{.ModTime.Format "02/01/2006 15:04"}}</span>
+    <button class="act" title="Xóa" data-href="{{.Href}}" data-name="{{.Name}}" onclick="del(this)">🗑</button>
+  </div>
+{{else}}
+  <div class="empty">Thư mục trống — kéo thả file vào đây để tải lên.</div>
+{{end}}
+</div>
+
+<details>
+  <summary>Đo tốc độ</summary>
+  <div class="bar" style="margin-top:8px">
+    <button class="btn" onclick="speedDown(100)">Tải về 100 MB</button>
+    <button class="btn" onclick="speedUp(50)">Tải lên 50 MB</button>
+  </div>
+  <div id="speedOut"></div>
+</details>
+</main>
+<div id="drop">Thả để tải lên</div>
+
+<script>
+const BASE = {{.Base}};
+const st = document.getElementById('status');
+const enc = p => p.split('/').map(encodeURIComponent).join('/');
+const mbps = (bytes, ms) => (bytes / 1048576 / (ms / 1000)).toFixed(1) + ' MB/s';
+
+function put(file, rel, i, n){
+  return new Promise((res, rej) => {
+    const x = new XMLHttpRequest(), t0 = performance.now();
+    x.open('PUT', BASE + enc(rel));
+    x.upload.onprogress = e => {
+      if (!e.lengthComputable) return;
+      st.textContent = `Đang tải lên ${i}/${n}: ${rel} — ${Math.round(e.loaded / e.total * 100)}% (${mbps(e.loaded, performance.now() - t0)})`;
+    };
+    x.onload = () => x.status < 300 ? res() : rej(new Error(x.status + ' ' + rel));
+    x.onerror = () => rej(new Error('Mất kết nối: ' + rel));
+    x.send(file);
+  });
+}
+async function mkdirs(dir){
+  // WebDAV PUT needs the parent folder to exist; create each level (405 = already exists).
+  let p = '';
+  for (const seg of dir.split('/').filter(Boolean)) {
+    p += seg + '/';
+    const r = await fetch(BASE + enc(p), {method: 'MKCOL'});
+    if (!r.ok && r.status !== 405) throw new Error('Không tạo được thư mục ' + p);
+  }
+}
+async function upload(items){
+  if (!items.length) return;
+  try {
+    const made = new Set();
+    for (let i = 0; i < items.length; i++) {
+      const dir = items[i].rel.split('/').slice(0, -1).join('/');
+      if (dir && !made.has(dir)) { await mkdirs(dir); made.add(dir); }
+      await put(items[i].file, items[i].rel, i + 1, items.length);
+    }
+    st.textContent = 'Xong.'; location.reload();
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
+document.getElementById('f').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.name})));
+document.getElementById('d').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.webkitRelativePath || f.name})));
+
+async function mkdir(){
+  const n = prompt('Tên thư mục mới:'); if (!n) return;
+  const r = await fetch(BASE + encodeURIComponent(n) + '/', {method: 'MKCOL'});
+  r.ok ? location.reload() : alert('Lỗi ' + r.status);
+}
+async function del(btn){
+  if (!confirm('Xóa "' + btn.dataset.name + '"?')) return;
+  const r = await fetch(btn.dataset.href, {method: 'DELETE'});
+  r.ok ? location.reload() : alert('Lỗi ' + r.status);
+}
+
+async function logout(){
+  await fetch('/__pnas/logout', {method: 'POST'});
+  location.replace('/__pnas/login');
+}
+
+// Drag & drop, including folders.
+const drop = document.getElementById('drop');
+let depth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); depth++; drop.classList.add('on'); });
+addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; drop.classList.remove('on'); } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', async e => {
+  e.preventDefault(); depth = 0; drop.classList.remove('on');
+  const out = [];
+  async function walk(entry, prefix){
+    if (entry.isFile) {
+      const f = await new Promise((res, rej) => entry.file(res, rej));
+      out.push({file: f, rel: prefix + f.name});
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        for (const c of batch) await walk(c, prefix + entry.name + '/');
+      } while (batch.length);
+    }
+  }
+  const entries = [...e.dataTransfer.items].map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+  if (entries.length) { for (const en of entries) await walk(en, ''); }
+  else out.push(...[...e.dataTransfer.files].map(f => ({file: f, rel: f.name})));
+  upload(out);
+});
+
+// Speed test against /__pnas/speed.
+const so = document.getElementById('speedOut');
+async function speedDown(mb){
+  so.textContent += `Tải về ${mb} MB… `;
+  const t0 = performance.now();
+  const r = await fetch('/__pnas/speed?mb=' + mb, {cache: 'no-store'});
+  const reader = r.body.getReader(); let n = 0;
+  for (;;) { const {done, value} = await reader.read(); if (done) break; n += value.length; }
+  so.textContent += mbps(n, performance.now() - t0) + '\n';
+}
+async function speedUp(mb){
+  so.textContent += `Tải lên ${mb} MB… `;
+  const buf = new Uint8Array(mb << 20); crypto.getRandomValues(buf.subarray(0, 65536));
+  const t0 = performance.now();
+  await fetch('/__pnas/speed', {method: 'PUT', body: buf});
+  so.textContent += mbps(buf.length, performance.now() - t0) + '\n';
+}
+</script>
+</body>
+</html>
