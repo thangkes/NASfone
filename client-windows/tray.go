@@ -138,6 +138,15 @@ func (a *app) reload(force bool) {
 	a.mu.Unlock()
 
 	if a.paired {
+		if up, changed := upgradeURL(cfg); changed {
+			cfg = up
+			a.mu.Lock()
+			a.cfg = up
+			if st, err := os.Stat(configPath()); err == nil {
+				a.cfgStamp = st.ModTime() // our own write; don't reload again
+			}
+			a.mu.Unlock()
+		}
 		a.mount.start(cfg)
 		a.mForget.Enable()
 		a.mWeb.Enable()

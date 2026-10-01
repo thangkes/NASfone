@@ -37,7 +37,11 @@ type Options struct {
 	Root string      // directory served as "/"
 	Auth *auth.Store // browser sessions from one-time login codes
 	Pair *pair.Store // paired client apps (bearer tokens)
-	Logf func(format string, args ...any)
+	// PublicURL, if set and non-empty, is the base URL put in pairing
+	// invites (the Funnel https:// address, reachable from anywhere)
+	// instead of whatever address the browser happened to use.
+	PublicURL func() string
+	Logf      func(format string, args ...any)
 }
 
 type handler struct {

@@ -117,11 +117,18 @@ func (h *handler) invite(w http.ResponseWriter, r *http.Request) {
 		Role auth.Role `json:"role"`
 	}
 	json.NewDecoder(io.LimitReader(r.Body, 1024)).Decode(&req)
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+	base := ""
+	if h.opt.PublicURL != nil {
+		base = h.opt.PublicURL()
 	}
-	inv, exp := h.opt.Pair.NewInvite(req.Role, scheme+"://"+r.Host)
+	if base == "" {
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		base = scheme + "://" + r.Host
+	}
+	inv, exp := h.opt.Pair.NewInvite(req.Role, base)
 	h.opt.Logf("%s tạo lời mời ghép đôi (%s)", who.Name, req.Role)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"invite":  inv,

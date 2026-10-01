@@ -181,7 +181,14 @@ func Start(configJSON string, host Host) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store, pairs: pairs}
 	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
-	n.handler = server.NewHandler(server.Options{Root: cfg.RootDir, Auth: store, Pair: pairs, Logf: n.logf})
+	n.handler = server.NewHandler(server.Options{
+		Root: cfg.RootDir, Auth: store, Pair: pairs, Logf: n.logf,
+		PublicURL: func() string {
+			n.mu.Lock()
+			defer n.mu.Unlock()
+			return n.status.FunnelURL // "" when Funnel is off: fall back to the request address
+		},
+	})
 
 	// Embedded Tailscale node.
 	n.ts = &tsnet.Server{
