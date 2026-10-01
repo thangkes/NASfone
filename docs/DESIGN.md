@@ -115,3 +115,9 @@ APK server khung đã cài và chạy được trên máy.
 - `NasService` theo dõi mạng mặc định bằng `ConnectivityManager.registerDefaultNetworkCallback`. Khi có mạng hoặc đổi mạng, sau 1,5 giây (gom các sự kiện dồn dập) sẽ gọi `Mobile.NetworkChanged()`, hàm này chạy LocalAPI `rebind` và `restun`, nên Tailscale tìm đường mới ngay lập tức.
 - Đã kiểm tra trên máy thật: tắt rồi bật lại Wi-Fi, Funnel truy cập lại được nhanh, địa chỉ và phiên đăng nhập trình duyệt giữ nguyên.
 - Thông báo cố định: `Tailnet ✓ (Wi-Fi) • Funnel • N kết nối • ↓x ↑y • N thiết bị`. Tốc độ tính từ bộ đếm byte trên mọi listener (`core/mobile/traffic.go`), cập nhật mỗi 2 giây.
+
+## 12. Chạy nền trên MagicOS (đã kiểm tra, 2026-10-01)
+
+- Bấm "Đóng mọi ứng dụng gần đây" hoặc vuốt xóa thẻ app: foreground service vẫn chạy, PID không đổi, Funnel vẫn trả lời.
+- Server chỉ dừng khi: bấm Dừng (trên thông báo hoặc trong app), Buộc dừng trong Cài đặt, hoặc MagicOS dọn app nếu chưa chỉnh "Khởi chạy ứng dụng".
+- Hướng dẫn người dùng: Pin → Khởi chạy ứng dụng → quản lý thủ công (bật cả 3 mục); khóa thẻ trong đa nhiệm; bật "Tự chạy khi khởi động máy". Cần đưa phần này thành màn hình hướng dẫn trong app (theo từng hãng) trước khi phát hành.
