@@ -93,6 +93,7 @@ var messages = map[string][2]string{
 	"js_opening_app":  {"Opening the NASfone app… ({0} access)", "Đang mở app NASfone… (quyền {0})"},
 	"js_invite_ready": {"Invite ready ({0} access). If the app did not open by itself, click the button below:", "Đã tạo lời mời (quyền {0}). Nếu app chưa tự mở, bấm nút bên dưới:"},
 	"js_open_app":     {"Open the NASfone app", "Mở app NASfone"},
+	"js_sent_to_app":  {"Sent to the NASfone app on this computer — confirm in the dialog it shows.", "Đã gửi tới app NASfone trên máy này — hãy bấm xác nhận trong hộp thoại của app."},
 	"js_copied":       {"Invite copied", "Đã sao chép lời mời"},
 	"js_copy_prompt":  {"Copy the invite:", "Sao chép lời mời:"},
 	"js_speed_down":   {"Download {0} MB… ", "Tải về {0} MB… "},

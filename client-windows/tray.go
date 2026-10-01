@@ -66,6 +66,7 @@ func (a *app) onReady() {
 	go a.watch()
 	go a.menuLoop()
 	go waitShowRequests(a.openWindow) // a second launch of the exe opens this window
+	a.serveLocalPairing()             // the web page hands invites over via 127.0.0.1
 	go waitQuitRequests(systray.Quit) // installer/uninstaller asks us to exit cleanly
 	if a.showAtStart {
 		a.openWindow()
