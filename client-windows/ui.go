@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 
 	webview2 "github.com/jchv/go-webview2"
@@ -52,6 +53,7 @@ func (a *app) openWindow() {
 			AutoFocus: true,
 			WindowOptions: webview2.WindowOptions{
 				Title:  appTitle,
+				IconId: 1, // RT_GROUP_ICON #1 from winres/winres.json
 				Width:  460,
 				Height: 720,
 				Center: true,
@@ -62,7 +64,7 @@ func (a *app) openWindow() {
 			return
 		}
 		a.bind(w)
-		w.SetHtml(uiHTML)
+		w.SetHtml(strings.Replace(uiHTML, "{{ICON}}", iconDataURL(), 1))
 		winMu.Lock()
 		winRef = w
 		winMu.Unlock()
@@ -96,6 +98,7 @@ type uiState struct {
 	RcloneOK   bool     `json:"rcloneOK"`
 	WinFspOK   bool     `json:"winfspOK"`
 	Computer   string   `json:"computer"`
+	Version    string   `json:"version"`
 }
 
 func (a *app) state() uiState {
@@ -108,7 +111,7 @@ func (a *app) state() uiState {
 		Paired: paired, URL: cfg.URL, Role: string(cfg.Role), DeviceName: cfg.Name,
 		Drive: drive, Mounted: mounted, Autostart: autostartEnabled(),
 		PrefDrive: getSettings().Drive, FreeDrives: freeLetters(), Busy: busy, Notice: notice,
-		DataDir: dataDir(), RcloneOK: rcErr == nil, WinFspOK: winfspInstalled(), Computer: computerName(),
+		DataDir: dataDir(), RcloneOK: rcErr == nil, WinFspOK: winfspInstalled(), Computer: computerName(), Version: appVersion,
 	}
 	if paired {
 		s.Host = cfg.URL

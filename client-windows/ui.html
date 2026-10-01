@@ -11,7 +11,7 @@ html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;user-select:none;overflow-y:auto}
 main{padding:18px 18px 24px}
 header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.logo{width:42px;height:42px;border-radius:11px;background:var(--acc);display:grid;place-items:center;color:var(--acc-fg);font-weight:800;font-size:20px;flex:none}
+.logo{width:42px;height:42px;flex:none}
 header h1{font-size:18px;margin:0;line-height:1.2}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;margin-top:2px;color:var(--muted)}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
@@ -61,7 +61,7 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
 <body>
 <main>
   <header>
-    <div class="logo">P</div>
+    <img class="logo" src="{{ICON}}" alt="">
     <div>
       <h1>PocketNAS</h1>
       <div class="pill" id="pill"><span class="dot"></span><span id="statusText">…</span></div>
@@ -128,7 +128,7 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
   </div>
 
   <footer>
-    <button onclick="pnOpenLogs()">Thư mục dữ liệu &amp; log</button>
+    <span><button onclick="pnOpenLogs()">Thư mục dữ liệu &amp; log</button> <span class="muted" id="ver"></span></span>
     <button class="danger" id="btnUnpair" onclick="pnUnpair()" hidden>Hủy ghép đôi</button>
   </footer>
 </main>
@@ -174,6 +174,7 @@ function render(s){
   $('btnPair').disabled = s.busy;
   $('btnPair').textContent = s.busy ? 'Đang ghép đôi…' : 'Ghép đôi';
   $('auto').checked = s.autostart;
+  $('ver').textContent = 'v' + s.version;
 
   // Drive letter choices: free letters plus the current preference.
   const opts = Array.from(new Set([s.prefDrive, ...(s.freeDrives || [])])).sort();

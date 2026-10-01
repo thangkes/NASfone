@@ -7,6 +7,9 @@
 //	PocketNAS.exe                     run the tray app
 //	PocketNAS.exe pocketnas://pair?…  pair with the server in the link
 //	PocketNAS.exe token               print a fresh bearer token (used by rclone)
+//	PocketNAS.exe --quit              ask the running app to exit (unmounts first)
+//	PocketNAS.exe --cleanup[-all]     uninstall hook: quit, remove pocketnas:// and
+//	                                  autostart (and with -all, pairing data)
 package main
 
 import (
@@ -24,10 +27,27 @@ import (
 )
 
 func main() {
+	args := os.Args[1:]
+	// Installer / uninstaller hooks; they must not re-register anything.
+	if len(args) == 1 {
+		switch args[0] {
+		case "--quit":
+			if requestQuit() {
+				waitForExit(15 * time.Second)
+			}
+			return
+		case "--cleanup":
+			cleanup(false)
+			return
+		case "--cleanup-all":
+			cleanup(true)
+			return
+		}
+	}
+
 	exe, _ := os.Executable()
 	registerProtocol(exe) // keep the pocketnas:// handler pointing at this copy
 
-	args := os.Args[1:]
 	switch {
 	case len(args) == 1 && args[0] == "token":
 		os.Exit(printToken())
@@ -48,6 +68,9 @@ func main() {
 }
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
+
+// appVersion is set at build time (-X main.appVersion=…).
+var appVersion = "dev"
 
 // printToken is called by rclone (--webdav-bearer-token-command). It must
 // print only the token on stdout.

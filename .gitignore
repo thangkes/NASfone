@@ -22,3 +22,8 @@ Thumbs.db
 # gomobile output (build with scripts/build-server.ps1)
 server-android/app/libs/
 client-android/app/libs/
+
+# Windows client build outputs and bundled third-party binaries
+client-windows/dist/
+client-windows/installer/deps/
+client-windows/rsrc_windows_*.syso

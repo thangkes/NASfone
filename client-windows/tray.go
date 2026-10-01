@@ -65,6 +65,7 @@ func (a *app) onReady() {
 	go a.watch()
 	go a.menuLoop()
 	go waitShowRequests(a.openWindow) // a second launch of the exe opens this window
+	go waitQuitRequests(systray.Quit) // installer/uninstaller asks us to exit cleanly
 	if a.showAtStart {
 		a.openWindow()
 	}
