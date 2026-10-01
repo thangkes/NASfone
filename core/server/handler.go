@@ -87,8 +87,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = r.WithContext(context.WithValue(r.Context(), whoKey{}, who))
-	if r.URL.Path == "/__pnas/speed" {
+	switch {
+	case r.URL.Path == "/__pnas/speed":
 		h.speed(w, r)
+		return
+	case r.URL.Path == conflictsPath:
+		h.conflicts(w, r)
+		return
+	case r.Method == http.MethodPut:
+		h.put(w, r)
 		return
 	}
 	if (r.Method == http.MethodGet || r.Method == http.MethodHead) && h.isDir(r.URL.Path) {
@@ -139,6 +146,9 @@ func (h *handler) browse(w http.ResponseWriter, r *http.Request) {
 	}
 	var entries []entry
 	for _, de := range des {
+		if strings.HasPrefix(de.Name(), tmpPrefix) {
+			continue // upload in progress
+		}
 		fi, err := de.Info()
 		if err != nil {
 			continue

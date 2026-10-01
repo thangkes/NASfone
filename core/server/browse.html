@@ -31,6 +31,16 @@ nav a{color:var(--acc);text-decoration:none}
 details{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 summary{cursor:pointer;font-weight:600}
 #speedOut{font:13px ui-monospace,Consolas,monospace;white-space:pre-wrap;margin-top:8px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;padding:16px;z-index:10}
+.modal.on{display:grid}
+.modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(440px,100%)}
+.modal h3{margin:0 0 8px;font-size:17px}
+.modal p{margin:0 0 12px;word-break:break-all}
+.modal .fname{font-weight:600}
+.modal .choices{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.modal .choices .btn{text-align:left;padding:10px 12px}
+.modal .choices small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.modal label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
 @media (max-width:560px){.meta.date{display:none}}
 </style>
 </head>
@@ -75,6 +85,18 @@ summary{cursor:pointer;font-weight:600}
 </details>
 </main>
 <div id="drop">Thả để tải lên</div>
+<div class="modal" id="dup" role="dialog" aria-modal="true" aria-labelledby="dupTitle">
+  <div class="box">
+    <h3 id="dupTitle">File đã tồn tại</h3>
+    <p><span class="fname" id="dupName"></span> đã có trong thư mục này. Bạn muốn làm gì?</p>
+    <label id="dupAllWrap"><input type="checkbox" id="dupAll"> <span id="dupAllText"></span></label>
+    <div class="choices">
+      <button class="btn" data-choice="overwrite">Ghi đè bằng bản mới<small>File cũ sẽ bị thay thế</small></button>
+      <button class="btn pri" data-choice="keep">Lưu thành bản thứ 2<small id="dupAlt"></small></button>
+      <button class="btn" data-choice="skip">Bỏ qua<small>Giữ nguyên file cũ, không tải file này lên</small></button>
+    </div>
+  </div>
+</div>
 
 <script>
 const BASE = {{.Base}};
@@ -82,21 +104,26 @@ const st = document.getElementById('status');
 const enc = p => p.split('/').map(encodeURIComponent).join('/');
 const mbps = (bytes, ms) => (bytes / 1048576 / (ms / 1000)).toFixed(1) + ' MB/s';
 
-function put(file, rel, i, n){
+const DIR = decodeURIComponent(BASE); // folder path as the server sees it
+
+// put uploads one file. With noOverwrite the server refuses (412) if the
+// name is already taken, so nothing is ever overwritten by accident.
+function put(file, rel, i, n, noOverwrite){
   return new Promise((res, rej) => {
     const x = new XMLHttpRequest(), t0 = performance.now();
     x.open('PUT', BASE + enc(rel));
+    if (noOverwrite) x.setRequestHeader('If-None-Match', '*');
     x.upload.onprogress = e => {
       if (!e.lengthComputable) return;
       st.textContent = `Đang tải lên ${i}/${n}: ${rel} — ${Math.round(e.loaded / e.total * 100)}% (${mbps(e.loaded, performance.now() - t0)})`;
     };
-    x.onload = () => x.status < 300 ? res() : rej(new Error(x.status + ' ' + rel));
+    x.onload = () => x.status < 300 ? res() : rej(Object.assign(new Error(x.status + ' ' + rel), {status: x.status}));
     x.onerror = () => rej(new Error('Mất kết nối: ' + rel));
     x.send(file);
   });
 }
 async function mkdirs(dir){
-  // WebDAV PUT needs the parent folder to exist; create each level (405 = already exists).
+  // PUT needs the parent folder to exist; create each level (405 = already exists).
   let p = '';
   for (const seg of dir.split('/').filter(Boolean)) {
     p += seg + '/';
@@ -104,16 +131,78 @@ async function mkdirs(dir){
     if (!r.ok && r.status !== 405) throw new Error('Không tạo được thư mục ' + p);
   }
 }
+// conflicts returns {rel: "free alternative name"} for every rel that already exists.
+async function conflicts(rels){
+  const r = await fetch('/__pnas/conflicts', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({base: DIR, paths: rels}),
+  });
+  if (!r.ok) throw new Error('Không kiểm tra được file trùng (' + r.status + ')');
+  return (await r.json()).conflicts || {};
+}
+
+// askDup shows the duplicate dialog and resolves to {choice, all}.
+function askDup(rel, alt, othersLeft){
+  const m = document.getElementById('dup');
+  document.getElementById('dupName').textContent = '“' + rel + '”';
+  document.getElementById('dupAlt').textContent = 'Lưu với tên “' + alt + '”';
+  document.getElementById('dupAll').checked = false;
+  document.getElementById('dupAllWrap').style.display = othersLeft > 0 ? '' : 'none';
+  document.getElementById('dupAllText').textContent = `Áp dụng cho ${othersLeft} file trùng còn lại`;
+  m.classList.add('on');
+  return new Promise(res => {
+    m.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
+      m.classList.remove('on');
+      res({choice: b.dataset.choice, all: document.getElementById('dupAll').checked});
+    });
+  });
+}
+
 async function upload(items){
   if (!items.length) return;
+  const sum = {created: 0, overwritten: 0, kept: 0, skipped: 0};
   try {
+    st.textContent = 'Đang kiểm tra file trùng…';
+    const dup = await conflicts(items.map(it => it.rel));
+    let dupLeft = items.filter(it => dup[it.rel]).length;
+    let applyAll = null;
     const made = new Set();
     for (let i = 0; i < items.length; i++) {
-      const dir = items[i].rel.split('/').slice(0, -1).join('/');
+      let rel = items[i].rel, mode = 'new';
+      if (dup[rel]) {
+        dupLeft--;
+        let c = applyAll;
+        if (!c) {
+          const ans = await askDup(rel, dup[rel], dupLeft);
+          c = ans.choice;
+          if (ans.all) applyAll = c;
+        }
+        if (c === 'skip') { sum.skipped++; continue; }
+        if (c === 'keep') { rel = dup[rel]; mode = 'keep'; }
+        if (c === 'overwrite') mode = 'overwrite';
+      }
+      const dir = rel.split('/').slice(0, -1).join('/');
       if (dir && !made.has(dir)) { await mkdirs(dir); made.add(dir); }
-      await put(items[i].file, items[i].rel, i + 1, items.length);
+      try {
+        await put(items[i].file, rel, i + 1, items.length, mode !== 'overwrite');
+      } catch (e) {
+        if (e.status !== 412) throw e;
+        // Someone else created this name meanwhile: ask again with a fresh alternative.
+        const alt = (await conflicts([rel]))[rel];
+        const ans = await askDup(rel, alt, 0);
+        if (ans.choice === 'skip') { sum.skipped++; continue; }
+        if (ans.choice === 'keep') { rel = alt; mode = 'keep'; } else mode = 'overwrite';
+        await put(items[i].file, rel, i + 1, items.length, mode !== 'overwrite');
+      }
+      sum[mode === 'overwrite' ? 'overwritten' : mode === 'keep' ? 'kept' : 'created']++;
     }
-    st.textContent = 'Xong.'; location.reload();
+    const parts = [];
+    if (sum.created) parts.push(`${sum.created} file mới`);
+    if (sum.overwritten) parts.push(`${sum.overwritten} ghi đè`);
+    if (sum.kept) parts.push(`${sum.kept} lưu bản thứ 2`);
+    if (sum.skipped) parts.push(`${sum.skipped} bỏ qua`);
+    st.textContent = '✔ Xong: ' + parts.join(', ') + '.';
+    setTimeout(() => location.reload(), 1200);
   } catch (e) { st.textContent = '❌ ' + e.message; }
 }
 document.getElementById('f').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.name})));
