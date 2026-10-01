@@ -108,3 +108,10 @@ APK server khung đã cài và chạy được trên máy.
 - **Lỗi của tsnet trên Android:** `tailscale.com/ipn/localapi/cert.go` có build tag `!android`, nên tsnet không xin được chứng chỉ (LocalAPI trả 404, bắt tay TLS lỗi `SSL_ERROR_INTERNAL_ERROR_ALERT`). Cách sửa: `core/mobile/cert_android.go` tự đăng ký lại endpoint `cert/` qua `localapi.Register`, gọi `LocalBackend.GetCertPEMWithValidity`. Phải kiểm tra lại mỗi khi nâng cấp tailscale.com.
 - App xin chứng chỉ ngay khi Funnel mở (lần đầu khoảng 40 giây), và ghi lỗi bắt tay TLS vào nhật ký với tần suất có giới hạn.
 - Truy cập công khai đi qua relay Funnel của Tailscale (IP 103.84.155.x); trong tailnet thì đi thẳng.
+
+## 11. Mất mạng / đổi mạng (đã làm, 2026-10-01)
+
+- Server **không dừng khi mất mạng**. Thông báo hiện "⚠ Mất mạng, đang chờ kết nối lại".
+- `NasService` theo dõi mạng mặc định bằng `ConnectivityManager.registerDefaultNetworkCallback`. Khi có mạng hoặc đổi mạng, sau 1,5 giây (gom các sự kiện dồn dập) sẽ gọi `Mobile.NetworkChanged()`, hàm này chạy LocalAPI `rebind` và `restun`, nên Tailscale tìm đường mới ngay lập tức.
+- Đã kiểm tra trên máy thật: tắt rồi bật lại Wi-Fi, Funnel truy cập lại được nhanh, địa chỉ và phiên đăng nhập trình duyệt giữ nguyên.
+- Thông báo cố định: `Tailnet ✓ (Wi-Fi) • Funnel • N kết nối • ↓x ↑y • N thiết bị`. Tốc độ tính từ bộ đếm byte trên mọi listener (`core/mobile/traffic.go`), cập nhật mỗi 2 giây.

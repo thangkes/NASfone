@@ -21,6 +21,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 object Core : Host {
     @Volatile var running = false
     @Volatile var startError: String? = null
+    /** Loại mạng hiện tại ("Wi-Fi", "4G/5G"…); "" = mất mạng; null = chưa biết. */
+    @Volatile var networkType: String? = null
     @Volatile var status: JSONObject = JSONObject()
         private set
 

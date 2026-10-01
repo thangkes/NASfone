@@ -9,8 +9,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.IBinder
 import android.os.PowerManager
 import com.pocketnas.core.mobile.Mobile
@@ -23,6 +28,25 @@ class NasService : Service() {
     private var wifiLock: WifiManager.WifiLock? = null
     private var lastNotifText = ""
     private val onChange: () -> Unit = { updateNotification() }
+
+    // Đo tốc độ từ chênh lệch bộ đếm byte giữa hai lần cập nhật trạng thái.
+    private var lastIn = -1L
+    private var lastOut = -1L
+    private var lastAt = 0L
+    private var speedIn = 0.0
+    private var speedOut = 0.0
+
+    private val main = Handler(Looper.getMainLooper())
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
+    private var lastNetwork: Network? = null
+    private val nudge = Runnable { thread(name = "pnas-netchange") { Mobile.networkChanged() } }
+    // Cập nhật định kỳ để tốc độ về 0 khi hết truyền (trạng thái khi đó không đổi nên không có sự kiện).
+    private val tick = object : Runnable {
+        override fun run() {
+            updateNotification()
+            main.postDelayed(this, 2000)
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -38,7 +62,9 @@ class NasService : Service() {
             Core.running = true
             Core.startError = null
             acquireLocks()
+            watchNetwork()
             Core.addListener(onChange)
+            main.postDelayed(tick, 2000)
             val prefs = Prefs(this)
             val cfg = JSONObject()
                 .put("stateDir", prefs.stateDir.path)
@@ -69,6 +95,11 @@ class NasService : Service() {
 
     override fun onDestroy() {
         Core.removeListener(onChange)
+        netCallback?.let { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(it) }
+        netCallback = null
+        main.removeCallbacks(nudge)
+        main.removeCallbacks(tick)
+        Core.networkType = null
         if (Core.running) {
             Core.running = false
             // ts.Close() có thể mất vài giây; không chặn luồng chính.
@@ -87,17 +118,91 @@ class NasService : Service() {
         wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PocketNAS:wifi").apply { acquire() }
     }
 
+    /**
+     * Theo dõi mạng mặc định (Wi-Fi, 4G…). Khi đổi mạng thì báo lõi Go nối lại
+     * Tailscale ngay, thay vì đợi các kết nối cũ tự hết hạn.
+     */
+    private fun watchNetwork() {
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                val type = when {
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "4G/5G"
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
+                    else -> "mạng khác"
+                }
+                val changed = network != lastNetwork
+                lastNetwork = network
+                if (Core.networkType != type || changed) {
+                    val first = Core.networkType == null
+                    Core.networkType = type
+                    if (!first) {
+                        Core.log("Đã chuyển sang $type")
+                        // Gom các sự kiện dồn dập khi đổi mạng thành một lần nối lại.
+                        main.removeCallbacks(nudge)
+                        main.postDelayed(nudge, 1500)
+                    }
+                    Core.notifyChanged()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                if (network == lastNetwork) {
+                    lastNetwork = null
+                    Core.networkType = ""
+                    Core.log("Mất kết nối mạng")
+                    Core.notifyChanged()
+                }
+            }
+        }
+        cm.registerDefaultNetworkCallback(cb)
+        netCallback = cb
+    }
+
     private fun updateNotification() {
         if (!Core.running) return
         val st = Core.status
-        val text = when (st.optString("backendState")) {
-            "Running" -> st.optString("dnsName").ifEmpty { "Tailnet đã kết nối" } +
-                if (st.optString("funnelURL").isNotEmpty()) " • Funnel bật" else ""
-            "NeedsLogin" -> "Chờ đăng nhập Tailscale"
-            "" -> "Đang khởi động…"
-            else -> st.optString("backendState")
+
+        val now = System.currentTimeMillis()
+        val bin = st.optLong("bytesIn", 0)
+        val bout = st.optLong("bytesOut", 0)
+        if (lastIn >= 0 && now > lastAt) {
+            val secs = (now - lastAt) / 1000.0
+            if (secs >= 0.5) {
+                speedIn = (bin - lastIn).coerceAtLeast(0) / secs
+                speedOut = (bout - lastOut).coerceAtLeast(0) / secs
+                lastIn = bin; lastOut = bout; lastAt = now
+            }
+        } else {
+            lastIn = bin; lastOut = bout; lastAt = now
         }
+
+        val parts = mutableListOf<String>()
+        val net = Core.networkType
+        when {
+            net == "" -> parts += "⚠ Mất mạng, đang chờ kết nối lại"
+            st.optString("backendState") == "Running" -> parts += "Tailnet ✓" + (net?.let { " ($it)" } ?: "")
+            st.optString("backendState") == "NeedsLogin" -> parts += "Chờ đăng nhập Tailscale"
+            st.optString("backendState").isEmpty() -> parts += "Đang khởi động…"
+            else -> parts += st.optString("backendState")
+        }
+        if (st.optString("funnelURL").isNotEmpty()) parts += "Funnel"
+        val conns = st.optInt("openConns")
+        if (conns > 0) parts += "$conns kết nối"
+        // ↓ = người dùng đang tải về (server gửi đi), ↑ = đang tải lên.
+        if (speedOut >= 1024 || speedIn >= 1024) parts += "↓${rate(speedOut)} ↑${rate(speedIn)}"
+        val sessions = st.optInt("sessions")
+        if (sessions > 0) parts += "$sessions thiết bị"
+
+        val text = parts.joinToString(" • ")
         if (text != lastNotifText) startInForeground(text)
+    }
+
+    private fun rate(bps: Double): String = when {
+        bps >= 1024 * 1024 -> "%.1f MB/s".format(bps / 1024 / 1024)
+        bps >= 1024 -> "%.0f KB/s".format(bps / 1024)
+        else -> "0"
     }
 
     private fun startInForeground(text: String) {
@@ -117,6 +222,7 @@ class NasService : Service() {
             .setContentTitle("PocketNAS đang chạy")
             .setContentText(text)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(open)
             .addAction(Notification.Action.Builder(Icon.createWithResource(this, R.drawable.ic_stat), "Dừng", stop).build())
             .build()

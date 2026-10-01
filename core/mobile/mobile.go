@@ -65,6 +65,13 @@ type Status struct {
 	FunnelError  string   `json:"funnelError,omitempty"`
 	FunnelHelp   string   `json:"funnelHelpURL,omitempty"` // admin page that fixes FunnelError
 	Error        string   `json:"error,omitempty"`
+
+	// Activity, for the notification. Byte counters are cumulative since
+	// start; the app turns deltas into speeds.
+	OpenConns int   `json:"openConns"`
+	BytesIn   int64 `json:"bytesIn"`
+	BytesOut  int64 `json:"bytesOut"`
+	Sessions  int   `json:"sessions"`
 }
 
 type node struct {
@@ -76,6 +83,7 @@ type node struct {
 
 	ts      *tsnet.Server
 	auth    *auth.Store
+	traffic traffic
 	handler http.Handler
 	servers []*http.Server
 
@@ -305,6 +313,30 @@ func RevokeAllDevices() {
 	}
 }
 
+// NetworkChanged tells the Tailscale engine that the phone's network changed
+// (Wi-Fi <-> mobile data, new Wi-Fi). Android does not let apps watch routing
+// changes directly, so without this nudge the engine may keep using dead
+// sockets for a while. Rebinding and re-STUNing finds a new path at once.
+func NetworkChanged() {
+	n := get()
+	if n == nil {
+		return
+	}
+	lc, err := n.ts.LocalClient()
+	if err != nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(n.ctx, 10*time.Second)
+	defer cancel()
+	for _, a := range []string{"rebind", "restun"} {
+		if err := lc.DebugAction(ctx, a); err != nil {
+			n.logf("Đổi mạng (%s): %v", a, err)
+		}
+	}
+	n.logf("Mạng thay đổi, đã kết nối lại Tailscale")
+	n.refresh()
+}
+
 // CurrentStatus returns the latest status JSON ("" when stopped).
 func CurrentStatus() string {
 	n := get()
@@ -327,6 +359,7 @@ func (n *node) logf(format string, args ...any) {
 }
 
 func (n *node) serve(ln net.Listener, name string) *http.Server {
+	ln = n.traffic.wrap(ln)
 	srv := &http.Server{Handler: server.WithVia(n.handler, name), ReadHeaderTimeout: 30 * time.Second}
 	n.mu.Lock()
 	n.servers = append(n.servers, srv)
@@ -420,6 +453,10 @@ func (n *node) refresh() {
 	if needLogin {
 		n.loginRequested = true
 	}
+	s.OpenConns = int(n.traffic.open.Load())
+	s.BytesIn = n.traffic.bytesIn.Load()
+	s.BytesOut = n.traffic.bytesOut.Load()
+	s.Sessions = len(n.auth.List())
 	wantFunnel := n.cfg.Funnel && st.BackendState == ipn.Running.String() && n.funnelSrv == nil &&
 		(n.status.FunnelError == "" || time.Since(n.funnelErrAt) > funnelRetry)
 	n.mu.Unlock()
@@ -441,6 +478,9 @@ func (n *node) refresh() {
 
 func (n *node) startFunnel() {
 	ln, err := n.ts.ListenFunnel("tcp", ":443")
+	if err == nil {
+		ln = n.traffic.wrap(ln)
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if err != nil {
