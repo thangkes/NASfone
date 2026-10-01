@@ -29,7 +29,8 @@ var loginTmpl = template.Must(template.New("login").Parse(loginHTML))
 // Who describes the authenticated caller of a request.
 type Who struct {
 	Name     string // device name chosen at sign-in
-	DeviceID string
+	DeviceID string // browser session ID (empty for paired apps)
+	AppID    string // paired app device ID (empty for browsers)
 	Role     auth.Role
 }
 
@@ -75,6 +76,12 @@ func clientIP(r *http.Request) string {
 }
 
 func (h *handler) authenticate(r *http.Request) (Who, bool) {
+	if t := bearerToken(r); t != "" && h.opt.Pair != nil {
+		if d, ok := h.opt.Pair.CheckToken(t, clientIP(r), viaFrom(r)); ok {
+			return Who{Name: d.Name, AppID: d.ID, Role: d.Role}, true
+		}
+		return Who{}, false
+	}
 	if c, err := r.Cookie(cookieName); err == nil && h.opt.Auth != nil {
 		if d, ok := h.opt.Auth.Check(c.Value, clientIP(r), viaFrom(r)); ok {
 			return Who{Name: d.Name, DeviceID: d.ID, Role: d.Role}, true

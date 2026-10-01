@@ -60,6 +60,7 @@ summary{cursor:pointer;font-weight:600}
   <button class="btn pri" onclick="document.getElementById('f').click()">⬆ Tải file lên</button>
   <button class="btn" onclick="document.getElementById('d').click()">⬆ Tải thư mục lên</button>
   <button class="btn" onclick="mkdir()">＋ Thư mục mới</button>
+  <button class="btn" onclick="openPair()">🔗 Kết nối app trên máy này</button>
   <input id="f" type="file" multiple hidden>
   <input id="d" type="file" webkitdirectory hidden>
 </div>{{end}}
@@ -89,6 +90,22 @@ summary{cursor:pointer;font-weight:600}
 </details>
 </main>
 <div id="drop">Thả để tải lên</div>
+<div class="modal" id="pairBox" role="dialog" aria-modal="true" aria-labelledby="pairTitle">
+  <div class="box">
+    <h3 id="pairTitle">Kết nối app PocketNAS trên máy này</h3>
+    <p class="small" style="color:var(--muted)">App sẽ được ghép đôi bằng cặp khóa riêng và kết nối liên tục, không cần nhập mã nữa.</p>
+    <div class="choices">
+      <button class="btn" data-role="admin">Quyền Admin<small>Toàn quyền: tải lên, ghi đè, xóa</small></button>
+      <button class="btn pri" data-role="user">Quyền User<small>Chỉ xem và tải về</small></button>
+    </div>
+    <div id="pairResult" style="display:none;margin-top:12px;font-size:13px">
+      <p id="pairMsg"></p>
+      <p style="color:var(--muted)">Chưa mở được app? Sao chép lời mời rồi dán vào app (hết hạn sau 5 phút, dùng 1 lần):</p>
+      <button class="btn" id="pairCopy">Sao chép lời mời</button>
+    </div>
+    <div class="choices"><button class="btn" onclick="document.getElementById('pairBox').classList.remove('on')">Đóng</button></div>
+  </div>
+</div>
 <div class="modal" id="dup" role="dialog" aria-modal="true" aria-labelledby="dupTitle">
   <div class="box">
     <h3 id="dupTitle">File đã tồn tại</h3>
@@ -222,6 +239,25 @@ async function del(btn){
   if (!confirm('Xóa "' + btn.dataset.name + '"?')) return;
   const r = await fetch(btn.dataset.href, {method: 'DELETE'});
   r.ok ? location.reload() : alert('Lỗi ' + r.status);
+}
+
+function openPair(){
+  const box = document.getElementById('pairBox');
+  document.getElementById('pairResult').style.display = 'none';
+  box.querySelectorAll('[data-role]').forEach(b => b.onclick = async () => {
+    const r = await fetch('/__pnas/invite', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({role: b.dataset.role})});
+    if (!r.ok) { alert('Không tạo được lời mời (' + r.status + ')'); return; }
+    const j = await r.json();
+    document.getElementById('pairResult').style.display = '';
+    document.getElementById('pairMsg').textContent = 'Đang mở app PocketNAS… (quyền ' + (b.dataset.role === 'admin' ? 'Admin' : 'User') + ')';
+    document.getElementById('pairCopy').onclick = () => {
+      // navigator.clipboard only exists on HTTPS; fall back to a prompt the user can copy from.
+      if (navigator.clipboard) navigator.clipboard.writeText(j.invite).then(() => alert('Đã sao chép lời mời'), () => prompt('Sao chép lời mời:', j.invite));
+      else prompt('Sao chép lời mời:', j.invite);
+    };
+    location.href = j.link; // hands the invite to the installed app via pocketnas://
+  });
+  box.classList.add('on');
 }
 
 async function logout(){

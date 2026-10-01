@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"pocketnas/core/auth"
+	"pocketnas/core/pair"
 	"pocketnas/core/server"
 
 	"tailscale.com/envknob"
@@ -83,6 +85,7 @@ type node struct {
 
 	ts      *tsnet.Server
 	auth    *auth.Store
+	pairs   *pair.Store
 	traffic traffic
 	handler http.Handler
 	servers []*http.Server
@@ -167,11 +170,18 @@ func Start(configJSON string, host Host) error {
 		return fmt.Errorf("auth store: %w", err)
 	}
 	store.OnEvent = host.OnEvent
+	// Paired apps and the server identity key live apart from the tailnet
+	// state, so switching Tailscale accounts does not unpair anything.
+	pairs, err := pair.Open(filepath.Join(filepath.Dir(cfg.StateDir), "pair"))
+	if err != nil {
+		return fmt.Errorf("pair store: %w", err)
+	}
+	pairs.OnEvent = host.OnEvent
 
 	ctx, cancel := context.WithCancel(context.Background())
-	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store}
+	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store, pairs: pairs}
 	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
-	n.handler = server.NewHandler(server.Options{Root: cfg.RootDir, Auth: store, Logf: n.logf})
+	n.handler = server.NewHandler(server.Options{Root: cfg.RootDir, Auth: store, Pair: pairs, Logf: n.logf})
 
 	// Embedded Tailscale node.
 	n.ts = &tsnet.Server{
@@ -337,6 +347,65 @@ func NetworkChanged() {
 	}
 	n.logf("Mạng thay đổi, đã kết nối lại Tailscale")
 	n.refresh()
+}
+
+// NewPairInvite creates a one-time invite for a client app with role "admin"
+// or "user": {"invite":"pnas1:…","link":"pocketnas://pair?i=…","expires":<ms>,"fp":"ABCD-…"}.
+// The invite points at the Funnel URL when Funnel is open (works anywhere),
+// otherwise at the tailnet name.
+func NewPairInvite(role string) (string, error) {
+	n := get()
+	if n == nil {
+		return "", errors.New("server chưa chạy")
+	}
+	n.mu.Lock()
+	base := n.status.FunnelURL
+	if base == "" && n.status.DNSName != "" {
+		base = "http://" + n.status.DNSName
+	}
+	n.mu.Unlock()
+	if base == "" {
+		return "", errors.New("chưa kết nối Tailscale nên chưa có địa chỉ để mời")
+	}
+	inv, exp := n.pairs.NewInvite(auth.Role(role), base)
+	b, _ := json.Marshal(map[string]any{
+		"invite":  inv,
+		"link":    "pocketnas://pair?i=" + url.QueryEscape(inv),
+		"expires": exp.UnixMilli(),
+		"fp":      pair.ShortFP(n.pairs.Fingerprint()),
+	})
+	return string(b), nil
+}
+
+// PairedDevices returns paired client apps as a JSON array.
+func PairedDevices() string {
+	n := get()
+	if n == nil {
+		return "[]"
+	}
+	b, _ := json.Marshal(n.pairs.List())
+	return string(b)
+}
+
+// RevokePaired unpairs a client app.
+func RevokePaired(id string) bool {
+	n := get()
+	return n != nil && n.pairs.Revoke(id)
+}
+
+// SetPairedRole changes a paired app's role ("admin" or "user").
+func SetPairedRole(id, role string) bool {
+	n := get()
+	return n != nil && n.pairs.SetRole(id, auth.Role(role))
+}
+
+// ServerFingerprint is the short fingerprint of the server identity key.
+func ServerFingerprint() string {
+	n := get()
+	if n == nil {
+		return ""
+	}
+	return pair.ShortFP(n.pairs.Fingerprint())
 }
 
 // CurrentStatus returns the latest status JSON ("" when stopped).

@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/webdav"
 
 	"pocketnas/core/auth"
+	"pocketnas/core/pair"
 )
 
 //go:embed browse.html
@@ -35,6 +36,7 @@ var browseTmpl = template.Must(template.New("browse").Funcs(template.FuncMap{
 type Options struct {
 	Root string      // directory served as "/"
 	Auth *auth.Store // browser sessions from one-time login codes
+	Pair *pair.Store // paired client apps (bearer tokens)
 	Logf func(format string, args ...any)
 }
 
@@ -75,6 +77,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logout(w, r)
 		return
 	}
+	if h.pairingPublic(w, r) {
+		return
+	}
 	who, ok := h.authenticate(r)
 	if !ok {
 		if r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/html") {
@@ -93,6 +98,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case r.URL.Path == invitePath:
+		h.invite(w, r)
+		return
 	case r.URL.Path == "/__pnas/speed":
 		h.speed(w, r)
 		return
