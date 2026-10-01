@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"pocketnas/core/auth"
+	"pocketnas/core/pair"
 	"pocketnas/core/server"
 )
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8787", "listen address (keep it on localhost)")
+	invite := flag.String("invite", "", `print a one-time pairing invite for role "admin" or "user" at start`)
 	root := flag.String("root", filepath.Join(os.TempDir(), "pnas-dev-root"), "folder to serve")
 	flag.Parse()
 
@@ -34,7 +36,16 @@ func main() {
 			time.Sleep(time.Until(exp) + 100*time.Millisecond)
 		}
 	}()
-	h := server.WithVia(server.NewHandler(server.Options{Root: *root, Auth: store, Logf: log.Printf}), "Dev")
+	pairs, err := pair.Open(filepath.Join(*root, "..", "pnas-dev-pair"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	pairs.OnEvent = func(kind, detail string) { log.Printf("event %s: %s", kind, detail) }
+	if *invite != "" {
+		inv, _ := pairs.NewInvite(auth.Role(*invite), "http://"+*addr)
+		log.Printf("invite (%s): %s", *invite, inv)
+	}
+	h := server.WithVia(server.NewHandler(server.Options{Root: *root, Auth: store, Pair: pairs, Logf: log.Printf}), "Dev")
 	log.Printf("serving %s on http://%s", *root, *addr)
 	log.Fatal(http.ListenAndServe(*addr, h))
 }
