@@ -26,12 +26,18 @@ type app struct {
 	cfgStamp  time.Time
 	connected bool
 	connErr   string
+	busy      bool   // pairing in progress
+	notice    string // message for the window
 
-	mStatus, mOpen, mWeb, mPair, mAuto, mForget, mQuit *systray.MenuItem
+	showAtStart bool
+
+	mWindow, mStatus, mOpen, mWeb, mPair, mAuto, mForget, mQuit *systray.MenuItem
 }
 
-func runTray() {
-	a := &app{}
+// runTray runs the tray icon; showWindow opens the app window right away
+// (normal launch) as opposed to a quiet start with Windows.
+func runTray(showWindow bool) {
+	a := &app{showAtStart: showWindow}
 	systray.Run(a.onReady, func() { a.mount.stopMount() })
 }
 
@@ -39,7 +45,10 @@ func (a *app) onReady() {
 	systray.SetIcon(trayIcon())
 	systray.SetTitle(appTitle)
 	systray.SetTooltip(appTitle)
+	systray.SetOnTapped(a.openWindow) // left click opens the window; right click shows the menu
 
+	a.mWindow = systray.AddMenuItem("Mở cửa sổ PocketNAS", "")
+	systray.AddSeparator()
 	a.mStatus = systray.AddMenuItem("Đang khởi động…", "")
 	a.mStatus.Disable()
 	systray.AddSeparator()
@@ -55,12 +64,18 @@ func (a *app) onReady() {
 	a.reload(true)
 	go a.watch()
 	go a.menuLoop()
+	go waitShowRequests(a.openWindow) // a second launch of the exe opens this window
+	if a.showAtStart {
+		a.openWindow()
+	}
 }
 
 func (a *app) menuLoop() {
 	exe, _ := os.Executable()
 	for {
 		select {
+		case <-a.mWindow.ClickedCh:
+			a.openWindow()
 		case <-a.mOpen.ClickedCh:
 			if d, ok, _ := a.mount.status(); ok && d != "" {
 				exec.Command("explorer.exe", d+`\`).Start()
@@ -95,14 +110,7 @@ func (a *app) menuLoop() {
 				a.mAuto.Uncheck()
 			}
 		case <-a.mForget.ClickedCh:
-			a.mu.Lock()
-			u := a.cfg.URL
-			a.mu.Unlock()
-			if ask("Hủy ghép đôi với " + u + "?\n\nỔ PocketNAS sẽ bị ngắt và khóa của máy này bị xóa. Nên thu hồi thêm máy này trong app trên điện thoại.") {
-				a.mount.stopMount()
-				forget()
-				a.reload(true)
-			}
+			a.unpair()
 		case <-a.mQuit.ClickedCh:
 			systray.Quit()
 			return

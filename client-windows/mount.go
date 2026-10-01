@@ -119,7 +119,7 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	drive := freeDriveLetter("P")
+	drive := freeDriveLetter(getSettings().Drive)
 	if drive == "" {
 		return errors.New("không còn ký tự ổ đĩa trống")
 	}

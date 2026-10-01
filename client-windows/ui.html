@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>PocketNAS</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;--acc:#2f6fed;--acc-fg:#fff;--ok:#1f9d55;--warn:#c27c0e;--bad:#d64545;--chip:#eef2fd;--admin:#b42318;--admin-bg:#fde8e8}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c24;--fg:#e6e9ef;--muted:#949cad;--line:#2a303c;--acc:#5b8cff;--acc-fg:#0b0e14;--ok:#3ccf7c;--warn:#e5a53a;--bad:#f06a6a;--chip:#1f2737;--admin:#ff8a80;--admin-bg:#3a1d1d}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;user-select:none;overflow-y:auto}
+main{padding:18px 18px 24px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.logo{width:42px;height:42px;border-radius:11px;background:var(--acc);display:grid;place-items:center;color:var(--acc-fg);font-weight:800;font-size:20px;flex:none}
+header h1{font-size:18px;margin:0;line-height:1.2}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;margin-top:2px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.ok .dot{background:var(--ok)} .ok{color:var(--ok)}
+.connecting .dot{background:var(--warn);animation:blink 1s infinite} .connecting{color:var(--warn)}
+.error .dot{background:var(--bad)} .error{color:var(--bad)}
+@keyframes blink{50%{opacity:.3}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13px}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mono{font-family:Consolas,ui-monospace,monospace}
+.role{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px}
+.role.admin{background:var(--admin-bg);color:var(--admin)}
+.role.user{background:var(--chip);color:var(--acc)}
+.drive{display:flex;align-items:center;gap:12px;margin:2px 0 12px}
+.drive .letter{width:52px;height:52px;border-radius:12px;background:var(--chip);display:grid;place-items:center;font-size:22px;font-weight:700;color:var(--acc)}
+.drive .letter.off{color:var(--muted)}
+.drive b{display:block;font-size:15px}
+.drive small{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;background:var(--chip);color:var(--fg)}
+button.pri{background:var(--acc);color:var(--acc-fg);font-weight:600}
+button.danger{background:transparent;color:var(--bad);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.grow{flex:1}
+ol{margin:0 0 12px;padding-left:20px;font-size:13px}
+ol li{margin-bottom:4px}
+textarea{width:100%;height:64px;resize:none;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:12px Consolas,monospace;padding:8px;margin-bottom:8px;user-select:text}
+.set{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:13px}
+.set + .set{border-top:1px solid var(--line)}
+select{font:inherit;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.switch{position:relative;width:40px;height:22px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;border-radius:99px;background:var(--line);cursor:pointer;transition:.15s}
+.switch span::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}
+.switch input:checked + span{background:var(--acc)}
+.switch input:checked + span::before{transform:translateX(18px)}
+.notice{font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:12px;background:var(--admin-bg);color:var(--admin);word-break:break-word}
+.notice.info{background:var(--chip);color:var(--fg)}
+.muted{color:var(--muted);font-size:12px}
+footer{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo">P</div>
+    <div>
+      <h1>PocketNAS</h1>
+      <div class="pill" id="pill"><span class="dot"></span><span id="statusText">…</span></div>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+  <div class="notice" id="deps" hidden></div>
+
+  <!-- Paired -->
+  <section id="paired" hidden>
+    <div class="card">
+      <h2>Ổ đĩa</h2>
+      <div class="drive">
+        <div class="letter" id="driveLetter">–</div>
+        <div><b id="driveTitle">PocketNAS</b><small id="driveSub"></small></div>
+      </div>
+      <div class="row">
+        <button class="pri grow" id="btnOpenDrive" onclick="pnOpenDrive()">Mở trong File Explorer</button>
+        <button onclick="pnOpenWeb()">Trang web</button>
+        <button onclick="pnReconnect()" title="Kết nối lại">⟳</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Kết nối</h2>
+      <div class="kv">
+        <span>Server</span><span class="mono" id="host"></span>
+        <span>Quyền</span><span><span class="role" id="role"></span></span>
+        <span>Máy này</span><span id="deviceName"></span>
+        <span>Vân tay server</span><span class="mono" id="fp"></span>
+        <span>Ghép đôi lúc</span><span id="pairedAt"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Not paired -->
+  <section id="unpaired" hidden>
+    <div class="card">
+      <h2>Ghép đôi với PocketNAS</h2>
+      <ol>
+        <li>Mở trang web PocketNAS trên máy này và đăng nhập bằng <b>mã ADMIN</b> trên điện thoại.</li>
+        <li>Bấm <b>🔗 Kết nối app trên máy này</b> và chọn quyền.</li>
+        <li>Xác nhận trong hộp thoại hiện ra — xong.</li>
+      </ol>
+      <p class="muted">Hoặc dán lời mời <span class="mono">pnas1:…</span> đã sao chép:</p>
+      <textarea id="invite" placeholder="pnas1:…" spellcheck="false"></textarea>
+      <div class="row">
+        <button onclick="pasteInvite()">Dán từ clipboard</button>
+        <button class="pri grow" id="btnPair" onclick="doPair()">Ghép đôi</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="card">
+    <h2>Cài đặt</h2>
+    <div class="set">
+      <span>Ký tự ổ đĩa ưu tiên</span>
+      <select id="drivePref" onchange="pnSetDrive(this.value)"></select>
+    </div>
+    <div class="set">
+      <span>Khởi động cùng Windows</span>
+      <label class="switch"><input type="checkbox" id="auto" onchange="setAuto(this.checked)"><span></span></label>
+    </div>
+  </div>
+
+  <footer>
+    <button onclick="pnOpenLogs()">Thư mục dữ liệu &amp; log</button>
+    <button class="danger" id="btnUnpair" onclick="pnUnpair()" hidden>Hủy ghép đôi</button>
+  </footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let drivesKey = '';
+
+function render(s){
+  const pill = $('pill');
+  pill.className = 'pill ' + s.status;
+  $('statusText').textContent = s.statusText;
+  $('paired').hidden = !s.paired;
+  $('unpaired').hidden = s.paired;
+  $('btnUnpair').hidden = !s.paired;
+
+  const n = $('notice');
+  n.hidden = !s.notice;
+  n.textContent = s.notice || '';
+
+  const missing = [];
+  if (!s.rcloneOK) missing.push('rclone (winget install Rclone.Rclone)');
+  if (!s.winfspOK) missing.push('WinFsp (winget install WinFsp.WinFsp)');
+  $('deps').hidden = !missing.length;
+  $('deps').textContent = 'Thiếu thành phần để gắn ổ đĩa: ' + missing.join(', ');
+
+  if (s.paired) {
+    $('host').textContent = s.host;
+    const r = $('role');
+    r.className = 'role ' + (s.role === 'admin' ? 'admin' : 'user');
+    r.textContent = s.role === 'admin' ? 'ADMIN — toàn quyền' : 'USER — chỉ xem & tải về';
+    $('deviceName').textContent = s.deviceName;
+    $('fp').textContent = s.serverFP;
+    $('pairedAt').textContent = s.pairedAt;
+    const L = $('driveLetter');
+    L.textContent = s.mounted ? s.drive.replace(':', '') : '–';
+    L.className = 'letter' + (s.mounted ? '' : ' off');
+    $('driveSub').textContent = s.mounted
+      ? (s.role === 'admin' ? 'Đọc & ghi' : 'Chỉ đọc') + ' • ổ ' + s.drive
+      : (s.status === 'error' ? 'Chưa gắn được ổ đĩa' : 'Đang gắn ổ đĩa…');
+    $('btnOpenDrive').disabled = !s.mounted;
+  }
+  $('btnPair').disabled = s.busy;
+  $('btnPair').textContent = s.busy ? 'Đang ghép đôi…' : 'Ghép đôi';
+  $('auto').checked = s.autostart;
+
+  // Drive letter choices: free letters plus the current preference.
+  const opts = Array.from(new Set([s.prefDrive, ...(s.freeDrives || [])])).sort();
+  const key = opts.join() + '|' + s.prefDrive;
+  if (key !== drivesKey) {
+    drivesKey = key;
+    const sel = $('drivePref');
+    sel.innerHTML = '';
+    for (const l of opts) {
+      const o = document.createElement('option');
+      o.value = l; o.textContent = l + ':';
+      if (l === s.prefDrive) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+}
+
+async function tick(){
+  try { render(await pnState()); } catch (e) {}
+  setTimeout(tick, 1000);
+}
+async function pasteInvite(){ $('invite').value = (await pnClipboard()).trim(); }
+async function doPair(){
+  const v = $('invite').value.trim();
+  if (!v.includes('pnas1:')) { $('invite').focus(); return; }
+  await pnPair(v);
+}
+async function setAuto(on){
+  const err = await pnSetAutostart(on);
+  if (err) alert(err);
+}
+tick();
+</script>
+</body>
+</html>

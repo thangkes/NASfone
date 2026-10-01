@@ -93,7 +93,7 @@ func setAutostart(on bool, exe string) error {
 	}
 	defer k.Close()
 	if on {
-		return k.SetStringValue(appTitle, `"`+exe+`"`)
+		return k.SetStringValue(appTitle, `"`+exe+`" --minimized`) // start quietly in the tray
 	}
 	if err := k.DeleteValue(appTitle); err != nil && !errors.Is(err, registry.ErrNotExist) {
 		return err
@@ -134,3 +134,31 @@ func computerName() string {
 
 // idYes is the MessageBox return value for the Yes button.
 const idYes = 6
+
+const showEventName = `Local\PocketNASShowWindow`
+
+// requestShow asks the running instance to open its window.
+func requestShow() {
+	name, _ := windows.UTF16PtrFromString(showEventName)
+	h, err := windows.OpenEvent(windows.EVENT_MODIFY_STATE, false, name)
+	if err != nil {
+		info("PocketNAS đang chạy — xem biểu tượng ở khay hệ thống (cạnh đồng hồ).")
+		return
+	}
+	defer windows.CloseHandle(h)
+	windows.SetEvent(h)
+}
+
+// waitShowRequests calls show whenever another launch of the exe asks for the window.
+func waitShowRequests(show func()) {
+	name, _ := windows.UTF16PtrFromString(showEventName)
+	h, err := windows.CreateEvent(nil, 0, 0, name) // auto-reset
+	if err != nil {
+		return
+	}
+	for {
+		if ev, _ := windows.WaitForSingleObject(h, windows.INFINITE); ev == windows.WAIT_OBJECT_0 {
+			show()
+		}
+	}
+}

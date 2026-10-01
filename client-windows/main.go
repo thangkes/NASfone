@@ -34,15 +34,16 @@ func main() {
 	case len(args) >= 1 && strings.HasPrefix(strings.ToLower(args[0]), "pocketnas:"):
 		pairFromInvite(args[0])
 		if !singleInstance() {
-			return // the running tray picks up the new pairing by itself
-		}
-		runTray()
-	default:
-		if !singleInstance() {
-			info("PocketNAS đang chạy — xem biểu tượng ở khay hệ thống (cạnh đồng hồ).")
+			requestShow() // the running tray picks up the pairing; show its window
 			return
 		}
-		runTray()
+		runTray(true)
+	default:
+		if !singleInstance() {
+			requestShow() // already running: bring its window up instead
+			return
+		}
+		runTray(!(len(args) == 1 && args[0] == "--minimized"))
 	}
 }
 
