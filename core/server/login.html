@@ -18,8 +18,6 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--
 label.f{display:block;font-size:13px;color:var(--muted);margin:14px 0 4px}
 input[type=text]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--fg);font:inherit}
 input.code{font:600 24px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18em;text-align:center;text-transform:uppercase}
-.chk{display:flex;gap:8px;align-items:flex-start;margin-top:16px;font-size:14px;cursor:pointer}
-.chk input{margin-top:4px}
 button{width:100%;margin-top:20px;border:0;border-radius:9px;padding:12px;font:inherit;font-weight:600;cursor:pointer;background:var(--acc);color:var(--acc-fg)}
 button:disabled{opacity:.6;cursor:default}
 .msg{margin-top:12px;font-size:14px;min-height:1.5em;color:var(--bad)}
@@ -30,18 +28,16 @@ button:disabled{opacity:.6;cursor:default}
 <form class="card" id="form" autocomplete="off">
   <div class="brand"><div class="logo">P</div><div><b>PocketNAS</b><span class="small">Đăng nhập để truy cập dữ liệu</span></div></div>
 
-  <label class="f" for="code">Mã đăng nhập hiển thị trên app</label>
-  <input id="code" class="code" type="text" inputmode="text" maxlength="9" placeholder="XXXX-XXXX" autocomplete="one-time-code" autofocus required>
-  <div class="small" style="margin-top:4px">Mở app PocketNAS Server → “Tạo mã”. Mã dùng 1 lần, hết hạn sau 5 phút.</div>
-
-  <label class="chk"><input type="checkbox" id="remember" checked>
-    <span>Ghi nhớ thiết bị này<br><span class="small">Lần sau không cần mã. Thu hồi được từ app bất cứ lúc nào.</span></span></label>
+  <label class="f" for="code">Mã 6 số đang hiện trên app</label>
+  <input id="code" class="code" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="000 000" autocomplete="one-time-code" autofocus required>
+  <div class="small" style="margin-top:4px">Mở app PocketNAS Server để xem mã. Mã tự đổi mỗi phút và chỉ dùng được 1 lần.</div>
 
   <label class="f" for="name">Tên thiết bị (hiện trong app)</label>
   <input id="name" type="text" maxlength="60">
 
   <button id="btn" type="submit">Đăng nhập</button>
   <div class="msg" id="msg"></div>
+  <div class="small">Phiên đăng nhập kết thúc khi bạn đóng trình duyệt (tối đa 24 giờ).</div>
 </form>
 
 <script>
@@ -55,19 +51,21 @@ function guessName(){
 }
 $('name').value = guessName();
 $('code').addEventListener('input', e => {
-  let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-  if (v.length > 4) v = v.slice(0, 4) + '-' + v.slice(4);
+  let v = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+  if (v.length > 3) v = v.slice(0, 3) + ' ' + v.slice(3);
   e.target.value = v;
+  if (v.length === 7) $('form').requestSubmit();
 });
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const msg = $('msg'), btn = $('btn');
+  if (btn.disabled) return; // auto-submit and Enter must not send the code twice
   msg.className = 'msg'; msg.textContent = ''; btn.disabled = true;
   try {
     const r = await fetch('/__pnas/login', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({code: $('code').value, name: $('name').value, remember: $('remember').checked}),
+      body: JSON.stringify({code: $('code').value, name: $('name').value}),
     });
     const j = await r.json().catch(() => ({}));
     if (r.ok) { msg.className = 'msg ok'; msg.textContent = 'Đăng nhập thành công…'; location.replace(NEXT); return; }

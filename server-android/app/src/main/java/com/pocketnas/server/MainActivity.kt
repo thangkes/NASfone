@@ -28,6 +28,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
@@ -62,12 +63,11 @@ class MainActivity : Activity() {
     private lateinit var logTv: TextView
     private lateinit var codeTv: TextView
     private lateinit var codeInfoTv: TextView
-    private lateinit var codeBtn: Button
+    private lateinit var codeBar: ProgressBar
     private lateinit var codeCopyBtn: Button
     private lateinit var devBox: LinearLayout
 
     private var code: String? = null
-    private var codeExpires = 0L
     private var lastDevicesJson = ""
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
@@ -90,6 +90,8 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         setContentView(buildUi())
+        // Mở app là có mã đăng nhập: tự khởi động server nếu đang dừng.
+        if (!Core.running && savedInstanceState == null) toggle()
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -130,17 +132,17 @@ class MainActivity : Activity() {
         stateTv = text("", 16f, bold = true).also { col.addView(it) }
         toggleBtn = button("") { toggle() }.also { col.addView(it) }
 
-        section(col, "Mã đăng nhập một lần (cho trình duyệt)")
+        section(col, "Mã đăng nhập (6 số, đổi mỗi phút)")
         codeTv = text("— — — —", 34f, bold = true).apply {
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             gravity = Gravity.CENTER
             letterSpacing = 0.12f
         }.also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
+        codeBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 60 }
+            .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
         codeInfoTv = text("", 13f).apply { gravity = Gravity.CENTER }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
-        val codeBtns = hbox().also { col.addView(it) }
-        codeBtn = button("Tạo mã") { newCode() }.also { codeBtns.addView(it, weighted()) }
-        codeCopyBtn = button("Sao chép mã") { code?.let { copy(it) } }.also { codeBtns.addView(it, weighted()) }
+        codeCopyBtn = button("Sao chép mã") { code?.let { copy(it.replace(" ", "")) } }.also { col.addView(it) }
 
         section(col, "Thiết bị đã đăng nhập")
         devBox = vbox().also { col.addView(it) }
@@ -316,40 +318,23 @@ class MainActivity : Activity() {
 
     private fun renderCode() {
         if (!::codeTv.isInitialized) return
-        if (code == null && Core.running) {
-            // Mã có thể đã được tạo trước khi màn hình mở lại.
-            Mobile.loginCode().takeIf { it.isNotEmpty() }?.let { applyCode(it) }
-        }
-        val left = (codeExpires - System.currentTimeMillis()) / 1000
-        val c = code
-        if (c == null || left <= 0 || !Core.running || Mobile.loginCode().isEmpty()) {
+        val json = if (Core.running) Mobile.loginCode() else ""
+        if (json.isEmpty()) {
             code = null
-            codeTv.text = "— — — —"
-            codeInfoTv.text = if (Core.running) "Bấm \"Tạo mã\", rồi nhập mã ở trang đăng nhập web.\nMã dùng 1 lần • hết hạn 5 phút • sai 5 lần là hủy" else "Khởi động server để tạo mã."
+            codeTv.text = "— — —"
+            codeBar.progress = 0
+            codeInfoTv.text = "Khởi động server để có mã đăng nhập."
         } else {
-            codeTv.text = c
-            codeInfoTv.text = "Còn %d:%02d • dùng 1 lần".format(left / 60, left % 60)
+            val o = JSONObject(json)
+            code = o.getString("code")
+            val step = o.optInt("step", 60)
+            val left = ((o.getLong("expires") - System.currentTimeMillis() + 999) / 1000).toInt().coerceIn(0, step)
+            codeTv.text = code
+            codeBar.max = step
+            codeBar.progress = left
+            codeInfoTv.text = "Đổi mã sau %d:%02d • mỗi mã dùng 1 lần".format(left / 60, left % 60)
         }
-        codeBtn.isEnabled = Core.running
-        codeBtn.text = if (code == null) "Tạo mã" else "Tạo mã mới"
         codeCopyBtn.isEnabled = code != null
-    }
-
-    private fun applyCode(json: String) {
-        val o = JSONObject(json)
-        code = o.getString("code")
-        codeExpires = o.getLong("expires")
-    }
-
-    private fun newCode() {
-        thread {
-            try {
-                val j = Mobile.newLoginCode()
-                runOnUiThread { applyCode(j); renderCode() }
-            } catch (e: Exception) {
-                Core.log("Tạo mã: ${e.message}")
-            }
-        }
     }
 
     private fun renderDevices() {
@@ -368,8 +353,7 @@ class MainActivity : Activity() {
             val id = d.getString("id")
             val name = d.getString("name")
             val seen = parseTime(d.optString("lastSeen"))
-            val info = "${d.optString("via")} • ${d.optString("lastIP")} • lần cuối ${seen}" +
-                if (d.optBoolean("remember")) "" else " • phiên tạm"
+            val info = "${d.optString("via")} • ${d.optString("lastIP")} • lần cuối $seen • hết hạn ${parseTime(d.optString("expires"))}"
             devBox.addView(hbox().apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(text("$name\n$info", 13f), weighted())

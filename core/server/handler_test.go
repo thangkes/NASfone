@@ -97,7 +97,7 @@ func TestLoginFlow(t *testing.T) {
 	}
 
 	post := func(code string, ct string) *http.Response {
-		req, _ := http.NewRequest("POST", srv.URL+"/__pnas/login", strings.NewReader(`{"code":"`+code+`","name":"Test","remember":true}`))
+		req, _ := http.NewRequest("POST", srv.URL+"/__pnas/login", strings.NewReader(`{"code":"`+code+`","name":"Test"}`))
 		req.Header.Set("Content-Type", ct)
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -105,11 +105,15 @@ func TestLoginFlow(t *testing.T) {
 		}
 		return res
 	}
-	code, _ := store.NewCode()
+	code, _ := store.CurrentCode()
 	if res := post(code, "text/plain"); res.StatusCode != 415 {
 		t.Fatalf("non-json accepted: %d", res.StatusCode)
 	}
-	if res := post("WRNG-WRNG", "application/json"); res.StatusCode != 401 {
+	wrong := "000000"
+	if strings.ReplaceAll(code, " ", "") == wrong {
+		wrong = "111111"
+	}
+	if res := post(wrong, "application/json"); res.StatusCode != 401 {
 		t.Fatalf("wrong code: %d", res.StatusCode)
 	}
 	res = post(code, "application/json")
@@ -119,7 +123,8 @@ func TestLoginFlow(t *testing.T) {
 			sess = c
 		}
 	}
-	if res.StatusCode != 200 || sess == nil || !sess.HttpOnly || sess.MaxAge <= 0 {
+	// Session cookie only: deleted when the browser closes.
+	if res.StatusCode != 200 || sess == nil || !sess.HttpOnly || sess.MaxAge != 0 || !sess.Expires.IsZero() {
 		t.Fatalf("login: %d %+v", res.StatusCode, sess)
 	}
 

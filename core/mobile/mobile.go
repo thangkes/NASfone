@@ -31,7 +31,7 @@ import (
 type Host interface {
 	OnStatus(statusJSON string)
 	OnLog(line string)
-	// OnEvent reports security events: kind is "login", "revoke" or "code_spent".
+	// OnEvent reports security events: kind is "login", "revoke" or "code_rolled".
 	OnEvent(kind, detail string)
 	// Interfaces returns one line per network interface:
 	// name|index|mtu|flags|addr/prefix,addr/prefix
@@ -273,32 +273,19 @@ func SetFunnel(enabled bool) {
 	n.refresh()
 }
 
-// NewLoginCode issues a fresh one-time login code: {"code":"ABCD-2345","expires":<unix ms>}.
-func NewLoginCode() (string, error) {
-	n := get()
-	if n == nil {
-		return "", errors.New("server chưa chạy")
-	}
-	code, exp := n.auth.NewCode()
-	n.logf("Đã tạo mã đăng nhập mới")
-	return codeJSON(code, exp), nil
-}
-
-// LoginCode returns the active code JSON, or "" when none is active.
+// LoginCode returns the rolling login code for the current minute:
+// {"code":"123 456","expires":<unix ms>,"step":60}. "" when the server is stopped.
 func LoginCode() string {
 	n := get()
 	if n == nil {
 		return ""
 	}
-	code, exp, ok := n.auth.CurrentCode()
-	if !ok {
-		return ""
-	}
+	code, exp := n.auth.CurrentCode()
 	return codeJSON(code, exp)
 }
 
 func codeJSON(code string, exp time.Time) string {
-	b, _ := json.Marshal(map[string]any{"code": code, "expires": exp.UnixMilli()})
+	b, _ := json.Marshal(map[string]any{"code": code, "expires": exp.UnixMilli(), "step": int(auth.CodeStep.Seconds())})
 	return string(b)
 }
 

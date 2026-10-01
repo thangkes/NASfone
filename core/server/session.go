@@ -17,10 +17,9 @@ import (
 )
 
 const (
-	loginPath   = "/__pnas/login"
-	logoutPath  = "/__pnas/logout"
-	cookieName  = "pnas_s"
-	rememberAge = 90 * 24 * time.Hour
+	loginPath  = "/__pnas/login"
+	logoutPath = "/__pnas/logout"
+	cookieName = "pnas_s"
 )
 
 //go:embed login.html
@@ -32,7 +31,6 @@ var loginTmpl = template.Must(template.New("login").Parse(loginHTML))
 type Who struct {
 	Name     string // device name, or "WebDAV" for password logins
 	DeviceID string // empty for password logins
-	Remember bool
 }
 
 type whoKey struct{}
@@ -66,7 +64,7 @@ func clientIP(r *http.Request) string {
 func (h *handler) authenticate(r *http.Request) (Who, bool) {
 	if c, err := r.Cookie(cookieName); err == nil && h.opt.Auth != nil {
 		if d, ok := h.opt.Auth.Check(c.Value, clientIP(r), viaFrom(r)); ok {
-			return Who{Name: d.Name, DeviceID: d.ID, Remember: d.Remember}, true
+			return Who{Name: d.Name, DeviceID: d.ID}, true
 		}
 	}
 	if h.opt.Password != "" {
@@ -78,9 +76,8 @@ func (h *handler) authenticate(r *http.Request) (Who, bool) {
 }
 
 type loginRequest struct {
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Remember bool   `json:"remember"`
+	Code string `json:"code"`
+	Name string `json:"name"`
 }
 
 func (h *handler) login(w http.ResponseWriter, r *http.Request) {
@@ -108,32 +105,30 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Đăng nhập bằng mã chưa được bật."})
 			return
 		}
-		token, dev, err := h.opt.Auth.Redeem(req.Code, req.Name, clientIP(r), viaFrom(r), req.Remember)
+		token, dev, err := h.opt.Auth.Redeem(req.Code, req.Name, clientIP(r), viaFrom(r))
 		if err != nil {
 			time.Sleep(500 * time.Millisecond)
 			var wrong auth.WrongCodeError
 			switch {
 			case errors.As(err, &wrong):
 				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error(), "left": wrong.Left})
-			case errors.Is(err, auth.ErrIPLocked):
+			case errors.Is(err, auth.ErrIPLocked), errors.Is(err, auth.ErrGlobalLock):
 				writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": err.Error()})
 			default:
 				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error()})
 			}
 			return
 		}
-		c := &http.Cookie{
+		// Session cookie: no Max-Age/Expires, so the browser drops it when closed.
+		// The server side also ends the session after auth.SessionTTL (24h).
+		http.SetCookie(w, &http.Cookie{
 			Name:     cookieName,
 			Value:    token,
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   r.TLS != nil,
 			SameSite: http.SameSiteLaxMode,
-		}
-		if req.Remember {
-			c.MaxAge = int(rememberAge.Seconds())
-		}
-		http.SetCookie(w, c)
+		})
 		h.opt.Logf("Đăng nhập: %s qua %s từ %s", dev.Name, dev.Via, dev.LastIP)
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "name": dev.Name})
 	default:

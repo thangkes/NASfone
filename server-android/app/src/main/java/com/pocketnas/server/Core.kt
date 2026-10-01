@@ -69,11 +69,11 @@ object Core : Host {
         val text = when (kind) {
             "login" -> "Thiết bị mới đăng nhập: $detail"
             "revoke" -> "Đã thu hồi: $detail"
-            "code_spent" -> "Mã đăng nhập bị nhập sai 5 lần (IP $detail) và đã bị hủy"
+            "code_rolled" -> "Mã đăng nhập bị nhập sai 5 lần (IP $detail), đã đổi mã mới"
             else -> "$kind: $detail"
         }
         log(text)
-        if (kind == "login" || kind == "code_spent") notifySecurity(text)
+        if (kind == "login" || kind == "code_rolled") notifySecurity(text)
     }
 
     private fun notifySecurity(text: String) {

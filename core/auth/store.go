@@ -1,5 +1,5 @@
-// Package auth handles browser sign-in: one-time login codes issued from the
-// server app, and the device sessions they create.
+// Package auth handles browser sign-in: rolling 6-digit login codes shown in
+// the server app, and the browser sessions they create.
 package auth
 
 import (
@@ -19,35 +19,34 @@ import (
 )
 
 const (
-	CodeTTL         = 5 * time.Minute
-	codeMaxTries    = 5
-	rememberTTL     = 90 * 24 * time.Hour
-	tempSessionTTL  = 12 * time.Hour
+	CodeStep        = time.Minute      // a new code every minute, aligned to the wall clock
+	codeGrace       = 10 * time.Second // previous code still accepted right after it rolls
+	codeDigits      = 6
+	codeMaxTries    = 5 // wrong tries before the current code rolls early
+	SessionTTL      = 24 * time.Hour
 	ipFailWindow    = 15 * time.Minute
 	ipMaxFailures   = 10
+	globalWindow    = 5 * time.Minute
+	globalMaxFails  = 20 // across all IPs; then sign-in pauses for globalWindow
 	lastSeenSaveGap = time.Minute
-	codeAlphabet    = "ABCDEFGHJKMNPQRSTUVWXYZ23456789" // no 0/O, 1/I/L
 )
 
 var (
-	ErrNoCode    = errors.New("Mã không hợp lệ hoặc đã hết hạn. Hãy tạo mã mới trên app.")
-	ErrCodeSpent = errors.New("Sai quá nhiều lần, mã đã bị hủy. Hãy tạo mã mới trên app.")
-	ErrIPLocked  = errors.New("Thử sai quá nhiều lần. Vui lòng đợi 15 phút.")
+	ErrNoCode     = errors.New("Mã không đúng hoặc đã hết hạn. Hãy nhập mã đang hiện trên app.")
+	ErrIPLocked   = errors.New("Thử sai quá nhiều lần. Vui lòng đợi 15 phút.")
+	ErrGlobalLock = errors.New("Đăng nhập tạm khóa do có quá nhiều lần thử sai. Vui lòng đợi vài phút.")
 )
 
-// WrongCodeError reports a wrong code and how many tries remain.
+// WrongCodeError reports a wrong code and how many tries remain on the current code.
 type WrongCodeError struct{ Left int }
 
-func (e WrongCodeError) Error() string {
-	return "Mã không đúng."
-}
+func (e WrongCodeError) Error() string { return "Mã không đúng." }
 
-// Device is one signed-in browser.
+// Device is one signed-in browser session.
 type Device struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	TokenHash string    `json:"tokenHash,omitempty"`
-	Remember  bool      `json:"remember"`
 	Via       string    `json:"via"`
 	LastIP    string    `json:"lastIP"`
 	Created   time.Time `json:"created"`
@@ -57,26 +56,29 @@ type Device struct {
 
 type loginCode struct {
 	code  string
-	exp   time.Time
+	exp   time.Time // end of its minute
 	tries int
 }
 
-// Store keeps devices on disk and the current login code in memory.
+// Store keeps sessions on disk and the rolling login code in memory.
 type Store struct {
-	mu       sync.Mutex
-	path     string
-	devices  []*Device
-	code     *loginCode
-	failures map[string][]time.Time
-	lastSave time.Time
+	mu          sync.Mutex
+	path        string
+	devices     []*Device
+	cur, prev   *loginCode
+	ipFails     map[string][]time.Time
+	globalFails []time.Time
+	lastSave    time.Time
 
-	// OnEvent is called (outside the lock) for "login", "revoke", "code_spent".
+	// Now is the clock; replaceable in tests.
+	Now func() time.Time
+	// OnEvent is called (outside the lock) for "login", "revoke", "code_rolled".
 	OnEvent func(kind, detail string)
 }
 
-// Open loads (or creates) the device store at path.
+// Open loads (or creates) the session store at path.
 func Open(path string) (*Store, error) {
-	s := &Store{path: path, failures: map[string][]time.Time{}}
+	s := &Store{path: path, ipFails: map[string][]time.Time{}, Now: time.Now}
 	b, err := os.ReadFile(path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -86,51 +88,61 @@ func Open(path string) (*Store, error) {
 		if err := json.Unmarshal(b, &s.devices); err != nil {
 			return nil, err
 		}
+		// Sessions from older builds could last 90 days; cap them to the current policy.
+		for _, d := range s.devices {
+			if max := d.Created.Add(SessionTTL); d.Expires.After(max) {
+				d.Expires = max
+			}
+		}
 	}
 	return s, nil
 }
 
-// NewCode replaces any current code with a fresh one.
-func (s *Store) NewCode() (code string, exp time.Time) {
-	raw := randomString(8, codeAlphabet)
+// CurrentCode returns the code for the current minute (rolling it if needed)
+// formatted as "123 456", and when it expires.
+func (s *Store) CurrentCode() (code string, exp time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.code = &loginCode{code: raw, exp: time.Now().Add(CodeTTL)}
-	return FormatCode(raw), s.code.exp
+	c := s.currentLocked(s.Now())
+	return FormatCode(c.code), c.exp
 }
 
-// CurrentCode returns the active code, if any.
-func (s *Store) CurrentCode() (code string, exp time.Time, ok bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.code == nil || time.Now().After(s.code.exp) {
-		s.code = nil
-		return "", time.Time{}, false
+func (s *Store) currentLocked(now time.Time) *loginCode {
+	if s.cur == nil || !now.Before(s.cur.exp) {
+		if s.cur != nil && now.Sub(s.cur.exp) < codeGrace {
+			s.prev = s.cur
+		} else {
+			s.prev = nil
+		}
+		s.cur = &loginCode{code: randomDigits(codeDigits), exp: now.Truncate(CodeStep).Add(CodeStep)}
 	}
-	return FormatCode(s.code.code), s.code.exp, true
+	return s.cur
 }
 
-// FormatCode renders "ABCD2345" as "ABCD-2345".
+// FormatCode renders "123456" as "123 456".
 func FormatCode(c string) string {
-	if len(c) != 8 {
+	if len(c) != codeDigits {
 		return c
 	}
-	return c[:4] + "-" + c[4:]
+	return c[:3] + " " + c[3:]
 }
 
 func normalizeCode(in string) string {
 	var b strings.Builder
-	for _, r := range strings.ToUpper(in) {
-		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+	for _, r := range in {
+		if r >= '0' && r <= '9' {
 			b.WriteRune(r)
 		}
 	}
 	return b.String()
 }
 
-// Redeem exchanges a login code for a session token.
-func (s *Store) Redeem(code, name, ip, via string, remember bool) (token string, dev Device, err error) {
-	now := time.Now()
+func codeEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+// Redeem exchanges the current login code for a session token valid for SessionTTL.
+func (s *Store) Redeem(code, name, ip, via string) (token string, dev Device, err error) {
 	var event, detail string
 	defer func() {
 		if event != "" && s.OnEvent != nil {
@@ -140,49 +152,51 @@ func (s *Store) Redeem(code, name, ip, via string, remember bool) (token string,
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := s.Now()
 
+	if s.globalLocked(now) {
+		return "", Device{}, ErrGlobalLock
+	}
 	if s.ipLocked(ip, now) {
 		return "", Device{}, ErrIPLocked
 	}
-	if s.code == nil || now.After(s.code.exp) {
-		s.code = nil
-		s.recordFailure(ip, now)
-		return "", Device{}, ErrNoCode
+	cur := s.currentLocked(now)
+	in := normalizeCode(code)
+	ok := codeEqual(in, cur.code)
+	if !ok && s.prev != nil && now.Sub(s.prev.exp) < codeGrace {
+		ok = codeEqual(in, s.prev.code)
 	}
-	if subtle.ConstantTimeCompare([]byte(normalizeCode(code)), []byte(s.code.code)) != 1 {
+	if !ok {
 		s.recordFailure(ip, now)
-		s.code.tries++
-		if s.code.tries >= codeMaxTries {
-			s.code = nil
-			event, detail = "code_spent", ip
-			return "", Device{}, ErrCodeSpent
+		cur.tries++
+		if cur.tries >= codeMaxTries {
+			// Roll early so guessing has to start over against a fresh code.
+			s.cur, s.prev = nil, nil
+			event, detail = "code_rolled", ip
+			return "", Device{}, ErrNoCode
 		}
-		return "", Device{}, WrongCodeError{Left: codeMaxTries - s.code.tries}
+		return "", Device{}, WrongCodeError{Left: codeMaxTries - cur.tries}
 	}
-	s.code = nil // single use
+	// Single use: a code that signed someone in is retired at once.
+	s.cur, s.prev = nil, nil
 
 	name = strings.TrimSpace(name)
 	if name == "" {
 		name = "Trình duyệt"
 	}
-	if len([]rune(name)) > 60 {
-		name = string([]rune(name)[:60])
+	if r := []rune(name); len(r) > 60 {
+		name = string(r[:60])
 	}
 	token = randomToken()
 	d := &Device{
 		ID:        randomString(10, "abcdefghijkmnpqrstuvwxyz23456789"),
 		Name:      name,
 		TokenHash: hashToken(token),
-		Remember:  remember,
 		Via:       via,
 		LastIP:    ip,
 		Created:   now,
 		LastSeen:  now,
-	}
-	if remember {
-		d.Expires = now.Add(rememberTTL)
-	} else {
-		d.Expires = now.Add(tempSessionTTL)
+		Expires:   now.Add(SessionTTL),
 	}
 	s.devices = append(s.devices, d)
 	s.saveLocked()
@@ -190,26 +204,24 @@ func (s *Store) Redeem(code, name, ip, via string, remember bool) (token string,
 	return token, d.public(), nil
 }
 
-// Check validates a session token and refreshes its last-seen time.
+// Check validates a session token and records last-seen info. Sessions are not
+// extended: they end SessionTTL after sign-in at the latest.
 func (s *Store) Check(token, ip, via string) (Device, bool) {
 	if token == "" {
 		return Device{}, false
 	}
 	h := hashToken(token)
-	now := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := s.Now()
 	for _, d := range s.devices {
-		if subtle.ConstantTimeCompare([]byte(d.TokenHash), []byte(h)) != 1 {
+		if !codeEqual(d.TokenHash, h) {
 			continue
 		}
-		if now.After(d.Expires) {
+		if !now.Before(d.Expires) {
 			return Device{}, false
 		}
 		d.LastSeen, d.LastIP, d.Via = now, ip, via
-		if d.Remember {
-			d.Expires = now.Add(rememberTTL) // sliding
-		}
 		if now.Sub(s.lastSave) > lastSeenSaveGap {
 			s.saveLocked()
 		}
@@ -232,7 +244,7 @@ func (s *Store) Logout(token string) {
 	}
 }
 
-// Revoke removes one device by ID.
+// Revoke removes one session by ID.
 func (s *Store) Revoke(id string) bool {
 	s.mu.Lock()
 	var name string
@@ -251,7 +263,7 @@ func (s *Store) Revoke(id string) bool {
 	return name != ""
 }
 
-// RevokeAll removes every device.
+// RevokeAll removes every session.
 func (s *Store) RevokeAll() {
 	s.mu.Lock()
 	s.devices = nil
@@ -262,15 +274,15 @@ func (s *Store) RevokeAll() {
 	}
 }
 
-// List returns active devices, newest first, without token hashes.
+// List returns active sessions, most recently seen first, without token hashes.
 func (s *Store) List() []Device {
-	now := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := s.Now()
 	kept := s.devices[:0]
 	out := []Device{} // encode as [] rather than null
 	for _, d := range s.devices {
-		if now.After(d.Expires) {
+		if !now.Before(d.Expires) {
 			continue
 		}
 		kept = append(kept, d)
@@ -290,32 +302,42 @@ func (d *Device) public() Device {
 	return c
 }
 
-func (s *Store) ipLocked(ip string, now time.Time) bool {
-	recent := s.failures[ip][:0]
-	for _, t := range s.failures[ip] {
-		if now.Sub(t) < ipFailWindow {
-			recent = append(recent, t)
+func prune(ts []time.Time, now time.Time, window time.Duration) []time.Time {
+	kept := ts[:0]
+	for _, t := range ts {
+		if now.Sub(t) < window {
+			kept = append(kept, t)
 		}
 	}
-	s.failures[ip] = recent
-	return len(recent) >= ipMaxFailures
+	return kept
+}
+
+func (s *Store) ipLocked(ip string, now time.Time) bool {
+	s.ipFails[ip] = prune(s.ipFails[ip], now, ipFailWindow)
+	return len(s.ipFails[ip]) >= ipMaxFailures
+}
+
+func (s *Store) globalLocked(now time.Time) bool {
+	s.globalFails = prune(s.globalFails, now, globalWindow)
+	return len(s.globalFails) >= globalMaxFails
 }
 
 func (s *Store) recordFailure(ip string, now time.Time) {
-	s.failures[ip] = append(s.failures[ip], now)
+	s.ipFails[ip] = append(s.ipFails[ip], now)
+	s.globalFails = append(s.globalFails, now)
 }
 
-// saveLocked writes the device list atomically. Callers hold s.mu.
+// saveLocked writes the session list atomically. Callers hold s.mu.
 func (s *Store) saveLocked() {
-	s.lastSave = time.Now()
+	s.lastSave = s.Now()
 	b, err := json.MarshalIndent(s.devices, "", "  ")
 	if err != nil {
 		return
 	}
-	tmp := s.path + ".tmp"
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return
 	}
+	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return
 	}
@@ -331,6 +353,11 @@ func randomToken() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// randomDigits returns n uniformly random decimal digits.
+func randomDigits(n int) string {
+	return randomString(n, "0123456789")
 }
 
 // randomString draws n characters uniformly from alphabet (rejection sampling,
