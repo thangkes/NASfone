@@ -34,6 +34,8 @@ $apk = "$app\app\build\outputs\apk\release\app-release.apk"
 Write-Host ("APK: {0} ({1:N1} MB)" -f $apk, ((Get-Item $apk).Length / 1MB)) -ForegroundColor Green
 
 if ($Install) {
+    # adb prints harmless warnings on stderr (e.g. "intent delivered to top-most instance").
+    $ErrorActionPreference = "Continue"
     $adb = "$sdk\platform-tools\adb.exe"
     & $adb install -r $apk
     & $adb shell "appops set com.pocketnas.server MANAGE_EXTERNAL_STORAGE allow; dumpsys deviceidle whitelist +com.pocketnas.server >/dev/null; pm grant com.pocketnas.server android.permission.POST_NOTIFICATIONS; am start -n com.pocketnas.server/.MainActivity"
