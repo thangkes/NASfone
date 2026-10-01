@@ -34,6 +34,11 @@ class Prefs(private val ctx: Context) {
         get() = sp.getBoolean("verboseLog", false)
         set(v) = sp.edit().putBoolean("verboseLog", v).apply()
 
+    /** "" = follow the phone, "vi" or "en". */
+    var lang: String
+        get() = sp.getString("lang", "")!!
+        set(v) = sp.edit().putString("lang", v).apply()
+
     var autoStart: Boolean
         get() = sp.getBoolean("autoStart", false)
         set(v) = sp.edit().putBoolean("autoStart", v).apply()

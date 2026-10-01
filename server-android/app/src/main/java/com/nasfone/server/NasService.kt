@@ -57,7 +57,8 @@ class NasService : Service() {
         }
         Core.logFile = getExternalFilesDir(null)?.let { File(it, "nasfone.log") }
         Core.appContext = applicationContext
-        startInForeground("Đang khởi động…")
+        Lang.init(this)
+        startInForeground(L("Đang khởi động…", "Starting…"))
         if (!Core.running) {
             Core.running = true
             Core.startError = null
@@ -77,13 +78,13 @@ class NasService : Service() {
             thread(name = "nasfone-start") {
                 try {
                     if (!File(prefs.rootDir).let { it.isDirectory || it.mkdirs() }) {
-                        throw IllegalStateException("Không truy cập được ${prefs.rootDir}. Đã cấp quyền \"Truy cập tất cả file\" chưa?")
+                        throw IllegalStateException(L("Không truy cập được ${prefs.rootDir}. Đã cấp quyền \"Truy cập tất cả file\" chưa?", "Cannot access ${prefs.rootDir}. Has \"All files access\" been granted?"))
                     }
                     getExternalFilesDir(null)?.let { Mobile.setCrashFile(File(it, "go-crash.txt").path) }
                     Mobile.start(cfg.toString(), Core)
                 } catch (e: Exception) {
                     Core.startError = e.message ?: e.toString()
-                    Core.log("Lỗi khởi động: ${Core.startError}")
+                    Core.log(L("Lỗi khởi động: ${Core.startError}", "Start error: ${Core.startError}"))
                     Core.running = false
                     Core.notifyChanged()
                     stopSelf()
@@ -130,7 +131,7 @@ class NasService : Service() {
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "4G/5G"
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
-                    else -> "mạng khác"
+                    else -> L("mạng khác", "other network")
                 }
                 val changed = network != lastNetwork
                 lastNetwork = network
@@ -138,7 +139,7 @@ class NasService : Service() {
                     val first = Core.networkType == null
                     Core.networkType = type
                     if (!first) {
-                        Core.log("Đã chuyển sang $type")
+                        Core.log(L("Đã chuyển sang $type", "Switched to $type"))
                         // Gom các sự kiện dồn dập khi đổi mạng thành một lần nối lại.
                         main.removeCallbacks(nudge)
                         main.postDelayed(nudge, 1500)
@@ -151,7 +152,7 @@ class NasService : Service() {
                 if (network == lastNetwork) {
                     lastNetwork = null
                     Core.networkType = ""
-                    Core.log("Mất kết nối mạng")
+                    Core.log(L("Mất kết nối mạng", "Network lost"))
                     Core.notifyChanged()
                 }
             }
@@ -181,19 +182,19 @@ class NasService : Service() {
         val parts = mutableListOf<String>()
         val net = Core.networkType
         when {
-            net == "" -> parts += "⚠ Mất mạng, đang chờ kết nối lại"
+            net == "" -> parts += L("⚠ Mất mạng, đang chờ kết nối lại", "⚠ No network, waiting to reconnect")
             st.optString("backendState") == "Running" -> parts += "Tailnet ✓" + (net?.let { " ($it)" } ?: "")
-            st.optString("backendState") == "NeedsLogin" -> parts += "Chờ đăng nhập Tailscale"
-            st.optString("backendState").isEmpty() -> parts += "Đang khởi động…"
+            st.optString("backendState") == "NeedsLogin" -> parts += L("Chờ đăng nhập Tailscale", "Waiting for Tailscale sign-in")
+            st.optString("backendState").isEmpty() -> parts += L("Đang khởi động…", "Starting…")
             else -> parts += st.optString("backendState")
         }
         if (st.optString("funnelURL").isNotEmpty()) parts += "Funnel"
         val conns = st.optInt("openConns")
-        if (conns > 0) parts += "$conns kết nối"
+        if (conns > 0) parts += L("$conns kết nối", "$conns connections")
         // ↓ = người dùng đang tải về (server gửi đi), ↑ = đang tải lên.
         if (speedOut >= 1024 || speedIn >= 1024) parts += "↓${rate(speedOut)} ↑${rate(speedIn)}"
         val sessions = st.optInt("sessions")
-        if (sessions > 0) parts += "$sessions thiết bị"
+        if (sessions > 0) parts += L("$sessions thiết bị", "$sessions devices")
 
         val text = parts.joinToString(" • ")
         if (text != lastNotifText) startInForeground(text)
@@ -219,12 +220,12 @@ class NasService : Service() {
         )
         val n = Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle("NASfone đang chạy")
+            .setContentTitle(L("NASfone đang chạy", "NASfone is running"))
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(Icon.createWithResource(this, R.drawable.ic_stat), "Dừng", stop).build())
+            .addAction(Notification.Action.Builder(Icon.createWithResource(this, R.drawable.ic_stat), L("Dừng", "Stop"), stop).build())
             .build()
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)

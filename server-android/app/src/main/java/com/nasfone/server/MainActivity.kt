@@ -82,7 +82,7 @@ class MainActivity : Activity() {
                 renderDevices()
                 renderPaired()
             } catch (e: Exception) {
-                Core.log("Lỗi hiển thị: $e")
+                Core.log(L("Lỗi hiển thị: $e", "Display error: $e"))
             }
             ticker.postDelayed(this, 1000)
         }
@@ -94,6 +94,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
+        Lang.init(this)
         setContentView(buildUi())
         // Mở app là có mã đăng nhập: tự khởi động server nếu đang dừng.
         if (!Core.running && savedInstanceState == null) toggle()
@@ -137,44 +138,44 @@ class MainActivity : Activity() {
         stateTv = text("", 16f, bold = true).also { col.addView(it) }
         toggleBtn = button("") { toggle() }.also { col.addView(it) }
 
-        section(col, "Mã đăng nhập web (6 số, đổi mỗi phút)")
+        section(col, L("Mã đăng nhập web (6 số, đổi mỗi phút)", "Web sign-in codes (6 digits, change every minute)"))
         // Hai mã luôn khác nhau; màu và nhãn tách biệt để không đưa nhầm mã Admin.
-        val (aTv, aBtn) = codeBlock(col, "ADMIN — toàn quyền (tải lên, ghi đè, xóa)", "#B42318") { adminCode }
+        val (aTv, aBtn) = codeBlock(col, L("ADMIN — toàn quyền (tải lên, ghi đè, xóa)", "ADMIN — full access (upload, overwrite, delete)"), "#B42318") { adminCode }
         adminCodeTv = aTv; adminCopyBtn = aBtn
-        val (uTv, uBtn) = codeBlock(col, "USER — chỉ xem & tải về", "#2F6FED") { userCode }
+        val (uTv, uBtn) = codeBlock(col, L("USER — chỉ xem & tải về", "USER — view & download only"), "#2F6FED") { userCode }
         userCodeTv = uTv; userCopyBtn = uBtn
         codeBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 60 }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
         codeInfoTv = text("", 13f).apply { gravity = Gravity.CENTER }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
 
-        section(col, "Ứng dụng đã ghép (Windows / Android)")
+        section(col, L("Ứng dụng đã ghép (Windows / Android)", "Paired apps (Windows / Android)"))
         pairedBox = vbox().also { col.addView(it) }
-        col.addView(button("＋ Ghép thiết bị mới") { newPairing() })
+        col.addView(button(L("＋ Ghép thiết bị mới", "＋ Pair new device")) { newPairing() })
 
-        section(col, "Phiên trình duyệt (đăng nhập bằng mã 6 số)")
+        section(col, L("Phiên trình duyệt (đăng nhập bằng mã 6 số)", "Browser sessions (signed in with a 6-digit code)"))
         devBox = vbox().also { col.addView(it) }
-        col.addView(button("Thu hồi tất cả") {
+        col.addView(button(L("Thu hồi tất cả", "Revoke all")) {
             AlertDialog.Builder(this)
-                .setTitle("Thu hồi tất cả thiết bị?")
-                .setMessage("Mọi trình duyệt đang đăng nhập sẽ bị đăng xuất ngay.")
-                .setPositiveButton("Thu hồi") { _, _ -> thread { Mobile.revokeAllDevices(); runOnUiThread { lastDevicesJson = ""; renderDevices() } } }
-                .setNegativeButton("Hủy", null)
+                .setTitle(L("Thu hồi tất cả thiết bị?", "Revoke all devices?"))
+                .setMessage(L("Mọi trình duyệt đang đăng nhập sẽ bị đăng xuất ngay.", "Every signed-in browser is signed out immediately."))
+                .setPositiveButton(L("Thu hồi", "Revoke")) { _, _ -> thread { Mobile.revokeAllDevices(); runOnUiThread { lastDevicesJson = ""; renderDevices() } } }
+                .setNegativeButton(L("Hủy", "Cancel"), null)
                 .show()
         })
 
-        section(col, "Tài khoản Tailscale")
+        section(col, L("Tài khoản Tailscale", "Tailscale account"))
         accountBox = vbox().also { col.addView(it) }
         val accBtns = hbox().also { col.addView(it) }
-        loginBtn = button("Đăng nhập") { login() }.also { accBtns.addView(it, weighted()) }
-        logoutBtn = button("Đăng xuất / đổi tài khoản") { logout() }.also { accBtns.addView(it, weighted()) }
+        loginBtn = button(L("Đăng nhập", "Sign in")) { login() }.also { accBtns.addView(it, weighted()) }
+        logoutBtn = button(L("Đăng xuất / đổi tài khoản", "Sign out / switch account")) { logout() }.also { accBtns.addView(it, weighted()) }
 
-        section(col, "Địa chỉ truy cập")
+        section(col, L("Địa chỉ truy cập", "Addresses"))
         addrBox = vbox().also { col.addView(it) }
 
-        section(col, "Funnel (truy cập công khai qua Internet)")
+        section(col, L("Funnel (truy cập công khai qua Internet)", "Funnel (public access over the internet)"))
         funnelSw = Switch(this).apply {
-            text = "Bật Funnel"
+            text = L("Bật Funnel", "Enable Funnel")
             isChecked = prefs.funnel
             setOnCheckedChangeListener { _, on ->
                 prefs.funnel = on
@@ -183,40 +184,43 @@ class MainActivity : Activity() {
         }
         col.addView(funnelSw)
         funnelTv = text("", 13f).also { col.addView(it) }
-        funnelHelpBtn = button("Mở trang cài đặt Tailscale để sửa") {
+        funnelHelpBtn = button(L("Mở trang cài đặt Tailscale để sửa", "Open the Tailscale settings page to fix this")) {
             Core.status.optString("funnelHelpURL").takeIf { it.isNotEmpty() }?.let {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
             }
         }.also { col.addView(it) }
 
-        section(col, "Cài đặt (áp dụng khi khởi động lại)")
-        hostEt = field(col, "Tên máy trong tailnet", prefs.hostname)
-        controlEt = field(col, "Máy chủ điều khiển (để trống = Tailscale; điền URL nếu dùng Headscale)", prefs.controlUrl)
-        rootEt = field(col, "Thư mục lưu trữ", prefs.rootDir)
-        verboseCb = CheckBox(this).apply { text = "Ghi log chi tiết của Tailscale"; isChecked = prefs.verboseLog }.also { col.addView(it) }
+        section(col, L("Cài đặt (áp dụng khi khởi động lại)", "Settings (applied on restart)"))
+        hostEt = field(col, L("Tên máy trong tailnet", "Machine name in the tailnet"), prefs.hostname)
+        controlEt = field(col, L("Máy chủ điều khiển (để trống = Tailscale; điền URL nếu dùng Headscale)", "Control server (empty = Tailscale; enter a URL for Headscale)"), prefs.controlUrl)
+        rootEt = field(col, L("Thư mục lưu trữ", "Storage folder"), prefs.rootDir)
+        verboseCb = CheckBox(this).apply { text = L("Ghi log chi tiết của Tailscale", "Verbose Tailscale logs"); isChecked = prefs.verboseLog }.also { col.addView(it) }
         autoCb = CheckBox(this).apply {
-            text = "Tự chạy khi khởi động máy"
+            text = L("Tự chạy khi khởi động máy", "Start when the phone boots")
             isChecked = prefs.autoStart
             setOnCheckedChangeListener { _, on -> prefs.autoStart = on }
         }.also { col.addView(it) }
-        col.addView(button("Lưu cài đặt") { save() })
+        col.addView(button(L("Lưu cài đặt", "Save settings")) { save() })
+        col.addView(button(L("Ngôn ngữ: ", "Language: ") + when (prefs.lang) {
+            "vi" -> "Tiếng Việt"; "en" -> "English"; else -> L("theo máy", "follow the phone")
+        }) { chooseLanguage() })
 
-        section(col, "Quyền & chống bị tắt nền (MagicOS)")
+        section(col, L("Quyền & chống bị tắt nền (MagicOS)", "Permissions & background survival"))
         permTv = text("", 14f).also { col.addView(it) }
-        col.addView(button("Cấp quyền truy cập tất cả file") {
+        col.addView(button(L("Cấp quyền truy cập tất cả file", "Grant all-files access")) {
             startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
         })
-        col.addView(button("Bỏ tối ưu pin") {
+        col.addView(button(L("Bỏ tối ưu pin", "Disable battery optimization")) {
             @Suppress("BatteryLife")
             startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
         })
-        col.addView(button("Mở cài đặt ứng dụng (Khởi chạy ứng dụng → thủ công)") {
+        col.addView(button(L("Mở cài đặt ứng dụng (Khởi chạy ứng dụng → thủ công)", "Open app settings (App launch → manage manually)")) {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         })
 
-        section(col, "Nhật ký")
+        section(col, L("Nhật ký", "Log"))
         logTv = text("", 11f).apply { typeface = Typeface.MONOSPACE; setTextIsSelectable(true) }.also { col.addView(it) }
-        col.addView(button("Sao chép nhật ký") { copy(Core.logLines().joinToString("\n")) })
+        col.addView(button(L("Sao chép nhật ký", "Copy log")) { copy(Core.logLines().joinToString("\n")) })
         return scroll
     }
 
@@ -265,7 +269,7 @@ class MainActivity : Activity() {
             letterSpacing = 0.12f
             setTextColor(Color.parseColor(color))
         }.also { row.addView(it, weighted()) }
-        val btn = button("Sao chép") { current()?.let { copy(it.replace(" ", "")) } }.also { row.addView(it) }
+        val btn = button(L("Sao chép", "Copy")) { current()?.let { copy(it.replace(" ", "")) } }.also { row.addView(it) }
         return tv to btn
     }
 
@@ -273,7 +277,7 @@ class MainActivity : Activity() {
     private fun row(label: String, value: String) = hbox().apply {
         gravity = Gravity.CENTER_VERTICAL
         addView(text("$label\n$value", 14f).apply { setTextIsSelectable(true) }, weighted())
-        addView(button("Sao chép") { copy(value) })
+        addView(button(L("Sao chép", "Copy")) { copy(value) })
     }
 
     // ---------------------------------------------------------------- render
@@ -284,15 +288,15 @@ class MainActivity : Activity() {
         val running = Core.running
 
         stateTv.text = when {
-            !running && Core.startError != null -> "⛔ Lỗi: ${Core.startError}"
-            !running -> "○ Đã dừng"
-            backend == "Running" -> "● Đang chạy • tailnet đã kết nối"
-            backend == "NeedsLogin" -> "● Đang chạy • chờ đăng nhập Tailscale"
-            backend.isEmpty() -> "● Đang khởi động…"
-            else -> "● Đang chạy • $backend"
+            !running && Core.startError != null -> L("⛔ Lỗi: ${Core.startError}", "⛔ Error: ${Core.startError}")
+            !running -> L("○ Đã dừng", "○ Stopped")
+            backend == "Running" -> L("● Đang chạy • tailnet đã kết nối", "● Running • tailnet connected")
+            backend == "NeedsLogin" -> L("● Đang chạy • chờ đăng nhập Tailscale", "● Running • waiting for Tailscale sign-in")
+            backend.isEmpty() -> L("● Đang khởi động…", "● Starting…")
+            else -> L("● Đang chạy • $backend", "● Running • $backend")
         }
         stateTv.setTextColor(Color.parseColor(if (running) "#1F9D55" else "#D64545"))
-        toggleBtn.text = if (running) "Dừng server" else "Khởi động server"
+        toggleBtn.text = if (running) L("Dừng server", "Stop server") else L("Khởi động server", "Start server")
 
         accountBox.removeAllViews()
         if (running) {
@@ -300,15 +304,15 @@ class MainActivity : Activity() {
             val tailnet = st.optString("tailnetName")
             accountBox.addView(text(
                 when {
-                    login.isNotEmpty() -> "Tài khoản: $login\nTailnet: $tailnet"
-                    backend == "NeedsLogin" -> "Chưa đăng nhập. Bấm \"Đăng nhập\" để mở trang đăng nhập Tailscale."
+                    login.isNotEmpty() -> L("Tài khoản: $login\nTailnet: $tailnet", "Account: $login\nTailnet: $tailnet")
+                    backend == "NeedsLogin" -> L("Chưa đăng nhập. Bấm \"Đăng nhập\" để mở trang đăng nhập Tailscale.", "Not signed in. Tap \"Sign in\" to open the Tailscale sign-in page.")
                     else -> "…"
                 }, 14f
             ))
             val auth = st.optString("authURL")
-            if (auth.isNotEmpty()) accountBox.addView(row("Link đăng nhập (mở trên máy này hoặc máy khác)", auth))
+            if (auth.isNotEmpty()) accountBox.addView(row(L("Link đăng nhập (mở trên máy này hoặc máy khác)", "Sign-in link (open on this or another device)"), auth))
         } else {
-            accountBox.addView(text("Khởi động server để đăng nhập.", 14f))
+            accountBox.addView(text(L("Khởi động server để đăng nhập.", "Start the server to sign in."), 14f))
         }
         loginBtn.isEnabled = running && backend != "Running"
         logoutBtn.isEnabled = running && backend == "Running"
@@ -320,23 +324,24 @@ class MainActivity : Activity() {
             val ips = st.optJSONArray("tailscaleIPs")
             if (ips != null && ips.length() > 0) addrBox.addView(row("Tailnet IP", "http://${ips.getString(0)}"))
             val funnel = st.optString("funnelURL")
-            if (funnel.isNotEmpty()) addrBox.addView(row("Funnel (công khai)", funnel))
+            if (funnel.isNotEmpty()) addrBox.addView(row(L("Funnel (công khai)", "Funnel (public)"), funnel))
         } else {
             addrBox.addView(text("—", 14f))
         }
 
         funnelTv.text = when {
             st.optString("funnelError").isNotEmpty() ->
-                "⚠ ${st.optString("funnelError")}\nApp tự thử lại mỗi 20 giây sau khi bạn sửa."
-            st.optString("funnelURL").isNotEmpty() -> "Đang mở công khai: ${st.optString("funnelURL")}"
-            prefs.funnel -> "Sẽ mở khi tailnet kết nối xong."
-            else -> "Tắt — chỉ truy cập qua LAN và tailnet."
+                "⚠ ${st.optString("funnelError")}\n" + L("App tự thử lại mỗi 20 giây sau khi bạn sửa.", "The app retries every 20 seconds after you fix it.")
+            st.optString("funnelURL").isNotEmpty() -> L("Đang mở công khai: ", "Public at: ") + st.optString("funnelURL")
+            prefs.funnel -> L("Sẽ mở khi tailnet kết nối xong.", "Opens once the tailnet is connected.")
+            else -> L("Tắt — chỉ truy cập qua LAN và tailnet.", "Off — reachable only through the tailnet.")
         }
         funnelHelpBtn.visibility = if (st.optString("funnelHelpURL").isNotEmpty()) View.VISIBLE else View.GONE
 
         val files = Environment.isExternalStorageManager()
         val battery = (getSystemService(POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(packageName)
-        permTv.text = "${if (files) "✔" else "✘"} Truy cập tất cả file\n${if (battery) "✔" else "✘"} Bỏ tối ưu pin"
+        permTv.text = "${if (files) "✔" else "✘"} " + L("Truy cập tất cả file", "All files access") +
+            "\n${if (battery) "✔" else "✘"} " + L("Bỏ tối ưu pin", "Battery optimization disabled")
 
         logTv.text = Core.logLines().takeLast(80).joinToString("\n")
     }
@@ -350,7 +355,7 @@ class MainActivity : Activity() {
             adminCodeTv.text = "— — —"
             userCodeTv.text = "— — —"
             codeBar.progress = 0
-            codeInfoTv.text = "Khởi động server để có mã đăng nhập."
+            codeInfoTv.text = L("Khởi động server để có mã đăng nhập.", "Start the server to get sign-in codes.")
         } else {
             val o = JSONObject(json)
             adminCode = o.getString("admin")
@@ -361,7 +366,7 @@ class MainActivity : Activity() {
             userCodeTv.text = userCode
             codeBar.max = step
             codeBar.progress = left
-            codeInfoTv.text = "Đổi mã sau %d:%02d • mỗi mã dùng 1 lần".format(left / 60, left % 60)
+            codeInfoTv.text = L("Đổi mã sau %d:%02d • mỗi mã dùng 1 lần", "New codes in %d:%02d • each code works once").format(left / 60, left % 60)
         }
         adminCopyBtn.isEnabled = adminCode != null
         userCopyBtn.isEnabled = userCode != null
@@ -375,7 +380,7 @@ class MainActivity : Activity() {
         devBox.removeAllViews()
         val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
         if (arr.length() == 0) {
-            devBox.addView(text(if (Core.running) "Chưa có thiết bị nào." else "—", 14f))
+            devBox.addView(text(if (Core.running) L("Chưa có thiết bị nào.", "No devices yet.") else "—", 14f))
             return
         }
         for (i in 0 until arr.length()) {
@@ -383,12 +388,13 @@ class MainActivity : Activity() {
             val id = d.getString("id")
             val name = d.getString("name")
             val seen = parseTime(d.optString("lastSeen"))
-            val role = if (d.optString("role") == "admin") "ADMIN" else "USER (chỉ xem)"
-            val info = "$role • ${d.optString("via")} • ${d.optString("lastIP")} • lần cuối $seen • hết hạn ${parseTime(d.optString("expires"))}"
+            val role = if (d.optString("role") == "admin") "ADMIN" else L("USER (chỉ xem)", "USER (view only)")
+            val info = "$role • ${d.optString("via")} • ${d.optString("lastIP")} • " + L("lần cuối", "last seen") + " $seen • " +
+                L("hết hạn", "expires") + " ${parseTime(d.optString("expires"))}"
             devBox.addView(hbox().apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(text("$name\n$info", 13f), weighted())
-                addView(button("Thu hồi") {
+                addView(button(L("Thu hồi", "Revoke")) {
                     thread { Mobile.revokeDevice(id); runOnUiThread { lastDevicesJson = ""; renderDevices() } }
                 })
             })
@@ -404,7 +410,7 @@ class MainActivity : Activity() {
         pairedBox.removeAllViews()
         val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
         if (arr.length() == 0) {
-            pairedBox.addView(text(if (Core.running) "Chưa ghép ứng dụng nào." else "—", 14f))
+            pairedBox.addView(text(if (Core.running) L("Chưa ghép ứng dụng nào.", "No apps paired yet.") else "—", 14f))
             return
         }
         for (i in 0 until arr.length()) {
@@ -417,26 +423,27 @@ class MainActivity : Activity() {
                 setTextColor(Color.parseColor(if (admin) "#B42318" else "#2F6FED"))
             }
             val info = text(
-                "${platformLabel(d.optString("platform"))} • khóa $fp\n" +
-                    "Lần cuối ${parseTime(d.optString("lastSeen"))} qua ${d.optString("via")} • ghép lúc ${parseTime(d.optString("created"))}",
+                "${platformLabel(d.optString("platform"))} • " + L("khóa", "key") + " $fp\n" +
+                    L("Lần cuối", "Last seen") + " ${parseTime(d.optString("lastSeen"))} " + L("qua", "via") + " ${d.optString("via")} • " +
+                    L("ghép lúc", "paired") + " ${parseTime(d.optString("created"))}",
                 12f
             )
             val actions = hbox()
-            actions.addView(button(if (admin) "Hạ xuống User" else "Nâng lên Admin") {
+            actions.addView(button(if (admin) L("Hạ xuống User", "Demote to User") else L("Nâng lên Admin", "Promote to Admin")) {
                 val to = if (admin) "user" else "admin"
                 AlertDialog.Builder(this)
-                    .setTitle("Đổi quyền \"$name\"?")
-                    .setMessage(if (admin) "Thiết bị chỉ còn quyền xem và tải về." else "Thiết bị sẽ có toàn quyền: tải lên, ghi đè, xóa.")
-                    .setPositiveButton("Đổi") { _, _ -> thread { Mobile.setPairedRole(id, to); runOnUiThread { lastPairedJson = ""; renderPaired() } } }
-                    .setNegativeButton("Hủy", null)
+                    .setTitle(L("Đổi quyền \"$name\"?", "Change access for \"$name\"?"))
+                    .setMessage(if (admin) L("Thiết bị chỉ còn quyền xem và tải về.", "The device will only be able to view and download.") else L("Thiết bị sẽ có toàn quyền: tải lên, ghi đè, xóa.", "The device gets full access: upload, overwrite, delete."))
+                    .setPositiveButton(L("Đổi", "Change")) { _, _ -> thread { Mobile.setPairedRole(id, to); runOnUiThread { lastPairedJson = ""; renderPaired() } } }
+                    .setNegativeButton(L("Hủy", "Cancel"), null)
                     .show()
             }, weighted())
-            actions.addView(button("Thu hồi") {
+            actions.addView(button(L("Thu hồi", "Revoke")) {
                 AlertDialog.Builder(this)
-                    .setTitle("Thu hồi \"$name\"?")
-                    .setMessage("Thiết bị bị ngắt ngay và không kết nối lại được. Muốn dùng lại phải ghép đôi lại.")
-                    .setPositiveButton("Thu hồi") { _, _ -> thread { Mobile.revokePaired(id); runOnUiThread { lastPairedJson = ""; renderPaired() } } }
-                    .setNegativeButton("Hủy", null)
+                    .setTitle(L("Thu hồi \"$name\"?", "Revoke \"$name\"?"))
+                    .setMessage(L("Thiết bị bị ngắt ngay và không kết nối lại được. Muốn dùng lại phải ghép đôi lại.", "The device is disconnected now and cannot reconnect. Pair it again to use it."))
+                    .setPositiveButton(L("Thu hồi", "Revoke")) { _, _ -> thread { Mobile.revokePaired(id); runOnUiThread { lastPairedJson = ""; renderPaired() } } }
+                    .setNegativeButton(L("Hủy", "Cancel"), null)
                     .show()
             }, weighted())
             pairedBox.addView(vbox().apply {
@@ -458,13 +465,13 @@ class MainActivity : Activity() {
 
     /** Chọn quyền rồi hiện lời mời ghép đôi dạng QR + nút sao chép. */
     private fun newPairing() {
-        if (!Core.running) { toast("Khởi động server trước"); return }
+        if (!Core.running) { toast(L("Khởi động server trước", "Start the server first")); return }
         AlertDialog.Builder(this)
-            .setTitle("Ghép thiết bị mới — chọn quyền")
-            .setItems(arrayOf("USER — chỉ xem & tải về", "ADMIN — toàn quyền (tải lên, ghi đè, xóa)")) { _, which ->
+            .setTitle(L("Ghép thiết bị mới — chọn quyền", "Pair a new device — choose access"))
+            .setItems(arrayOf(L("USER — chỉ xem & tải về", "USER — view & download only"), L("ADMIN — toàn quyền (tải lên, ghi đè, xóa)", "ADMIN — full access (upload, overwrite, delete)"))) { _, which ->
                 showInvite(if (which == 1) "admin" else "user")
             }
-            .setNegativeButton("Hủy", null)
+            .setNegativeButton(L("Hủy", "Cancel"), null)
             .show()
     }
 
@@ -473,7 +480,7 @@ class MainActivity : Activity() {
             val inv = try {
                 JSONObject(Mobile.newPairInvite(role))
             } catch (e: Exception) {
-                runOnUiThread { toast(e.message ?: "Không tạo được lời mời") }
+                runOnUiThread { toast(e.message ?: L("Không tạo được lời mời", "Could not create an invite")) }
                 return@thread
             }
             val invite = inv.getString("invite")
@@ -489,23 +496,23 @@ class MainActivity : Activity() {
                         setBackgroundColor(Color.WHITE)
                     }, LinearLayout.LayoutParams(dp(260), dp(260)))
                 }
-                val roleText = if (role == "admin") "ADMIN — toàn quyền" else "USER — chỉ xem & tải về"
+                val roleText = if (role == "admin") L("ADMIN — toàn quyền", "ADMIN — full access") else L("USER — chỉ xem & tải về", "USER — view & download only")
                 val expires = inv.getLong("expires")
                 val info = text("", 13f).apply { gravity = Gravity.CENTER }
                 box.addView(info)
                 val dialog = AlertDialog.Builder(this)
-                    .setTitle("Lời mời ghép đôi")
+                    .setTitle(L("Lời mời ghép đôi", "Pairing invite"))
                     .setView(box)
-                    .setPositiveButton("Sao chép lời mời") { _, _ -> copy(invite) }
-                    .setNegativeButton("Đóng", null)
+                    .setPositiveButton(L("Sao chép lời mời", "Copy invite")) { _, _ -> copy(invite) }
+                    .setNegativeButton(L("Đóng", "Close"), null)
                     .show()
                 val h = Handler(Looper.getMainLooper())
                 val tickInfo = object : Runnable {
                     override fun run() {
                         val left = ((expires - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
-                        info.text = "Quyền: $roleText\nVân tay server: ${inv.optString("fp")}\n" +
-                            (if (left > 0) "Dùng 1 lần • hết hạn sau %d:%02d".format(left / 60, left % 60) else "Đã hết hạn — tạo lời mời mới") +
-                            "\n\nQuét bằng app NASfone trên điện thoại, hoặc sao chép rồi dán vào app trên máy tính."
+                        info.text = L("Quyền", "Access") + ": $roleText\n" + L("Vân tay server", "Server fingerprint") + ": ${inv.optString("fp")}\n" +
+                            (if (left > 0) L("Dùng 1 lần • hết hạn sau %d:%02d", "Single use • expires in %d:%02d").format(left / 60, left % 60) else L("Đã hết hạn — tạo lời mời mới", "Expired — create a new invite")) +
+                            L("\n\nQuét bằng app NASfone trên điện thoại, hoặc sao chép rồi dán vào app trên máy tính.", "\n\nScan with the NASfone app on a phone, or copy and paste it into the app on a computer.")
                         if (left > 0 && dialog.isShowing) h.postDelayed(this, 1000)
                     }
                 }
@@ -538,21 +545,21 @@ class MainActivity : Activity() {
 
     private fun save(): Boolean {
         val host = hostEt.text.toString().trim().lowercase()
-        if (!host.matches(Regex("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?"))) return toast("Tên máy chỉ gồm a-z, 0-9 và dấu -")
+        if (!host.matches(Regex("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?"))) return toast(L("Tên máy chỉ gồm a-z, 0-9 và dấu -", "The machine name may only use a-z, 0-9 and -"))
         val control = controlEt.text.toString().trim()
-        if (control.isNotEmpty() && !control.startsWith("https://")) return toast("Máy chủ điều khiển phải bắt đầu bằng https://")
+        if (control.isNotEmpty() && !control.startsWith("https://")) return toast(L("Máy chủ điều khiển phải bắt đầu bằng https://", "The control server must start with https://"))
 
         if (control != prefs.controlUrl) {
             // Trạng thái đăng nhập gắn với máy chủ điều khiển cũ; xóa để đăng nhập lại.
-            if (Core.running) return toast("Dừng server trước khi đổi máy chủ điều khiển")
+            if (Core.running) return toast(L("Dừng server trước khi đổi máy chủ điều khiển", "Stop the server before changing the control server"))
             prefs.stateDir.deleteRecursively()
-            Core.log("Đã đổi máy chủ điều khiển, cần đăng nhập lại")
+            Core.log(L("Đã đổi máy chủ điều khiển, cần đăng nhập lại", "Control server changed; sign in again"))
         }
         prefs.hostname = host
         prefs.controlUrl = control
         prefs.rootDir = rootEt.text.toString().trim()
         prefs.verboseLog = verboseCb.isChecked
-        if (Core.running) toast("Đã lưu. Khởi động lại server để áp dụng.") else toast("Đã lưu")
+        if (Core.running) toast(L("Đã lưu. Khởi động lại server để áp dụng.", "Saved. Restart the server to apply.")) else toast(L("Đã lưu", "Saved"))
         return true
     }
 
@@ -563,27 +570,39 @@ class MainActivity : Activity() {
             return
         }
         thread {
-            try { Mobile.login() } catch (e: Exception) { Core.log("Đăng nhập: ${e.message}") }
+            try { Mobile.login() } catch (e: Exception) { Core.log(L("Đăng nhập: ${e.message}", "Sign in: ${e.message}")) }
         }
-        toast("Đang lấy link đăng nhập…")
+        toast(L("Đang lấy link đăng nhập…", "Getting the sign-in link…"))
     }
 
     private fun logout() {
         AlertDialog.Builder(this)
-            .setTitle("Đăng xuất Tailscale?")
-            .setMessage("Server sẽ rời tailnet hiện tại. Sau đó bấm \"Đăng nhập\" để dùng tài khoản khác.")
-            .setPositiveButton("Đăng xuất") { _, _ ->
+            .setTitle(L("Đăng xuất Tailscale?", "Sign out of Tailscale?"))
+            .setMessage(L("Server sẽ rời tailnet hiện tại. Sau đó bấm \"Đăng nhập\" để dùng tài khoản khác.", "The server leaves the current tailnet. Then tap \"Sign in\" to use another account."))
+            .setPositiveButton(L("Đăng xuất", "Sign out")) { _, _ ->
                 thread {
-                    try { Mobile.logout() } catch (e: Exception) { Core.log("Đăng xuất: ${e.message}") }
+                    try { Mobile.logout() } catch (e: Exception) { Core.log(L("Đăng xuất: ${e.message}", "Sign out: ${e.message}")) }
                 }
             }
-            .setNegativeButton("Hủy", null)
+            .setNegativeButton(L("Hủy", "Cancel"), null)
+            .show()
+    }
+
+    private fun chooseLanguage() {
+        val codes = arrayOf("", "en", "vi")
+        AlertDialog.Builder(this)
+            .setTitle(L("Ngôn ngữ", "Language"))
+            .setItems(arrayOf(L("Theo ngôn ngữ của máy", "Follow the phone"), "English", "Tiếng Việt")) { _, which ->
+                prefs.lang = codes[which]
+                Lang.init(this)
+                recreate() // rebuild the screen in the new language
+            }
             .show()
     }
 
     private fun copy(s: String) {
         (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("NASfone", s))
-        toast("Đã sao chép")
+        toast(L("Đã sao chép", "Copied"))
     }
 
     private fun toast(msg: String): Boolean {

@@ -68,11 +68,11 @@ object Core : Host {
 
     override fun onEvent(kind: String, detail: String) {
         val text = when (kind) {
-            "login" -> "Thiết bị mới đăng nhập: $detail"
-            "revoke" -> "Đã thu hồi: $detail"
-            "code_rolled" -> "Mã đăng nhập bị nhập sai 5 lần (IP $detail), đã đổi mã mới"
-            "paired" -> "Đã ghép đôi ứng dụng: $detail"
-            "unpaired" -> "Đã thu hồi ứng dụng: $detail"
+            "login" -> L("Thiết bị mới đăng nhập: $detail", "New device signed in: $detail")
+            "revoke" -> L("Đã thu hồi: $detail", "Revoked: $detail")
+            "code_rolled" -> L("Mã đăng nhập bị nhập sai 5 lần (IP $detail), đã đổi mã mới", "Sign-in code entered wrongly 5 times (IP $detail); new codes issued")
+            "paired" -> L("Đã ghép đôi ứng dụng: $detail", "App paired: $detail")
+            "unpaired" -> L("Đã thu hồi ứng dụng: $detail", "App revoked: $detail")
             else -> "$kind: $detail"
         }
         log(text)
@@ -83,7 +83,7 @@ object Core : Host {
         val ctx = appContext ?: return
         val nm = ctx.getSystemService(NotificationManager::class.java)
         if (nm.getNotificationChannel("security") == null) {
-            nm.createNotificationChannel(NotificationChannel("security", "Bảo mật", NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(NotificationChannel("security", L("Bảo mật", "Security"), NotificationManager.IMPORTANCE_HIGH))
         }
         val open = PendingIntent.getActivity(ctx, 2, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(
