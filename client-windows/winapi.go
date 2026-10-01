@@ -142,7 +142,7 @@ func requestShow() {
 	name, _ := windows.UTF16PtrFromString(showEventName)
 	h, err := windows.OpenEvent(windows.EVENT_MODIFY_STATE, false, name)
 	if err != nil {
-		info("NASfone đang chạy — xem biểu tượng ở khay hệ thống (cạnh đồng hồ).")
+		info(t("already_running"))
 		return
 	}
 	defer windows.CloseHandle(h)

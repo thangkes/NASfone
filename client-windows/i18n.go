@@ -1,0 +1,148 @@
+//go:build windows
+
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"golang.org/x/sys/windows"
+)
+
+// msgs maps a key to its {English, Vietnamese} text (fmt verbs allowed).
+var msgs = map[string][2]string{
+	// pairing dialogs
+	"invite_bad":      {"This pairing invite is not valid.\n\n%s", "Lời mời ghép đôi không hợp lệ.\n\n%s"},
+	"role_user_long":  {"USER — view and download only", "USER — chỉ xem và tải về"},
+	"role_admin_long": {"ADMIN — full access (upload, overwrite, delete)", "ADMIN — toàn quyền (tải lên, ghi đè, xóa)"},
+	"pair_confirm": {
+		"Pair this computer with NASfone?\n\nServer: %s\nAccess: %s\nServer fingerprint: %s\n\nOnly agree if you just clicked \"Connect the app\" on your own NASfone page.",
+		"Ghép máy tính này với NASfone?\n\nServer: %s\nQuyền: %s\nVân tay server: %s\n\nChỉ đồng ý nếu chính bạn vừa bấm \"Kết nối app\" trên trang NASfone của mình.",
+	},
+	"pair_replaces":   {"\n\nThis computer is paired with %s — the new pairing will replace it.", "\n\nMáy này đang ghép với %s — ghép mới sẽ thay thế."},
+	"key_fail":        {"Could not create a key: %s", "Không tạo được khóa: %s"},
+	"pair_fail":       {"Pairing failed.\n\n%s", "Ghép đôi thất bại.\n\n%s"},
+	"key_save_fail":   {"Could not save the key: %s", "Không lưu được khóa: %s"},
+	"cfg_save_fail":   {"Could not save the settings: %s", "Không lưu được cấu hình: %s"},
+	"pair_done":       {"Paired with %s (%s access).\n\nNASfone will appear as a drive in File Explorer in a few seconds.", "Đã ghép đôi với %s (quyền %s).\n\nNASfone sẽ hiện thành một ổ đĩa trong File Explorer sau vài giây."},
+	"unpair_q":        {"Unpair from %s?\n\nThe NASfone drive is disconnected and this computer's key is deleted. Also revoke this computer in the app on the phone.", "Hủy ghép đôi với %s?\n\nỔ NASfone sẽ bị ngắt và khóa của máy này bị xóa. Nên thu hồi thêm máy này trong app trên điện thoại."},
+	"already_running": {"NASfone is running — see its icon in the system tray (next to the clock).", "NASfone đang chạy — xem biểu tượng ở khay hệ thống (cạnh đồng hồ)."},
+	"no_webview":      {"Cannot open the window. Microsoft Edge WebView2 Runtime is required.", "Không mở được cửa sổ. Máy cần Microsoft Edge WebView2 Runtime."},
+
+	// drive / mount errors
+	"no_rclone":      {"rclone.exe not found (put it next to NASfone.exe or install: winget install Rclone.Rclone)", "không tìm thấy rclone.exe (đặt cạnh NASfone.exe hoặc cài bằng: winget install Rclone.Rclone)"},
+	"no_winfsp":      {"WinFsp is not installed (winget install WinFsp.WinFsp)", "chưa cài WinFsp (winget install WinFsp.WinFsp)"},
+	"no_drive":       {"no free drive letter left", "không còn ký tự ổ đĩa trống"},
+	"rclone_start":   {"could not start rclone: %v", "không chạy được rclone: %v"},
+	"rclone_stopped": {"rclone stopped", "rclone đã dừng"},
+	"drive_lost":     {"drive disconnected: %v (see %s)", "ổ đĩa bị ngắt: %v (xem %s)"},
+	"not_paired":     {"not paired", "chưa ghép đôi"},
+
+	// tray menu
+	"m_window":        {"Open NASfone window", "Mở cửa sổ NASfone"},
+	"m_starting":      {"Starting…", "Đang khởi động…"},
+	"m_open":          {"Open NASfone drive", "Mở ổ NASfone"},
+	"m_open_tip":      {"Open in File Explorer", "Mở trong File Explorer"},
+	"m_web":           {"Open NASfone web page", "Mở trang web NASfone"},
+	"m_pair":          {"Pair using the copied invite", "Ghép đôi bằng lời mời đã sao chép"},
+	"m_pair_tip":      {"Paste a nasfone1:… invite from the clipboard", "Dán lời mời nasfone1:… từ clipboard"},
+	"m_auto":          {"Start with Windows", "Khởi động cùng Windows"},
+	"m_forget":        {"Unpair from this server", "Hủy ghép đôi với server này"},
+	"m_quit":          {"Quit", "Thoát"},
+	"drive_not_ready": {"The NASfone drive is not ready.\n\n%s", "Ổ NASfone chưa sẵn sàng.\n\n%s"},
+	"no_invite_clip":  {"The clipboard has no NASfone invite.\n\nOn the phone or the NASfone web page choose \"Pair new device\" → \"Copy invite\", then click this item again.", "Clipboard không có lời mời NASfone.\n\nTrên điện thoại hoặc trang web NASfone, chọn \"Ghép thiết bị\" → \"Sao chép lời mời\", rồi bấm lại mục này."},
+	"autostart_fail":  {"Could not change the startup setting: %s", "Không đổi được cài đặt khởi động: %s"},
+
+	// status lines
+	"st_unpaired_hint": {"Not paired — click \"Connect the app\" on the NASfone web page", "Chưa ghép đôi — bấm \"Kết nối app\" trên trang web NASfone"},
+	"st_role_user":     {"User (view only)", "User (chỉ xem)"},
+	"st_role_admin":    {"Admin", "Admin"},
+	"st_conn_err":      {"⚠ Cannot reach the server: %s", "⚠ Không kết nối được server: %s"},
+	"st_ok":            {"✔ Connected • %s • drive %s", "✔ Đã kết nối • %s • ổ %s"},
+	"st_mounting":      {"Mounting the drive… • %s", "Đang gắn ổ đĩa… • %s"},
+	"st_connecting":    {"Connecting… • %s", "Đang kết nối… • %s"},
+	"s_unpaired":       {"Not paired", "Chưa ghép đôi"},
+	"s_conn_err":       {"Cannot reach the server", "Không kết nối được server"},
+	"s_ok":             {"Connected", "Đã kết nối"},
+	"s_drive_err":      {"Drive error", "Ổ đĩa gặp lỗi"},
+	"s_connecting":     {"Connecting…", "Đang kết nối…"},
+
+	// window (ui.html)
+	"w_drive":         {"Drive", "Ổ đĩa"},
+	"w_open_explorer": {"Open in File Explorer", "Mở trong File Explorer"},
+	"w_web":           {"Web page", "Trang web"},
+	"w_reconnect":     {"Reconnect", "Kết nối lại"},
+	"w_connection":    {"Connection", "Kết nối"},
+	"w_server":        {"Server", "Server"},
+	"w_access":        {"Access", "Quyền"},
+	"w_this_pc":       {"This computer", "Máy này"},
+	"w_server_fp":     {"Server fingerprint", "Vân tay server"},
+	"w_paired_at":     {"Paired at", "Ghép đôi lúc"},
+	"w_pair_title":    {"Pair with NASfone", "Ghép đôi với NASfone"},
+	"w_step1":         {"Open the NASfone web page on this computer and sign in with the <b>ADMIN code</b> shown on the phone.", "Mở trang web NASfone trên máy này và đăng nhập bằng <b>mã ADMIN</b> trên điện thoại."},
+	"w_step2":         {"Click <b>🔗 Connect the app on this computer</b> and choose the access level.", "Bấm <b>🔗 Kết nối app trên máy này</b> và chọn quyền."},
+	"w_step3":         {"Confirm in the dialog that appears — done.", "Xác nhận trong hộp thoại hiện ra — xong."},
+	"w_or_paste":      {"Or paste a copied <span class=\"mono\">nasfone1:…</span> invite:", "Hoặc dán lời mời <span class=\"mono\">nasfone1:…</span> đã sao chép:"},
+	"w_paste":         {"Paste from clipboard", "Dán từ clipboard"},
+	"w_pair":          {"Pair", "Ghép đôi"},
+	"w_pairing":       {"Pairing…", "Đang ghép đôi…"},
+	"w_settings":      {"Settings", "Cài đặt"},
+	"w_drive_pref":    {"Preferred drive letter", "Ký tự ổ đĩa ưu tiên"},
+	"w_autostart":     {"Start with Windows", "Khởi động cùng Windows"},
+	"w_language":      {"Language", "Ngôn ngữ"},
+	"w_logs":          {"Data & log folder", "Thư mục dữ liệu & log"},
+	"w_unpair":        {"Unpair", "Hủy ghép đôi"},
+	"w_missing":       {"Missing components to mount the drive: ", "Thiếu thành phần để gắn ổ đĩa: "},
+	"w_role_admin":    {"ADMIN — full access", "ADMIN — toàn quyền"},
+	"w_role_user":     {"USER — view & download only", "USER — chỉ xem & tải về"},
+	"w_rw":            {"Read & write", "Đọc & ghi"},
+	"w_ro":            {"Read only", "Chỉ đọc"},
+	"w_drive_n":       {"drive", "ổ"},
+	"w_not_mounted":   {"Drive not mounted", "Chưa gắn được ổ đĩa"},
+	"w_mounting":      {"Mounting the drive…", "Đang gắn ổ đĩa…"},
+}
+
+var (
+	kernel32UI               = windows.NewLazySystemDLL("kernel32.dll")
+	procGetUserDefaultUILang = kernel32UI.NewProc("GetUserDefaultUILanguage")
+)
+
+// lang is "vi" or "en": the in-app choice first, then the Windows display
+// language, English otherwise.
+func lang() string {
+	if l := getSettings().Lang; l == "vi" || l == "en" {
+		return l
+	}
+	id, _, _ := procGetUserDefaultUILang.Call()
+	if id&0x3ff == 0x2a { // LANG_VIETNAMESE
+		return "vi"
+	}
+	return "en"
+}
+
+// t returns the localized text for key, formatted with args.
+func t(key string, args ...any) string {
+	m, ok := msgs[key]
+	if !ok {
+		return key
+	}
+	s := m[0]
+	if lang() == "vi" {
+		s = m[1]
+	}
+	if len(args) > 0 {
+		return fmt.Sprintf(s, args...)
+	}
+	return s
+}
+
+// uiDict returns the window texts (keys starting with "w_") in the current language.
+func uiDict() map[string]string {
+	out := map[string]string{}
+	for k := range msgs {
+		if strings.HasPrefix(k, "w_") {
+			out[k] = t(k)
+		}
+	}
+	return out
+}

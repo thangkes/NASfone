@@ -31,7 +31,7 @@ func dataDir() string {
 func configPath() string { return filepath.Join(dataDir(), "config.json") }
 func keyPath() string    { return filepath.Join(dataDir(), "key.bin") }
 
-var errNotPaired = errors.New("chưa ghép đôi")
+var errNotPaired = errors.New("not paired")
 
 func loadConfig() (client.Config, error) {
 	var c client.Config

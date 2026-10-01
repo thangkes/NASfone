@@ -14,7 +14,6 @@ import (
 	webview2 "github.com/jchv/go-webview2"
 	"golang.org/x/sys/windows"
 
-	"nasfone/core/auth"
 	"nasfone/core/pair"
 )
 
@@ -60,7 +59,7 @@ func (a *app) openWindow() {
 			},
 		})
 		if w == nil {
-			fail("Không mở được cửa sổ. Máy cần Microsoft Edge WebView2 Runtime.")
+			fail(t("no_webview"))
 			return
 		}
 		a.bind(w)
@@ -123,15 +122,15 @@ func (a *app) state() uiState {
 	}
 	switch {
 	case !paired:
-		s.Status, s.StatusText = "unpaired", "Chưa ghép đôi"
+		s.Status, s.StatusText = "unpaired", t("s_unpaired")
 	case connErr != "":
-		s.Status, s.StatusText = "error", "Không kết nối được server"
+		s.Status, s.StatusText = "error", t("s_conn_err")
 	case mounted:
-		s.Status, s.StatusText = "ok", "Đã kết nối"
+		s.Status, s.StatusText = "ok", t("s_ok")
 	case mErr != "":
-		s.Status, s.StatusText = "error", "Ổ đĩa gặp lỗi"
+		s.Status, s.StatusText = "error", t("s_drive_err")
 	default:
-		s.Status, s.StatusText = "connecting", "Đang kết nối…"
+		s.Status, s.StatusText = "connecting", t("s_connecting")
 	}
 	if s.Status == "error" {
 		if connErr != "" {
@@ -213,11 +212,11 @@ func (a *app) bind(w webview2.WebView) {
 	w.Bind("pnUnpair", func() {
 		go a.unpair()
 	})
-	w.Bind("pnRoleLabel", func(r string) string {
-		if auth.Role(r) == auth.RoleAdmin {
-			return "Admin — toàn quyền"
-		}
-		return "User — chỉ xem & tải về"
+	w.Bind("pnDict", func() map[string]string { return uiDict() })
+	w.Bind("pnLang", func() string { return lang() })
+	w.Bind("pnSetLang", func(l string) {
+		setLang(l)
+		a.relabel()
 	})
 }
 
@@ -231,7 +230,7 @@ func (a *app) unpair() {
 	a.mu.Lock()
 	u := a.cfg.URL
 	a.mu.Unlock()
-	if !ask("Hủy ghép đôi với " + u + "?\n\nỔ NASfone sẽ bị ngắt và khóa của máy này bị xóa. Nên thu hồi thêm máy này trong app trên điện thoại.") {
+	if !ask(t("unpair_q", u)) {
 		return
 	}
 	a.mount.stopMount()

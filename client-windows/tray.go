@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -47,19 +46,19 @@ func (a *app) onReady() {
 	systray.SetTooltip(appTitle)
 	systray.SetOnTapped(a.openWindow) // left click opens the window; right click shows the menu
 
-	a.mWindow = systray.AddMenuItem("Mở cửa sổ NASfone", "")
+	a.mWindow = systray.AddMenuItem(t("m_window"), "")
 	systray.AddSeparator()
-	a.mStatus = systray.AddMenuItem("Đang khởi động…", "")
+	a.mStatus = systray.AddMenuItem(t("m_starting"), "")
 	a.mStatus.Disable()
 	systray.AddSeparator()
-	a.mOpen = systray.AddMenuItem("Mở ổ NASfone", "Mở trong File Explorer")
-	a.mWeb = systray.AddMenuItem("Mở trang web NASfone", "")
+	a.mOpen = systray.AddMenuItem(t("m_open"), t("m_open_tip"))
+	a.mWeb = systray.AddMenuItem(t("m_web"), "")
 	systray.AddSeparator()
-	a.mPair = systray.AddMenuItem("Ghép đôi bằng lời mời đã sao chép", "Dán lời mời nasfone1:… từ clipboard")
-	a.mAuto = systray.AddMenuItemCheckbox("Khởi động cùng Windows", "", autostartEnabled())
-	a.mForget = systray.AddMenuItem("Hủy ghép đôi với server này", "")
+	a.mPair = systray.AddMenuItem(t("m_pair"), t("m_pair_tip"))
+	a.mAuto = systray.AddMenuItemCheckbox(t("m_auto"), "", autostartEnabled())
+	a.mForget = systray.AddMenuItem(t("m_forget"), "")
 	systray.AddSeparator()
-	a.mQuit = systray.AddMenuItem("Thoát", "")
+	a.mQuit = systray.AddMenuItem(t("m_quit"), "")
 
 	a.reload(true)
 	go a.watch()
@@ -81,7 +80,7 @@ func (a *app) menuLoop() {
 			if d, ok, _ := a.mount.status(); ok && d != "" {
 				exec.Command("explorer.exe", d+`\`).Start()
 			} else {
-				warn("Ổ NASfone chưa sẵn sàng.\n\n" + a.statusText())
+				warn(t("drive_not_ready", a.statusText()))
 			}
 		case <-a.mWeb.ClickedCh:
 			a.mu.Lock()
@@ -93,7 +92,7 @@ func (a *app) menuLoop() {
 		case <-a.mPair.ClickedCh:
 			text, err := clipboardText()
 			if err != nil || !strings.Contains(text, "nasfone1:") {
-				warn("Clipboard không có lời mời NASfone.\n\nTrên điện thoại hoặc trang web NASfone, chọn \"Ghép thiết bị\" → \"Sao chép lời mời\", rồi bấm lại mục này.")
+				warn(t("no_invite_clip"))
 				continue
 			}
 			if pairFromInvite(text) {
@@ -102,7 +101,7 @@ func (a *app) menuLoop() {
 		case <-a.mAuto.ClickedCh:
 			on := !a.mAuto.Checked()
 			if err := setAutostart(on, exe); err != nil {
-				fail("Không đổi được cài đặt khởi động: " + err.Error())
+				fail(t("autostart_fail", err.Error()))
 				continue
 			}
 			if on {
@@ -207,24 +206,24 @@ func (a *app) statusText() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.paired {
-		return "Chưa ghép đôi — bấm \"Kết nối app\" trên trang web NASfone"
+		return t("st_unpaired_hint")
 	}
-	role := "User (chỉ xem)"
+	role := t("st_role_user")
 	if a.cfg.Role == auth.RoleAdmin {
-		role = "Admin"
+		role = t("st_role_admin")
 	}
 	drive, running, mErr := a.mount.status()
 	switch {
 	case a.connErr != "":
-		return "⚠ Không kết nối được server: " + short(a.connErr)
+		return t("st_conn_err", short(a.connErr))
 	case running:
-		return fmt.Sprintf("✔ Đã kết nối • %s • ổ %s", role, drive)
+		return t("st_ok", role, drive)
 	case mErr != "":
 		return "⚠ " + short(mErr)
 	case a.connected:
-		return "Đang gắn ổ đĩa… • " + role
+		return t("st_mounting", role)
 	default:
-		return "Đang kết nối… • " + role
+		return t("st_connecting", role)
 	}
 }
 
@@ -244,4 +243,18 @@ func short(s string) string {
 		return string(r[:90]) + "…"
 	}
 	return s
+}
+
+// relabel re-applies menu texts after the language setting changes.
+func (a *app) relabel() {
+	a.mWindow.SetTitle(t("m_window"))
+	a.mOpen.SetTitle(t("m_open"))
+	a.mOpen.SetTooltip(t("m_open_tip"))
+	a.mWeb.SetTitle(t("m_web"))
+	a.mPair.SetTitle(t("m_pair"))
+	a.mPair.SetTooltip(t("m_pair_tip"))
+	a.mAuto.SetTitle(t("m_auto"))
+	a.mForget.SetTitle(t("m_forget"))
+	a.mQuit.SetTitle(t("m_quit"))
+	a.refreshMenu()
 }

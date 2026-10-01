@@ -4,7 +4,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,7 +36,7 @@ func findRclone() (string, error) {
 			return m[len(m)-1], nil
 		}
 	}
-	return "", errors.New("không tìm thấy rclone.exe (đặt cạnh NASfone.exe hoặc cài bằng: winget install Rclone.Rclone)")
+	return "", errors.New(t("no_rclone"))
 }
 
 func winfspInstalled() bool {
@@ -113,7 +112,7 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 		return err
 	}
 	if !winfspInstalled() {
-		return errors.New("chưa cài WinFsp (winget install WinFsp.WinFsp)")
+		return errors.New(t("no_winfsp"))
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -121,7 +120,7 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 	}
 	drive := freeDriveLetter(getSettings().Drive)
 	if drive == "" {
-		return errors.New("không còn ký tự ổ đĩa trống")
+		return errors.New(t("no_drive"))
 	}
 	tokenCmd := exe + " token"
 	if strings.ContainsRune(exe, ' ') {
@@ -145,7 +144,7 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 	cmd := exec.Command(rclone, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("không chạy được rclone: %w", err)
+		return errors.New(t("rclone_start", err))
 	}
 	m.mu.Lock()
 	m.cmd, m.drive, m.running, m.lastErr = cmd, drive, true, ""
@@ -160,9 +159,9 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 		return nil
 	case err := <-done:
 		if err == nil {
-			err = errors.New("rclone đã dừng")
+			err = errors.New(t("rclone_stopped"))
 		}
-		return fmt.Errorf("ổ đĩa bị ngắt: %v (xem %s)", err, filepath.Join(dataDir(), "rclone.log"))
+		return errors.New(t("drive_lost", err, filepath.Join(dataDir(), "rclone.log")))
 	}
 }
 

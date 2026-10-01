@@ -13,6 +13,7 @@ import (
 // settings are local preferences of this Windows app (not part of pairing).
 type settings struct {
 	Drive string `json:"drive"` // preferred drive letter, e.g. "P"
+	Lang  string `json:"lang"`  // "", "en" or "vi" ("" = follow Windows)
 }
 
 var (
@@ -47,6 +48,20 @@ func setDrive(letter string) {
 		settingsV = &settings{}
 	}
 	settingsV.Drive = letter
+	b, _ := json.MarshalIndent(settingsV, "", "  ")
+	settingsMu.Unlock()
+	writeAtomic(settingsPath(), b)
+}
+
+func setLang(l string) {
+	if l != "" && l != "en" && l != "vi" {
+		return
+	}
+	settingsMu.Lock()
+	if settingsV == nil {
+		settingsV = &settings{Drive: "P"}
+	}
+	settingsV.Lang = l
 	b, _ := json.MarshalIndent(settingsV, "", "  ")
 	settingsMu.Unlock()
 	writeAtomic(settingsPath(), b)
