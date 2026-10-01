@@ -60,13 +60,16 @@ class MainActivity : Activity() {
     private lateinit var autoCb: CheckBox
     private lateinit var permTv: TextView
     private lateinit var logTv: TextView
-    private lateinit var codeTv: TextView
+    private lateinit var adminCodeTv: TextView
+    private lateinit var userCodeTv: TextView
+    private lateinit var adminCopyBtn: Button
+    private lateinit var userCopyBtn: Button
     private lateinit var codeInfoTv: TextView
     private lateinit var codeBar: ProgressBar
-    private lateinit var codeCopyBtn: Button
     private lateinit var devBox: LinearLayout
 
-    private var code: String? = null
+    private var adminCode: String? = null
+    private var userCode: String? = null
     private var lastDevicesJson = ""
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
@@ -127,21 +130,20 @@ class MainActivity : Activity() {
             insets
         }
 
-        col.addView(text("PocketNAS Server", 24f, bold = true))
+        // Tên app đã có trên thanh tiêu đề của hệ thống; không lặp lại ở đây.
         stateTv = text("", 16f, bold = true).also { col.addView(it) }
         toggleBtn = button("") { toggle() }.also { col.addView(it) }
 
-        section(col, "Mã đăng nhập (6 số, đổi mỗi phút)")
-        codeTv = text("— — — —", 34f, bold = true).apply {
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            letterSpacing = 0.12f
-        }.also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
+        section(col, "Mã đăng nhập web (6 số, đổi mỗi phút)")
+        // Hai mã luôn khác nhau; màu và nhãn tách biệt để không đưa nhầm mã Admin.
+        val (aTv, aBtn) = codeBlock(col, "ADMIN — toàn quyền (tải lên, ghi đè, xóa)", "#B42318") { adminCode }
+        adminCodeTv = aTv; adminCopyBtn = aBtn
+        val (uTv, uBtn) = codeBlock(col, "USER — chỉ xem & tải về", "#2F6FED") { userCode }
+        userCodeTv = uTv; userCopyBtn = uBtn
         codeBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 60 }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
         codeInfoTv = text("", 13f).apply { gravity = Gravity.CENTER }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
-        codeCopyBtn = button("Sao chép mã") { code?.let { copy(it.replace(" ", "")) } }.also { col.addView(it) }
 
         section(col, "Thiết bị đã đăng nhập")
         devBox = vbox().also { col.addView(it) }
@@ -244,6 +246,22 @@ class MainActivity : Activity() {
         }.also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
     }
 
+    /** Nhãn quyền + mã lớn + nút sao chép cho một loại mã đăng nhập. */
+    private fun codeBlock(col: LinearLayout, label: String, color: String, current: () -> String?): Pair<TextView, Button> {
+        col.addView(text(label, 13f, bold = true).apply {
+            setTextColor(Color.parseColor(color))
+            setPadding(0, dp(10), 0, 0)
+        })
+        val row = hbox().apply { gravity = Gravity.CENTER_VERTICAL }.also { col.addView(it) }
+        val tv = text("— — —", 30f, bold = true).apply {
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            letterSpacing = 0.12f
+            setTextColor(Color.parseColor(color))
+        }.also { row.addView(it, weighted()) }
+        val btn = button("Sao chép") { current()?.let { copy(it.replace(" ", "")) } }.also { row.addView(it) }
+        return tv to btn
+    }
+
     /** Một dòng "nhãn: giá trị" kèm nút sao chép. */
     private fun row(label: String, value: String) = hbox().apply {
         gravity = Gravity.CENTER_VERTICAL
@@ -317,24 +335,29 @@ class MainActivity : Activity() {
     }
 
     private fun renderCode() {
-        if (!::codeTv.isInitialized) return
+        if (!::adminCodeTv.isInitialized) return
         val json = if (Core.running) Mobile.loginCode() else ""
         if (json.isEmpty()) {
-            code = null
-            codeTv.text = "— — —"
+            adminCode = null
+            userCode = null
+            adminCodeTv.text = "— — —"
+            userCodeTv.text = "— — —"
             codeBar.progress = 0
             codeInfoTv.text = "Khởi động server để có mã đăng nhập."
         } else {
             val o = JSONObject(json)
-            code = o.getString("code")
+            adminCode = o.getString("admin")
+            userCode = o.getString("user")
             val step = o.optInt("step", 60)
             val left = ((o.getLong("expires") - System.currentTimeMillis() + 999) / 1000).toInt().coerceIn(0, step)
-            codeTv.text = code
+            adminCodeTv.text = adminCode
+            userCodeTv.text = userCode
             codeBar.max = step
             codeBar.progress = left
             codeInfoTv.text = "Đổi mã sau %d:%02d • mỗi mã dùng 1 lần".format(left / 60, left % 60)
         }
-        codeCopyBtn.isEnabled = code != null
+        adminCopyBtn.isEnabled = adminCode != null
+        userCopyBtn.isEnabled = userCode != null
     }
 
     private fun renderDevices() {
@@ -353,7 +376,8 @@ class MainActivity : Activity() {
             val id = d.getString("id")
             val name = d.getString("name")
             val seen = parseTime(d.optString("lastSeen"))
-            val info = "${d.optString("via")} • ${d.optString("lastIP")} • lần cuối $seen • hết hạn ${parseTime(d.optString("expires"))}"
+            val role = if (d.optString("role") == "admin") "ADMIN" else "USER (chỉ xem)"
+            val info = "$role • ${d.optString("via")} • ${d.optString("lastIP")} • lần cuối $seen • hết hạn ${parseTime(d.optString("expires"))}"
             devBox.addView(hbox().apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(text("$name\n$info", 13f), weighted())

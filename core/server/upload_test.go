@@ -31,7 +31,7 @@ func newTestServer(t *testing.T) (root string, do func(method, path string, hdr 
 	store, _ := auth.Open(filepath.Join(t.TempDir(), "a.json"))
 	srv := httptest.NewServer(WithVia(NewHandler(Options{Root: root, Auth: store}), "Tailnet"))
 	t.Cleanup(srv.Close)
-	code, _ := store.CurrentCode()
+	code, _, _ := store.CurrentCodes() // admin code
 	token, _, _ := store.Redeem(code, "T", "127.0.0.1", "Tailnet")
 	do = func(method, path string, hdr map[string]string, body io.Reader) *http.Response {
 		req, _ := http.NewRequest(method, srv.URL+path, body)

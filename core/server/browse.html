@@ -12,6 +12,10 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-appl
 main{max-width:960px;margin:0 auto;padding:16px}
 header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
 header .who{font-size:13px;color:var(--muted)}
+.role{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;margin-right:6px;vertical-align:middle}
+.role.admin{background:#fde8e8;color:#b42318}
+.role.user{background:var(--chip);color:var(--acc)}
+@media (prefers-color-scheme:dark){.role.admin{background:#3a1d1d;color:#ff8a80}}
 nav{font-size:15px;margin-bottom:12px;word-break:break-all}
 nav a{color:var(--acc);text-decoration:none}
 .bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
@@ -48,17 +52,17 @@ summary{cursor:pointer;font-weight:600}
 <main>
 <header>
   <b>PocketNAS</b>
-  <span><span class="who">{{.Who.Name}}</span>{{if .Who.DeviceID}} <button class="btn" onclick="logout()">Đăng xuất</button>{{end}}</span>
+  <span>{{if .Who.CanWrite}}<span class="role admin">ADMIN</span>{{else}}<span class="role user">CHỈ XEM &amp; TẢI VỀ</span>{{end}}<span class="who">{{.Who.Name}}</span>{{if .Who.DeviceID}} <button class="btn" onclick="logout()">Đăng xuất</button>{{end}}</span>
 </header>
 <nav>{{range $i, $c := .Crumbs}}{{if $i}} / {{end}}<a href="{{$c.Href}}">{{$c.Name}}</a>{{end}}</nav>
 
-<div class="bar">
+{{if .Who.CanWrite}}<div class="bar">
   <button class="btn pri" onclick="document.getElementById('f').click()">⬆ Tải file lên</button>
   <button class="btn" onclick="document.getElementById('d').click()">⬆ Tải thư mục lên</button>
   <button class="btn" onclick="mkdir()">＋ Thư mục mới</button>
   <input id="f" type="file" multiple hidden>
   <input id="d" type="file" webkitdirectory hidden>
-</div>
+</div>{{end}}
 <div id="status"></div>
 
 <div class="list">
@@ -68,10 +72,10 @@ summary{cursor:pointer;font-weight:600}
     <a class="name" href="{{.Href}}">{{.Name}}</a>
     <span class="meta">{{if not .IsDir}}{{size .Size}}{{end}}</span>
     <span class="meta date">{{.ModTime.Format "02/01/2006 15:04"}}</span>
-    <button class="act" title="Xóa" data-href="{{.Href}}" data-name="{{.Name}}" onclick="del(this)">🗑</button>
+    {{if $.Who.CanWrite}}<button class="act" title="Xóa" data-href="{{.Href}}" data-name="{{.Name}}" onclick="del(this)">🗑</button>{{end}}
   </div>
 {{else}}
-  <div class="empty">Thư mục trống — kéo thả file vào đây để tải lên.</div>
+  <div class="empty">Thư mục trống{{if .Who.CanWrite}} — kéo thả file vào đây để tải lên{{end}}.</div>
 {{end}}
 </div>
 
@@ -79,7 +83,7 @@ summary{cursor:pointer;font-weight:600}
   <summary>Đo tốc độ</summary>
   <div class="bar" style="margin-top:8px">
     <button class="btn" onclick="speedDown(100)">Tải về 100 MB</button>
-    <button class="btn" onclick="speedUp(50)">Tải lên 50 MB</button>
+    {{if .Who.CanWrite}}<button class="btn" onclick="speedUp(50)">Tải lên 50 MB</button>{{end}}
   </div>
   <div id="speedOut"></div>
 </details>
@@ -100,6 +104,7 @@ summary{cursor:pointer;font-weight:600}
 
 <script>
 const BASE = {{.Base}};
+const CAN_WRITE = {{.Who.CanWrite}};
 const st = document.getElementById('status');
 const enc = p => p.split('/').map(encodeURIComponent).join('/');
 const mbps = (bytes, ms) => (bytes / 1048576 / (ms / 1000)).toFixed(1) + ' MB/s';
@@ -205,8 +210,8 @@ async function upload(items){
     setTimeout(() => location.reload(), 1200);
   } catch (e) { st.textContent = '❌ ' + e.message; }
 }
-document.getElementById('f').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.name})));
-document.getElementById('d').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.webkitRelativePath || f.name})));
+if (CAN_WRITE) document.getElementById('f').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.name})));
+if (CAN_WRITE) document.getElementById('d').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.webkitRelativePath || f.name})));
 
 async function mkdir(){
   const n = prompt('Tên thư mục mới:'); if (!n) return;
@@ -227,11 +232,12 @@ async function logout(){
 // Drag & drop, including folders.
 const drop = document.getElementById('drop');
 let depth = 0;
-addEventListener('dragenter', e => { e.preventDefault(); depth++; drop.classList.add('on'); });
+addEventListener('dragenter', e => { e.preventDefault(); if (!CAN_WRITE) return; depth++; drop.classList.add('on'); });
 addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; drop.classList.remove('on'); } });
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', async e => {
   e.preventDefault(); depth = 0; drop.classList.remove('on');
+  if (!CAN_WRITE) return;
   const out = [];
   async function walk(entry, prefix){
     if (entry.isFile) {

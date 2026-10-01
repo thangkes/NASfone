@@ -1,5 +1,5 @@
-// Package auth handles browser sign-in: rolling 6-digit login codes shown in
-// the server app, and the browser sessions they create.
+// Package auth handles browser sign-in: two rolling 6-digit login codes shown
+// in the server app (one per role), and the browser sessions they create.
 package auth
 
 import (
@@ -37,6 +37,17 @@ var (
 	ErrGlobalLock = errors.New("Đăng nhập tạm khóa do có quá nhiều lần thử sai. Vui lòng đợi vài phút.")
 )
 
+// Role is what a session may do.
+type Role string
+
+const (
+	RoleAdmin Role = "admin" // full access: read, upload, overwrite, delete, create folders
+	RoleUser  Role = "user"  // read-only: browse and download
+)
+
+// roles is the fixed order codes are generated in.
+var roles = []Role{RoleAdmin, RoleUser}
+
 // WrongCodeError reports a wrong code and how many tries remain on the current code.
 type WrongCodeError struct{ Left int }
 
@@ -46,6 +57,7 @@ func (e WrongCodeError) Error() string { return "Mã không đúng." }
 type Device struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Role      Role      `json:"role"`
 	TokenHash string    `json:"tokenHash,omitempty"`
 	Via       string    `json:"via"`
 	LastIP    string    `json:"lastIP"`
@@ -55,30 +67,45 @@ type Device struct {
 }
 
 type loginCode struct {
-	code  string
-	exp   time.Time // end of its minute
-	tries int
+	code string
+	exp  time.Time // end of its minute
 }
 
-// Store keeps sessions on disk and the rolling login code in memory.
+// codeSlot holds one role's current code and, for codeGrace after a roll, the previous one.
+type codeSlot struct{ cur, prev *loginCode }
+
+// Store keeps sessions on disk and the rolling login codes in memory.
+//
+// Invariant: no two codes that are accepted at the same moment are equal —
+// across roles and including codes in their grace period — so a typed code
+// can only ever match one role.
 type Store struct {
 	mu          sync.Mutex
 	path        string
 	devices     []*Device
-	cur, prev   *loginCode
+	codes       map[Role]*codeSlot
+	wrongTries  int // wrong codes since the codes last rolled
 	ipFails     map[string][]time.Time
 	globalFails []time.Time
 	lastSave    time.Time
 
 	// Now is the clock; replaceable in tests.
 	Now func() time.Time
+	// gen produces candidate codes; replaceable in tests to force collisions.
+	gen func() string
 	// OnEvent is called (outside the lock) for "login", "revoke", "code_rolled".
 	OnEvent func(kind, detail string)
 }
 
 // Open loads (or creates) the session store at path.
 func Open(path string) (*Store, error) {
-	s := &Store{path: path, ipFails: map[string][]time.Time{}, Now: time.Now}
+	s := &Store{
+		path:    path,
+		codes:   map[Role]*codeSlot{RoleAdmin: {}, RoleUser: {}},
+		ipFails: map[string][]time.Time{},
+		Now:     time.Now,
+		gen:     func() string { return randomDigits(codeDigits) },
+	}
 	b, err := os.ReadFile(path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -93,30 +120,69 @@ func Open(path string) (*Store, error) {
 			if max := d.Created.Add(SessionTTL); d.Expires.After(max) {
 				d.Expires = max
 			}
+			if d.Role != RoleAdmin {
+				d.Role = RoleUser // sessions from before roles existed get the safe role
+			}
 		}
 	}
 	return s, nil
 }
 
-// CurrentCode returns the code for the current minute (rolling it if needed)
-// formatted as "123 456", and when it expires.
-func (s *Store) CurrentCode() (code string, exp time.Time) {
+// CurrentCodes returns this minute's admin and user codes (rolling them if
+// needed) formatted as "123 456", and when they expire. They are never equal.
+func (s *Store) CurrentCodes() (admin, user string, exp time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	c := s.currentLocked(s.Now())
-	return FormatCode(c.code), c.exp
+	s.refreshLocked(s.Now())
+	a, u := s.codes[RoleAdmin].cur, s.codes[RoleUser].cur
+	return FormatCode(a.code), FormatCode(u.code), a.exp
 }
 
-func (s *Store) currentLocked(now time.Time) *loginCode {
-	if s.cur == nil || !now.Before(s.cur.exp) {
-		if s.cur != nil && now.Sub(s.cur.exp) < codeGrace {
-			s.prev = s.cur
-		} else {
-			s.prev = nil
+// refreshLocked rolls expired codes, keeps just-expired ones for codeGrace,
+// and fills empty slots with fresh codes that collide with no live code.
+func (s *Store) refreshLocked(now time.Time) {
+	for _, r := range roles {
+		sl := s.codes[r]
+		if sl.cur != nil && !now.Before(sl.cur.exp) {
+			sl.prev, sl.cur = sl.cur, nil
+			s.wrongTries = 0
 		}
-		s.cur = &loginCode{code: randomDigits(codeDigits), exp: now.Truncate(CodeStep).Add(CodeStep)}
+		if sl.prev != nil && now.Sub(sl.prev.exp) >= codeGrace {
+			sl.prev = nil
+		}
 	}
-	return s.cur
+	exp := now.Truncate(CodeStep).Add(CodeStep)
+	for _, r := range roles {
+		if s.codes[r].cur == nil {
+			s.codes[r].cur = &loginCode{code: s.freshCodeLocked(), exp: exp}
+		}
+	}
+}
+
+// freshCodeLocked returns a code different from every code currently accepted
+// (both roles, current and grace-period codes).
+func (s *Store) freshCodeLocked() string {
+	for {
+		c := s.gen()
+		if !s.liveLocked(c) {
+			return c
+		}
+	}
+}
+
+func (s *Store) liveLocked(c string) bool {
+	for _, sl := range s.codes {
+		if (sl.cur != nil && sl.cur.code == c) || (sl.prev != nil && sl.prev.code == c) {
+			return true
+		}
+	}
+	return false
+}
+
+// retireLocked drops a role's codes and issues it a fresh one at once.
+func (s *Store) retireLocked(r Role, now time.Time) {
+	s.codes[r].cur, s.codes[r].prev = nil, nil
+	s.refreshLocked(now)
 }
 
 // FormatCode renders "123456" as "123 456".
@@ -160,25 +226,35 @@ func (s *Store) Redeem(code, name, ip, via string) (token string, dev Device, er
 	if s.ipLocked(ip, now) {
 		return "", Device{}, ErrIPLocked
 	}
-	cur := s.currentLocked(now)
+	s.refreshLocked(now)
 	in := normalizeCode(code)
-	ok := codeEqual(in, cur.code)
-	if !ok && s.prev != nil && now.Sub(s.prev.exp) < codeGrace {
-		ok = codeEqual(in, s.prev.code)
+	var role Role
+	matches := 0
+	for _, r := range roles { // compare against every live code; no early exit
+		sl := s.codes[r]
+		if codeEqual(in, sl.cur.code) || (sl.prev != nil && codeEqual(in, sl.prev.code)) {
+			role = r
+			matches++
+		}
 	}
-	if !ok {
+	if matches != 1 { // 0 = wrong; >1 cannot happen (see Store invariant) but must never pick a role
 		s.recordFailure(ip, now)
-		cur.tries++
-		if cur.tries >= codeMaxTries {
-			// Roll early so guessing has to start over against a fresh code.
-			s.cur, s.prev = nil, nil
+		s.wrongTries++
+		if s.wrongTries >= codeMaxTries {
+			// Roll both codes early so guessing has to start over.
+			for _, r := range roles {
+				s.codes[r].cur, s.codes[r].prev = nil, nil
+			}
+			s.wrongTries = 0
+			s.refreshLocked(now)
 			event, detail = "code_rolled", ip
 			return "", Device{}, ErrNoCode
 		}
-		return "", Device{}, WrongCodeError{Left: codeMaxTries - cur.tries}
+		return "", Device{}, WrongCodeError{Left: codeMaxTries - s.wrongTries}
 	}
-	// Single use: a code that signed someone in is retired at once.
-	s.cur, s.prev = nil, nil
+	// Single use: the code that signed someone in is replaced at once
+	// (only that role's; the other role's code is unaffected).
+	s.retireLocked(role, now)
 
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -191,6 +267,7 @@ func (s *Store) Redeem(code, name, ip, via string) (token string, dev Device, er
 	d := &Device{
 		ID:        randomString(10, "abcdefghijkmnpqrstuvwxyz23456789"),
 		Name:      name,
+		Role:      role,
 		TokenHash: hashToken(token),
 		Via:       via,
 		LastIP:    ip,
@@ -200,7 +277,7 @@ func (s *Store) Redeem(code, name, ip, via string) (token string, dev Device, er
 	}
 	s.devices = append(s.devices, d)
 	s.saveLocked()
-	event, detail = "login", name+" ("+via+")"
+	event, detail = "login", name+" ("+string(role)+", "+via+")"
 	return token, d.public(), nil
 }
 

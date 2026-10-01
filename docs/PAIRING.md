@@ -1,4 +1,18 @@
-# PocketNAS – Ghép đôi bằng cặp khóa (bản thiết kế, chờ duyệt)
+# PocketNAS – Đăng nhập, phân quyền và ghép đôi
+
+## 0. Đã chốt (2026-10-01)
+
+| Cơ chế | Dùng cho | Phân quyền |
+|---|---|---|
+| **SSO – mã 6 số** | Đăng nhập một lần trên trình duyệt | **Hai mã riêng: Admin và User**, đổi mỗi phút |
+| **Private key – ghép đôi** | Kết nối liên tục từ app Windows (EXE) / app Android (APK) | Chọn Admin hoặc User khi tạo lời mời |
+
+- **Admin:** toàn quyền với NAS (xem, tải về, tải lên, ghi đè, xóa, tạo thư mục, đổi tên).
+- **User:** chỉ **xem và tải về**. Server chặn mọi thao tác ghi bằng mã 403: PUT, DELETE, MKCOL, MOVE, COPY, PROPPATCH, LOCK, POST, kiểm tra trùng tên, upload đo tốc độ.
+- **Hai mã SSO không bao giờ trùng nhau tại bất kỳ thời điểm nào**, kể cả mã đang trong 10 giây ân hạn. Mỗi lần sinh mã (đổi theo phút, đổi sau khi dùng, đổi sớm do nhập sai), mã mới phải khác mọi mã còn hiệu lực của cả hai quyền. Một mã nhập vào vì vậy chỉ khớp với tối đa một quyền; nếu khớp từ hai quyền trở lên (không thể xảy ra) thì từ chối. Đã kiểm chứng bằng test 3.000 bước với bộ sinh mã bị ép trùng, kèm test đột biến xác nhận test bắt được lỗi.
+- Dùng mã Admin thì chỉ mã Admin đổi, mã User giữ nguyên, và ngược lại.
+- Phiên tạo từ trước khi có phân quyền được hạ về **User**.
+
 
 ## 1. Mục tiêu
 
@@ -23,7 +37,7 @@
 
 ```
  Honor (server)                                         Client (Windows/Android)
- 1. Bấm "Ghép thiết bị mới"
+ 1. Bấm "Ghép thiết bị mới", chọn Admin / User
     → tạo LỜI MỜI dùng 1 lần, hạn 5 phút:
       pnas1:<base64url {v, url, fp_server, token}>
       hiện dạng QR + nút Sao chép
@@ -81,7 +95,7 @@ Giới hạn tần suất áp dụng giống đăng nhập bằng mã: theo IP v
 
 ## 7. Câu hỏi cần chốt
 
-1. Ghép đôi **chỉ bằng lời mời QR / chuỗi copy** (đề xuất), hay cho phép cả bằng mã 6 số?
-2. Quyền khi ghép: mặc định **Toàn quyền**, hay hỏi chọn Toàn quyền / Chỉ đọc mỗi lần?
+1. ~~Cách ghép~~ → đã chốt: SSO chỉ dùng cho web; ghép đôi app bằng lời mời QR / chuỗi copy.
+2. ~~Quyền khi ghép~~ → đã chốt: chọn **Admin / User** khi tạo lời mời trên server.
 3. Có cần **khóa truy cập WebDAV** cho app bên thứ ba (RaiDrive, CX File Explorer…) không? Mỗi app một khóa riêng, thu hồi được. Đây không phải mật khẩu chung như trước.
 4. Có cần **chế độ khóa cứng** không? Bật hay tắt mặc định?

@@ -274,19 +274,21 @@ func SetFunnel(enabled bool) {
 	n.refresh()
 }
 
-// LoginCode returns the rolling login code for the current minute:
-// {"code":"123 456","expires":<unix ms>,"step":60}. "" when the server is stopped.
+// LoginCode returns this minute's two rolling login codes, which are never equal:
+// {"admin":"123 456","user":"654 321","expires":<unix ms>,"step":60}.
+// "" when the server is stopped.
 func LoginCode() string {
 	n := get()
 	if n == nil {
 		return ""
 	}
-	code, exp := n.auth.CurrentCode()
-	return codeJSON(code, exp)
-}
-
-func codeJSON(code string, exp time.Time) string {
-	b, _ := json.Marshal(map[string]any{"code": code, "expires": exp.UnixMilli(), "step": int(auth.CodeStep.Seconds())})
+	admin, user, exp := n.auth.CurrentCodes()
+	b, _ := json.Marshal(map[string]any{
+		"admin":   admin,
+		"user":    user,
+		"expires": exp.UnixMilli(),
+		"step":    int(auth.CodeStep.Seconds()),
+	})
 	return string(b)
 }
 

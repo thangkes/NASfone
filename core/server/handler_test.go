@@ -21,7 +21,7 @@ func TestHandler(t *testing.T) {
 	defer srv.Close()
 
 	// Sign in once with the current code to get a session token.
-	code, _ := store.CurrentCode()
+	code, _, _ := store.CurrentCodes() // admin code
 	token, _, err := store.Redeem(code, "Test", "127.0.0.1", "Tailnet")
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestLoginFlow(t *testing.T) {
 		}
 		return res
 	}
-	code, _ := store.CurrentCode()
+	code, _, _ := store.CurrentCodes() // admin code
 	if res := post(code, "text/plain"); res.StatusCode != 415 {
 		t.Fatalf("non-json accepted: %d", res.StatusCode)
 	}

@@ -27,9 +27,14 @@ if (-not $SkipCore) {
 
 Write-Host "== gradle assembleRelease ==" -ForegroundColor Cyan
 $app = "$root\server-android"
-$p = Start-Process -FilePath "$app\gradlew.bat" -ArgumentList "assembleRelease", "--offline", "-q", "--console=plain" `
-    -WorkingDirectory $app -NoNewWindow -Wait -PassThru
-if ($p.ExitCode) { throw "gradle failed ($($p.ExitCode))" }
+# Call gradlew directly: Start-Process -Wait would also wait for the Gradle
+# daemon it spawns, which keeps running, and hang forever.
+Push-Location $app
+$ErrorActionPreference = "Continue" # gradle warnings on stderr are not failures; check the exit code
+try {
+    & "$app\gradlew.bat" assembleRelease --offline -q --console=plain
+    if ($LASTEXITCODE) { throw "gradle failed ($LASTEXITCODE)" }
+} finally { Pop-Location; $ErrorActionPreference = "Stop" }
 $apk = "$app\app\build\outputs\apk\release\app-release.apk"
 Write-Host ("APK: {0} ({1:N1} MB)" -f $apk, ((Get-Item $apk).Length / 1MB)) -ForegroundColor Green
 

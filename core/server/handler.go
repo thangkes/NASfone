@@ -87,6 +87,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = r.WithContext(context.WithValue(r.Context(), whoKey{}, who))
+	if !who.CanWrite() && !readOnlyAllowed(r) {
+		// Read-only (user) sessions may browse and download, nothing else.
+		http.Error(w, "Tài khoản chỉ có quyền xem và tải về.", http.StatusForbidden)
+		return
+	}
 	switch {
 	case r.URL.Path == "/__pnas/speed":
 		h.speed(w, r)

@@ -1,5 +1,5 @@
 // Command devserver runs the PocketNAS web handler on localhost for UI work,
-// without Android or Tailscale. It prints the rolling login code every minute.
+// without Android or Tailscale. It prints the rolling admin/user login codes every minute.
 //
 //	go run ./cmd/devserver -root ./tmp-root
 package main
@@ -29,8 +29,8 @@ func main() {
 	store.OnEvent = func(kind, detail string) { log.Printf("event %s: %s", kind, detail) }
 	go func() {
 		for {
-			code, exp := store.CurrentCode()
-			log.Printf("login code %s (until %s)", code, exp.Format("15:04:05"))
+			admin, user, exp := store.CurrentCodes()
+			log.Printf("login codes: admin %s, user %s (until %s)", admin, user, exp.Format("15:04:05"))
 			time.Sleep(time.Until(exp) + 100*time.Millisecond)
 		}
 	}()

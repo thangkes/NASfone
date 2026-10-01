@@ -30,6 +30,20 @@ var loginTmpl = template.Must(template.New("login").Parse(loginHTML))
 type Who struct {
 	Name     string // device name chosen at sign-in
 	DeviceID string
+	Role     auth.Role
+}
+
+// CanWrite reports whether the caller may change files.
+func (w Who) CanWrite() bool { return w.Role == auth.RoleAdmin }
+
+// readOnlyAllowed reports whether a request only reads (allowed for every role).
+// Anything not listed here is treated as a write and needs the admin role.
+func readOnlyAllowed(r *http.Request) bool {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, "PROPFIND":
+		return r.URL.Path != conflictsPath // conflicts only serves uploads
+	}
+	return false
 }
 
 type whoKey struct{}
@@ -63,7 +77,7 @@ func clientIP(r *http.Request) string {
 func (h *handler) authenticate(r *http.Request) (Who, bool) {
 	if c, err := r.Cookie(cookieName); err == nil && h.opt.Auth != nil {
 		if d, ok := h.opt.Auth.Check(c.Value, clientIP(r), viaFrom(r)); ok {
-			return Who{Name: d.Name, DeviceID: d.ID}, true
+			return Who{Name: d.Name, DeviceID: d.ID, Role: d.Role}, true
 		}
 	}
 	return Who{}, false
