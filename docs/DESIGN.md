@@ -101,3 +101,10 @@ APK server khung đã cài và chạy được trên máy.
 - Mạng nhà người dùng có thể có **hai lớp NAT** (router phụ). Khi đó máy tính không truy cập được server qua LAN, nhưng tailnet vẫn kết nối trực tiếp P2P được.
 - Đây là một lý do để bỏ chế độ LAN: tailnet đi xuyên được double NAT.
 - Logcat trên MagicOS bị mã hóa. App tự ghi `pnas.log` và `go-crash.txt` vào `/sdcard/Android/data/com.pocketnas.server/files/`.
+
+## 10. Funnel trên Android (đã chạy, 2026-10-01)
+
+- Chuẩn bị tailnet một lần: bật **HTTPS Certificates** ở trang admin/dns, rồi thêm `nodeAttrs` `funnel` cho `autogroup:member` trong file ACL.
+- **Lỗi của tsnet trên Android:** `tailscale.com/ipn/localapi/cert.go` có build tag `!android`, nên tsnet không xin được chứng chỉ (LocalAPI trả 404, bắt tay TLS lỗi `SSL_ERROR_INTERNAL_ERROR_ALERT`). Cách sửa: `core/mobile/cert_android.go` tự đăng ký lại endpoint `cert/` qua `localapi.Register`, gọi `LocalBackend.GetCertPEMWithValidity`. Phải kiểm tra lại mỗi khi nâng cấp tailscale.com.
+- App xin chứng chỉ ngay khi Funnel mở (lần đầu khoảng 40 giây), và ghi lỗi bắt tay TLS vào nhật ký với tần suất có giới hạn.
+- Truy cập công khai đi qua relay Funnel của Tailscale (IP 103.84.155.x); trong tailnet thì đi thẳng.

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -452,7 +453,13 @@ func (n *node) startFunnel() {
 		return
 	}
 	n.status.FunnelError, n.status.FunnelHelp = "", ""
-	srv := &http.Server{Handler: server.WithVia(n.handler, "Funnel"), ReadHeaderTimeout: 30 * time.Second}
+	srv := &http.Server{
+		Handler:           server.WithVia(n.handler, "Funnel"),
+		ReadHeaderTimeout: 30 * time.Second,
+		// TLS handshake failures (e.g. no certificate yet) are otherwise only
+		// printed to stderr, which is invisible on Android.
+		ErrorLog: log.New(&throttledLog{logf: n.logf, prefix: "Funnel: ", every: 10 * time.Second}, "", 0),
+	}
 	n.funnelSrv = srv
 	n.status.FunnelURL = "https://" + n.status.DNSName
 	go func() {
@@ -461,6 +468,51 @@ func (n *node) startFunnel() {
 		}
 	}()
 	n.logf("Funnel đang mở: %s", n.status.FunnelURL)
+	go n.warmCert(n.status.DNSName)
+}
+
+// warmCert fetches the Let's Encrypt certificate right away instead of on the
+// first visitor's handshake, and logs how it went.
+func (n *node) warmCert(domain string) {
+	lc, err := n.ts.LocalClient()
+	if err != nil {
+		return
+	}
+	n.logf("Đang xin chứng chỉ HTTPS cho %s…", domain)
+	t0 := time.Now()
+	ctx, cancel := context.WithTimeout(n.ctx, 3*time.Minute)
+	defer cancel()
+	if _, _, err := lc.CertPair(ctx, domain); err != nil {
+		n.logf("Chứng chỉ HTTPS lỗi sau %s: %v", time.Since(t0).Round(time.Second), err)
+		return
+	}
+	n.logf("Đã có chứng chỉ HTTPS (%s)", time.Since(t0).Round(time.Second))
+}
+
+// throttledLog forwards log lines to logf at most once per interval.
+type throttledLog struct {
+	logf   func(string, ...any)
+	prefix string
+	every  time.Duration
+	mu     sync.Mutex
+	last   time.Time
+	quiet  int
+}
+
+func (t *throttledLog) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if time.Since(t.last) < t.every {
+		t.quiet++
+		return len(p), nil
+	}
+	line := t.prefix + strings.TrimSpace(string(p))
+	if t.quiet > 0 {
+		line += fmt.Sprintf(" (+%d dòng tương tự bị ẩn)", t.quiet)
+	}
+	t.last, t.quiet = time.Now(), 0
+	t.logf("%s", line)
+	return len(p), nil
 }
 
 // explainFunnelError turns tailscale's Funnel errors into Vietnamese guidance
