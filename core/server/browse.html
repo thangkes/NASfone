@@ -44,6 +44,10 @@ summary{cursor:pointer;font-weight:600}
 .modal .choices{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .modal .choices .btn{text-align:left;padding:10px 12px}
 .modal .choices small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.modal .choices .btn.picked{background:var(--acc);color:var(--acc-fg)}
+.modal .choices .btn.picked small{color:var(--acc-fg);opacity:.85}
+.modal .choices .btn:disabled{cursor:default}
+.modal .choices .btn:disabled:not(.picked){opacity:.45}
 .modal label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
 .lang{font-size:12px;color:var(--muted);margin-left:8px;white-space:nowrap}
 .lang a{color:var(--muted);text-decoration:none;cursor:pointer;padding:2px}
@@ -99,7 +103,7 @@ summary{cursor:pointer;font-weight:600}
     <p class="small" style="color:var(--muted)">{{.T.pair_sub}}</p>
     <div class="choices">
       <button class="btn" data-role="admin">{{.T.pair_admin}}<small>{{.T.pair_admin_d}}</small></button>
-      <button class="btn pri" data-role="user">{{.T.pair_user}}<small>{{.T.pair_user_d}}</small></button>
+      <button class="btn" data-role="user">{{.T.pair_user}}<small>{{.T.pair_user_d}}</small></button>
     </div>
     <div id="pairResult" style="display:none;margin-top:12px;font-size:13px">
       <p id="pairMsg"></p>
@@ -253,10 +257,19 @@ async function del(btn){
 
 function openPair(){
   const box = document.getElementById('pairBox');
+  const roles = box.querySelectorAll('[data-role]');
   document.getElementById('pairResult').style.display = 'none';
-  box.querySelectorAll('[data-role]').forEach(b => b.onclick = async () => {
+  // Neither choice is pre-highlighted; the clicked one lights up and both lock,
+  // so it is clear which access the invite carries and no second invite is made.
+  roles.forEach(x => { x.classList.remove('picked'); x.disabled = false; });
+  roles.forEach(b => b.onclick = async () => {
+    roles.forEach(x => { x.disabled = true; x.classList.toggle('picked', x === b); });
     const r = await fetch('/__nasfone/invite', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({role: b.dataset.role})});
-    if (!r.ok) { alert(tr('js_invite_fail', r.status)); return; }
+    if (!r.ok) {
+      alert(tr('js_invite_fail', r.status));
+      roles.forEach(x => { x.disabled = false; x.classList.remove('picked'); });
+      return;
+    }
     const j = await r.json();
     document.getElementById('pairResult').style.display = '';
     document.getElementById('pairMsg').textContent = tr('js_opening_app', b.dataset.role === 'admin' ? 'Admin' : 'User');
