@@ -52,6 +52,7 @@ class MainActivity : Activity() {
     private lateinit var logoutBtn: Button
     private lateinit var funnelSw: Switch
     private lateinit var funnelTv: TextView
+    private lateinit var funnelHelpBtn: Button
     private lateinit var hostEt: EditText
     private lateinit var controlEt: EditText
     private lateinit var portEt: EditText
@@ -176,6 +177,11 @@ class MainActivity : Activity() {
         }
         col.addView(funnelSw)
         funnelTv = text("", 13f).also { col.addView(it) }
+        funnelHelpBtn = button("Mở trang cài đặt Tailscale để sửa") {
+            Core.status.optString("funnelHelpURL").takeIf { it.isNotEmpty() }?.let {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+            }
+        }.also { col.addView(it) }
 
         section(col, "Cài đặt (áp dụng khi khởi động lại)")
         hostEt = field(col, "Tên máy trong tailnet", prefs.hostname)
@@ -303,11 +309,12 @@ class MainActivity : Activity() {
 
         funnelTv.text = when {
             st.optString("funnelError").isNotEmpty() ->
-                "⚠ ${st.optString("funnelError")}\nCần bật HTTPS + Funnel cho máy này trong trang quản trị Tailscale."
+                "⚠ ${st.optString("funnelError")}\nApp tự thử lại mỗi 20 giây sau khi bạn sửa."
             st.optString("funnelURL").isNotEmpty() -> "Đang mở công khai: ${st.optString("funnelURL")}"
             prefs.funnel -> "Sẽ mở khi tailnet kết nối xong."
             else -> "Tắt — chỉ truy cập qua LAN và tailnet."
         }
+        funnelHelpBtn.visibility = if (st.optString("funnelHelpURL").isNotEmpty()) View.VISIBLE else View.GONE
 
         val files = Environment.isExternalStorageManager()
         val battery = (getSystemService(POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(packageName)

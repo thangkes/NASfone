@@ -65,6 +65,7 @@ type Status struct {
 	FunnelWanted bool     `json:"funnelWanted"`
 	FunnelURL    string   `json:"funnelURL,omitempty"`
 	FunnelError  string   `json:"funnelError,omitempty"`
+	FunnelHelp   string   `json:"funnelHelpURL,omitempty"` // admin page that fixes FunnelError
 	Error        string   `json:"error,omitempty"`
 }
 
@@ -85,7 +86,12 @@ type node struct {
 	lastJSON       string
 	loginRequested bool
 	funnelSrv      *http.Server
+	funnelErrAt    time.Time
 }
+
+// funnelRetry is how often a failed Funnel listen is retried, so enabling
+// HTTPS/Funnel in the admin console takes effect without restarting the app.
+const funnelRetry = 20 * time.Second
 
 var (
 	mu      sync.Mutex
@@ -266,6 +272,8 @@ func SetFunnel(enabled bool) {
 	n.cfg.Funnel = enabled
 	n.status.FunnelWanted = enabled
 	n.status.FunnelError = ""
+	n.status.FunnelHelp = ""
+	n.funnelErrAt = time.Time{}
 	n.mu.Unlock()
 	if !enabled {
 		n.closeFunnel()
@@ -427,7 +435,8 @@ func (n *node) refresh() {
 	if needLogin {
 		n.loginRequested = true
 	}
-	wantFunnel := n.cfg.Funnel && st.BackendState == ipn.Running.String() && n.funnelSrv == nil && n.status.FunnelError == ""
+	wantFunnel := n.cfg.Funnel && st.BackendState == ipn.Running.String() && n.funnelSrv == nil &&
+		(n.status.FunnelError == "" || time.Since(n.funnelErrAt) > funnelRetry)
 	n.mu.Unlock()
 
 	if needLogin {
@@ -450,10 +459,15 @@ func (n *node) startFunnel() {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if err != nil {
-		n.status.FunnelError = err.Error()
-		n.logf("Funnel lỗi: %v", err)
+		msg, help := explainFunnelError(err)
+		if msg != n.status.FunnelError {
+			n.logf("Funnel lỗi: %v", err)
+		}
+		n.status.FunnelError, n.status.FunnelHelp = msg, help
+		n.funnelErrAt = time.Now()
 		return
 	}
+	n.status.FunnelError, n.status.FunnelHelp = "", ""
 	srv := &http.Server{Handler: server.WithVia(n.handler, "Funnel"), ReadHeaderTimeout: 30 * time.Second}
 	n.funnelSrv = srv
 	n.status.FunnelURL = "https://" + n.status.DNSName
@@ -463,6 +477,23 @@ func (n *node) startFunnel() {
 		}
 	}()
 	n.logf("Funnel đang mở: %s", n.status.FunnelURL)
+}
+
+// explainFunnelError turns tailscale's Funnel errors into Vietnamese guidance
+// plus the admin console page where the owner can fix it.
+func explainFunnelError(err error) (msg, helpURL string) {
+	e := err.Error()
+	switch {
+	case strings.Contains(e, "HTTPS must be enabled"):
+		return "Tailnet chưa bật HTTPS Certificates. Vào trang DNS của Tailscale, bật \"HTTPS Certificates\".",
+			"https://login.tailscale.com/admin/dns"
+	case strings.Contains(e, `"funnel" node attribute not set`):
+		return "Máy này chưa được cấp quyền Funnel. Trong Access controls, thêm nodeAttrs \"funnel\" cho autogroup:member.",
+			"https://login.tailscale.com/admin/acls/file"
+	case strings.Contains(e, "not allowed for funnel"):
+		return "Cổng 443 chưa được phép dùng Funnel (" + e + ").", "https://login.tailscale.com/admin/acls/file"
+	}
+	return e, ""
 }
 
 func (n *node) setError(err error) {
