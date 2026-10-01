@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"pocketnas/core/auth"
+	"nasfone/core/auth"
 )
 
 // failingReader sends some bytes then breaks, like a dropped connection.
@@ -35,7 +35,7 @@ func newTestServer(t *testing.T) (root string, do func(method, path string, hdr 
 	token, _, _ := store.Redeem(code, "T", "127.0.0.1", "Tailnet")
 	do = func(method, path string, hdr map[string]string, body io.Reader) *http.Response {
 		req, _ := http.NewRequest(method, srv.URL+path, body)
-		req.AddCookie(&http.Cookie{Name: "pnas_s", Value: token})
+		req.AddCookie(&http.Cookie{Name: "nasfone_s", Value: token})
 		for k, v := range hdr {
 			req.Header.Set(k, v)
 		}
@@ -104,7 +104,7 @@ func TestConflicts(t *testing.T) {
 		os.WriteFile(filepath.Join(root, "Ảnh", filepath.FromSlash(n)), []byte("x"), 0o644)
 	}
 	body := `{"base":"/Ảnh/","paths":["IMG.jpg","IMG (2).jpg","new.txt","sub/x.png",".env"]}`
-	r := do("POST", "/__pnas/conflicts", map[string]string{"Content-Type": "application/json"}, strings.NewReader(body))
+	r := do("POST", "/__nasfone/conflicts", map[string]string{"Content-Type": "application/json"}, strings.NewReader(body))
 	var got struct{ Conflicts map[string]string }
 	json.NewDecoder(r.Body).Decode(&got)
 	want := map[string]string{

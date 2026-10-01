@@ -7,17 +7,17 @@ import (
 	"os"
 	"testing"
 
-	"pocketnas/core/client"
+	"nasfone/core/client"
 )
 
 // TestDevPair pairs this Windows user with a dev server without the
 // confirmation dialog. Manual use only:
 //
-//	PNAS_DEV_INVITE=pnas1:... go test -run TestDevPair .
+//	NASFONE_DEV_INVITE=nasfone1:... go test -run TestDevPair .
 func TestDevPair(t *testing.T) {
-	inv := os.Getenv("PNAS_DEV_INVITE")
+	inv := os.Getenv("NASFONE_DEV_INVITE")
 	if inv == "" {
-		t.Skip("PNAS_DEV_INVITE not set")
+		t.Skip("NASFONE_DEV_INVITE not set")
 	}
 	key, _ := client.GenerateKey()
 	cfg, err := client.Pair(context.Background(), httpClient, inv, key, "Windows – "+computerName()+" (dev)", "windows")

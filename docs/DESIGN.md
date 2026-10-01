@@ -1,4 +1,4 @@
-# PocketNAS – Thiết kế
+# NASfone – Thiết kế
 
 Tài liệu này tổng hợp các quyết định đã thống nhất. Những mục **[Chưa chốt]** đang chờ quyết định.
 
@@ -22,8 +22,8 @@ Tài liệu này tổng hợp các quyết định đã thống nhất. Những 
 
 | Đường | Địa chỉ | Ghi chú |
 |---|---|---|
-| Tailnet | `https://pocketnas.<tailnet>.ts.net` | Kết nối thẳng P2P. Máy client phải ở trong cùng tailnet |
-| Funnel | `https://pocketnas.<tailnet>.ts.net` (công khai) | Chỉ cần Internet. Đi qua relay của Tailscale nên chậm hơn |
+| Tailnet | `https://nasfone.<tailnet>.ts.net` | Kết nối thẳng P2P. Máy client phải ở trong cùng tailnet |
+| Funnel | `https://nasfone.<tailnet>.ts.net` (công khai) | Chỉ cần Internet. Đi qua relay của Tailscale nên chậm hơn |
 
 Client tự chọn theo thứ tự: **Tailnet → Funnel**.
 
@@ -100,7 +100,7 @@ APK server khung đã cài và chạy được trên máy.
 
 - Mạng nhà người dùng có thể có **hai lớp NAT** (router phụ). Khi đó máy tính không truy cập được server qua LAN, nhưng tailnet vẫn kết nối trực tiếp P2P được.
 - Đây là một lý do để bỏ chế độ LAN: tailnet đi xuyên được double NAT.
-- Logcat trên MagicOS bị mã hóa. App tự ghi `pnas.log` và `go-crash.txt` vào `/sdcard/Android/data/com.pocketnas.server/files/`.
+- Logcat trên MagicOS bị mã hóa. App tự ghi `nasfone.log` và `go-crash.txt` vào `/sdcard/Android/data/com.nasfone.server/files/`.
 
 ## 10. Funnel trên Android (đã chạy, 2026-10-01)
 

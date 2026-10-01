@@ -1,4 +1,4 @@
-package com.pocketnas.server
+package com.nasfone.server
 
 import android.content.BroadcastReceiver
 import android.content.Context

@@ -19,8 +19,8 @@ if (-not $SkipCore) {
     try {
         go test ./server/
         if ($LASTEXITCODE) { throw "go test failed" }
-        gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.pocketnas.core -ldflags="-s -w" `
-            -o "$root\server-android\app\libs\pnascore.aar" ./mobile
+        gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.nasfone.core -ldflags="-s -w" `
+            -o "$root\server-android\app\libs\nasfonecore.aar" ./mobile
         if ($LASTEXITCODE) { throw "gomobile bind failed" }
     } finally { Pop-Location }
 }
@@ -43,5 +43,5 @@ if ($Install) {
     $ErrorActionPreference = "Continue"
     $adb = "$sdk\platform-tools\adb.exe"
     & $adb install -r $apk
-    & $adb shell "appops set com.pocketnas.server MANAGE_EXTERNAL_STORAGE allow; dumpsys deviceidle whitelist +com.pocketnas.server >/dev/null; pm grant com.pocketnas.server android.permission.POST_NOTIFICATIONS; am start -n com.pocketnas.server/.MainActivity"
+    & $adb shell "appops set com.nasfone.server MANAGE_EXTERNAL_STORAGE allow; dumpsys deviceidle whitelist +com.nasfone.server >/dev/null; pm grant com.nasfone.server android.permission.POST_NOTIFICATIONS; am start -n com.nasfone.server/.MainActivity"
 }

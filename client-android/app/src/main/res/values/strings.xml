@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PocketNAS</string>
-    <string name="app_desc">Client kết nối tới PocketNAS Server</string>
+    <string name="app_name">NASfone</string>
+    <string name="app_desc">Client kết nối tới NASfone Server</string>
 </resources>

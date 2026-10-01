@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="vi">
+<html lang="{{.L}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PocketNAS</title>
+<title>NASfone</title>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;--acc:#2f6fed;--acc-fg:#fff;--bad:#d64545;--chip:#eef2fd}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c24;--fg:#e6e9ef;--muted:#949cad;--line:#2a303c;--acc:#5b8cff;--acc-fg:#0b0e14;--bad:#f06a6a;--chip:#1f2737}}
@@ -45,22 +45,25 @@ summary{cursor:pointer;font-weight:600}
 .modal .choices .btn{text-align:left;padding:10px 12px}
 .modal .choices small{display:block;color:var(--muted);font-size:12px;font-weight:400}
 .modal label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.lang{font-size:12px;color:var(--muted);margin-left:8px;white-space:nowrap}
+.lang a{color:var(--muted);text-decoration:none;cursor:pointer;padding:2px}
+.lang a.on{color:var(--acc);font-weight:700}
 @media (max-width:560px){.meta.date{display:none}}
 </style>
 </head>
 <body>
 <main>
 <header>
-  <b>PocketNAS</b>
-  <span>{{if .Who.CanWrite}}<span class="role admin">ADMIN</span>{{else}}<span class="role user">CHỈ XEM &amp; TẢI VỀ</span>{{end}}<span class="who">{{.Who.Name}}</span>{{if .Who.DeviceID}} <button class="btn" onclick="logout()">Đăng xuất</button>{{end}}</span>
+  <b>NASfone</b>
+  <span>{{if .Who.CanWrite}}<span class="role admin">{{.T.role_admin}}</span>{{else}}<span class="role user">{{.T.role_user}}</span>{{end}}<span class="who">{{.Who.Name}}</span>{{if .Who.DeviceID}} <button class="btn" onclick="logout()">{{.T.logout}}</button>{{end}}<span class="lang"><a data-lang="vi">VI</a>·<a data-lang="en">EN</a></span></span>
 </header>
 <nav>{{range $i, $c := .Crumbs}}{{if $i}} / {{end}}<a href="{{$c.Href}}">{{$c.Name}}</a>{{end}}</nav>
 
 {{if .Who.CanWrite}}<div class="bar">
-  <button class="btn pri" onclick="document.getElementById('f').click()">⬆ Tải file lên</button>
-  <button class="btn" onclick="document.getElementById('d').click()">⬆ Tải thư mục lên</button>
-  <button class="btn" onclick="mkdir()">＋ Thư mục mới</button>
-  <button class="btn" onclick="openPair()">🔗 Kết nối app trên máy này</button>
+  <button class="btn pri" onclick="document.getElementById('f').click()">{{.T.upload_files}}</button>
+  <button class="btn" onclick="document.getElementById('d').click()">{{.T.upload_folder}}</button>
+  <button class="btn" onclick="mkdir()">{{.T.new_folder}}</button>
+  <button class="btn" onclick="openPair()">{{.T.connect_app}}</button>
   <input id="f" type="file" multiple hidden>
   <input id="d" type="file" webkitdirectory hidden>
 </div>{{end}}
@@ -73,54 +76,61 @@ summary{cursor:pointer;font-weight:600}
     <a class="name" href="{{.Href}}">{{.Name}}</a>
     <span class="meta">{{if not .IsDir}}{{size .Size}}{{end}}</span>
     <span class="meta date">{{.ModTime.Format "02/01/2006 15:04"}}</span>
-    {{if $.Who.CanWrite}}<button class="act" title="Xóa" data-href="{{.Href}}" data-name="{{.Name}}" onclick="del(this)">🗑</button>{{end}}
+    {{if $.Who.CanWrite}}<button class="act" title="{{$.T.delete}}" data-href="{{.Href}}" data-name="{{.Name}}" onclick="del(this)">🗑</button>{{end}}
   </div>
 {{else}}
-  <div class="empty">Thư mục trống{{if .Who.CanWrite}} — kéo thả file vào đây để tải lên{{end}}.</div>
+  <div class="empty">{{.T.empty}}{{if .Who.CanWrite}}{{.T.empty_drop}}{{end}}.</div>
 {{end}}
 </div>
 
 <details>
-  <summary>Đo tốc độ</summary>
+  <summary>{{.T.speed_test}}</summary>
   <div class="bar" style="margin-top:8px">
-    <button class="btn" onclick="speedDown(100)">Tải về 100 MB</button>
-    {{if .Who.CanWrite}}<button class="btn" onclick="speedUp(50)">Tải lên 50 MB</button>{{end}}
+    <button class="btn" onclick="speedDown(100)">{{.T.speed_down_btn}}</button>
+    {{if .Who.CanWrite}}<button class="btn" onclick="speedUp(50)">{{.T.speed_up_btn}}</button>{{end}}
   </div>
   <div id="speedOut"></div>
 </details>
 </main>
-<div id="drop">Thả để tải lên</div>
+<div id="drop">{{.T.drop_here}}</div>
 <div class="modal" id="pairBox" role="dialog" aria-modal="true" aria-labelledby="pairTitle">
   <div class="box">
-    <h3 id="pairTitle">Kết nối app PocketNAS trên máy này</h3>
-    <p class="small" style="color:var(--muted)">App sẽ được ghép đôi bằng cặp khóa riêng và kết nối liên tục, không cần nhập mã nữa.</p>
+    <h3 id="pairTitle">{{.T.pair_title}}</h3>
+    <p class="small" style="color:var(--muted)">{{.T.pair_sub}}</p>
     <div class="choices">
-      <button class="btn" data-role="admin">Quyền Admin<small>Toàn quyền: tải lên, ghi đè, xóa</small></button>
-      <button class="btn pri" data-role="user">Quyền User<small>Chỉ xem và tải về</small></button>
+      <button class="btn" data-role="admin">{{.T.pair_admin}}<small>{{.T.pair_admin_d}}</small></button>
+      <button class="btn pri" data-role="user">{{.T.pair_user}}<small>{{.T.pair_user_d}}</small></button>
     </div>
     <div id="pairResult" style="display:none;margin-top:12px;font-size:13px">
       <p id="pairMsg"></p>
-      <p style="color:var(--muted)">Chưa mở được app? Sao chép lời mời rồi dán vào app (hết hạn sau 5 phút, dùng 1 lần):</p>
-      <button class="btn" id="pairCopy">Sao chép lời mời</button>
+      <p style="color:var(--muted)">{{.T.pair_fallback}}</p>
+      <button class="btn" id="pairCopy">{{.T.pair_copy}}</button>
     </div>
-    <div class="choices"><button class="btn" onclick="document.getElementById('pairBox').classList.remove('on')">Đóng</button></div>
+    <div class="choices"><button class="btn" onclick="document.getElementById('pairBox').classList.remove('on')">{{.T.close}}</button></div>
   </div>
 </div>
 <div class="modal" id="dup" role="dialog" aria-modal="true" aria-labelledby="dupTitle">
   <div class="box">
-    <h3 id="dupTitle">File đã tồn tại</h3>
-    <p><span class="fname" id="dupName"></span> đã có trong thư mục này. Bạn muốn làm gì?</p>
+    <h3 id="dupTitle">{{.T.dup_title}}</h3>
+    <p><span class="fname" id="dupName"></span> {{.T.dup_body}}</p>
     <label id="dupAllWrap"><input type="checkbox" id="dupAll"> <span id="dupAllText"></span></label>
     <div class="choices">
-      <button class="btn" data-choice="overwrite">Ghi đè bằng bản mới<small>File cũ sẽ bị thay thế</small></button>
-      <button class="btn pri" data-choice="keep">Lưu thành bản thứ 2<small id="dupAlt"></small></button>
-      <button class="btn" data-choice="skip">Bỏ qua<small>Giữ nguyên file cũ, không tải file này lên</small></button>
+      <button class="btn" data-choice="overwrite">{{.T.dup_overwrite}}<small>{{.T.dup_overwrite_d}}</small></button>
+      <button class="btn pri" data-choice="keep">{{.T.dup_keep}}<small id="dupAlt"></small></button>
+      <button class="btn" data-choice="skip">{{.T.dup_skip}}<small>{{.T.dup_skip_d}}</small></button>
     </div>
   </div>
 </div>
 
 <script>
 const BASE = {{.Base}};
+const LANG = {{.L}};
+const T = {{.T}};
+const tr = (k, ...a) => (T[k] || k).replace(/\{(\d+)\}/g, (_, i) => a[i]);
+document.querySelectorAll('[data-lang]').forEach(a => {
+  a.classList.toggle('on', a.dataset.lang === LANG);
+  a.onclick = () => { document.cookie = 'nasfone_lang=' + a.dataset.lang + '; path=/; max-age=31536000; samesite=lax'; location.reload(); };
+});
 const CAN_WRITE = {{.Who.CanWrite}};
 const st = document.getElementById('status');
 const enc = p => p.split('/').map(encodeURIComponent).join('/');
@@ -137,10 +147,10 @@ function put(file, rel, i, n, noOverwrite){
     if (noOverwrite) x.setRequestHeader('If-None-Match', '*');
     x.upload.onprogress = e => {
       if (!e.lengthComputable) return;
-      st.textContent = `Đang tải lên ${i}/${n}: ${rel} — ${Math.round(e.loaded / e.total * 100)}% (${mbps(e.loaded, performance.now() - t0)})`;
+      st.textContent = tr('js_uploading', i, n, rel, Math.round(e.loaded / e.total * 100), mbps(e.loaded, performance.now() - t0));
     };
     x.onload = () => x.status < 300 ? res() : rej(Object.assign(new Error(x.status + ' ' + rel), {status: x.status}));
-    x.onerror = () => rej(new Error('Mất kết nối: ' + rel));
+    x.onerror = () => rej(new Error(tr('js_conn_lost', rel)));
     x.send(file);
   });
 }
@@ -150,16 +160,16 @@ async function mkdirs(dir){
   for (const seg of dir.split('/').filter(Boolean)) {
     p += seg + '/';
     const r = await fetch(BASE + enc(p), {method: 'MKCOL'});
-    if (!r.ok && r.status !== 405) throw new Error('Không tạo được thư mục ' + p);
+    if (!r.ok && r.status !== 405) throw new Error(tr('js_mkdir_fail', p));
   }
 }
 // conflicts returns {rel: "free alternative name"} for every rel that already exists.
 async function conflicts(rels){
-  const r = await fetch('/__pnas/conflicts', {
+  const r = await fetch('/__nasfone/conflicts', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({base: DIR, paths: rels}),
   });
-  if (!r.ok) throw new Error('Không kiểm tra được file trùng (' + r.status + ')');
+  if (!r.ok) throw new Error(tr('js_dup_fail', r.status));
   return (await r.json()).conflicts || {};
 }
 
@@ -167,10 +177,10 @@ async function conflicts(rels){
 function askDup(rel, alt, othersLeft){
   const m = document.getElementById('dup');
   document.getElementById('dupName').textContent = '“' + rel + '”';
-  document.getElementById('dupAlt').textContent = 'Lưu với tên “' + alt + '”';
+  document.getElementById('dupAlt').textContent = tr('js_keep_as', alt);
   document.getElementById('dupAll').checked = false;
   document.getElementById('dupAllWrap').style.display = othersLeft > 0 ? '' : 'none';
-  document.getElementById('dupAllText').textContent = `Áp dụng cho ${othersLeft} file trùng còn lại`;
+  document.getElementById('dupAllText').textContent = tr('js_apply_all', othersLeft);
   m.classList.add('on');
   return new Promise(res => {
     m.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
@@ -184,7 +194,7 @@ async function upload(items){
   if (!items.length) return;
   const sum = {created: 0, overwritten: 0, kept: 0, skipped: 0};
   try {
-    st.textContent = 'Đang kiểm tra file trùng…';
+    st.textContent = tr('js_checking');
     const dup = await conflicts(items.map(it => it.rel));
     let dupLeft = items.filter(it => dup[it.rel]).length;
     let applyAll = null;
@@ -219,11 +229,11 @@ async function upload(items){
       sum[mode === 'overwrite' ? 'overwritten' : mode === 'keep' ? 'kept' : 'created']++;
     }
     const parts = [];
-    if (sum.created) parts.push(`${sum.created} file mới`);
-    if (sum.overwritten) parts.push(`${sum.overwritten} ghi đè`);
-    if (sum.kept) parts.push(`${sum.kept} lưu bản thứ 2`);
-    if (sum.skipped) parts.push(`${sum.skipped} bỏ qua`);
-    st.textContent = '✔ Xong: ' + parts.join(', ') + '.';
+    if (sum.created) parts.push(tr('js_new', sum.created));
+    if (sum.overwritten) parts.push(tr('js_overwritten', sum.overwritten));
+    if (sum.kept) parts.push(tr('js_kept', sum.kept));
+    if (sum.skipped) parts.push(tr('js_skipped', sum.skipped));
+    st.textContent = tr('js_done', parts.join(', '));
     setTimeout(() => location.reload(), 1200);
   } catch (e) { st.textContent = '❌ ' + e.message; }
 }
@@ -231,38 +241,38 @@ if (CAN_WRITE) document.getElementById('f').onchange = e => upload([...e.target.
 if (CAN_WRITE) document.getElementById('d').onchange = e => upload([...e.target.files].map(f => ({file: f, rel: f.webkitRelativePath || f.name})));
 
 async function mkdir(){
-  const n = prompt('Tên thư mục mới:'); if (!n) return;
+  const n = prompt(tr('js_folder_name')); if (!n) return;
   const r = await fetch(BASE + encodeURIComponent(n) + '/', {method: 'MKCOL'});
-  r.ok ? location.reload() : alert('Lỗi ' + r.status);
+  r.ok ? location.reload() : alert(tr('js_error', r.status));
 }
 async function del(btn){
-  if (!confirm('Xóa "' + btn.dataset.name + '"?')) return;
+  if (!confirm(tr('js_delete_q', btn.dataset.name))) return;
   const r = await fetch(btn.dataset.href, {method: 'DELETE'});
-  r.ok ? location.reload() : alert('Lỗi ' + r.status);
+  r.ok ? location.reload() : alert(tr('js_error', r.status));
 }
 
 function openPair(){
   const box = document.getElementById('pairBox');
   document.getElementById('pairResult').style.display = 'none';
   box.querySelectorAll('[data-role]').forEach(b => b.onclick = async () => {
-    const r = await fetch('/__pnas/invite', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({role: b.dataset.role})});
-    if (!r.ok) { alert('Không tạo được lời mời (' + r.status + ')'); return; }
+    const r = await fetch('/__nasfone/invite', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({role: b.dataset.role})});
+    if (!r.ok) { alert(tr('js_invite_fail', r.status)); return; }
     const j = await r.json();
     document.getElementById('pairResult').style.display = '';
-    document.getElementById('pairMsg').textContent = 'Đang mở app PocketNAS… (quyền ' + (b.dataset.role === 'admin' ? 'Admin' : 'User') + ')';
+    document.getElementById('pairMsg').textContent = tr('js_opening_app', b.dataset.role === 'admin' ? 'Admin' : 'User');
     document.getElementById('pairCopy').onclick = () => {
       // navigator.clipboard only exists on HTTPS; fall back to a prompt the user can copy from.
-      if (navigator.clipboard) navigator.clipboard.writeText(j.invite).then(() => alert('Đã sao chép lời mời'), () => prompt('Sao chép lời mời:', j.invite));
-      else prompt('Sao chép lời mời:', j.invite);
+      if (navigator.clipboard) navigator.clipboard.writeText(j.invite).then(() => alert(tr('js_copied')), () => prompt(tr('js_copy_prompt'), j.invite));
+      else prompt(tr('js_copy_prompt'), j.invite);
     };
-    location.href = j.link; // hands the invite to the installed app via pocketnas://
+    location.href = j.link; // hands the invite to the installed app via nasfone://
   });
   box.classList.add('on');
 }
 
 async function logout(){
-  await fetch('/__pnas/logout', {method: 'POST'});
-  location.replace('/__pnas/login');
+  await fetch('/__nasfone/logout', {method: 'POST'});
+  location.replace('/__nasfone/login');
 }
 
 // Drag & drop, including folders.
@@ -294,21 +304,21 @@ addEventListener('drop', async e => {
   upload(out);
 });
 
-// Speed test against /__pnas/speed.
+// Speed test against /__nasfone/speed.
 const so = document.getElementById('speedOut');
 async function speedDown(mb){
-  so.textContent += `Tải về ${mb} MB… `;
+  so.textContent += tr('js_speed_down', mb);
   const t0 = performance.now();
-  const r = await fetch('/__pnas/speed?mb=' + mb, {cache: 'no-store'});
+  const r = await fetch('/__nasfone/speed?mb=' + mb, {cache: 'no-store'});
   const reader = r.body.getReader(); let n = 0;
   for (;;) { const {done, value} = await reader.read(); if (done) break; n += value.length; }
   so.textContent += mbps(n, performance.now() - t0) + '\n';
 }
 async function speedUp(mb){
-  so.textContent += `Tải lên ${mb} MB… `;
+  so.textContent += tr('js_speed_up', mb);
   const buf = new Uint8Array(mb << 20); crypto.getRandomValues(buf.subarray(0, 65536));
   const t0 = performance.now();
-  await fetch('/__pnas/speed', {method: 'PUT', body: buf});
+  await fetch('/__nasfone/speed', {method: 'PUT', body: buf});
   so.textContent += mbps(buf.length, performance.now() - t0) + '\n';
 }
 </script>

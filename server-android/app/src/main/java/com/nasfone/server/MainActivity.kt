@@ -1,4 +1,4 @@
-package com.pocketnas.server
+package com.nasfone.server
 
 import android.Manifest
 import android.app.Activity
@@ -33,7 +33,7 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import com.pocketnas.core.mobile.Mobile
+import com.nasfone.core.mobile.Mobile
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -505,7 +505,7 @@ class MainActivity : Activity() {
                         val left = ((expires - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
                         info.text = "Quyền: $roleText\nVân tay server: ${inv.optString("fp")}\n" +
                             (if (left > 0) "Dùng 1 lần • hết hạn sau %d:%02d".format(left / 60, left % 60) else "Đã hết hạn — tạo lời mời mới") +
-                            "\n\nQuét bằng app PocketNAS trên điện thoại, hoặc sao chép rồi dán vào app trên máy tính."
+                            "\n\nQuét bằng app NASfone trên điện thoại, hoặc sao chép rồi dán vào app trên máy tính."
                         if (left > 0 && dialog.isShowing) h.postDelayed(this, 1000)
                     }
                 }
@@ -582,7 +582,7 @@ class MainActivity : Activity() {
     }
 
     private fun copy(s: String) {
-        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("PocketNAS", s))
+        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("NASfone", s))
         toast("Đã sao chép")
     }
 

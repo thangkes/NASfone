@@ -1,4 +1,4 @@
-# Build PocketNAS.exe and the installer client-windows\dist\PocketNAS-Setup-<version>.exe
+# Build NASfone.exe and the installer client-windows\dist\NASfone-Setup-<version>.exe
 #   .\scripts\build-windows.ps1                 # version from client-windows\VERSION
 #   .\scripts\build-windows.ps1 -Version 0.2.0
 param([string]$Version)
@@ -28,7 +28,7 @@ try {
     if ($LASTEXITCODE) { throw "go-winres failed" }
 
     Write-Host "== go build ==" -ForegroundColor Cyan
-    go build -trimpath -ldflags="-s -w -H=windowsgui -X main.appVersion=$Version" -o build\PocketNAS.exe .
+    go build -trimpath -ldflags="-s -w -H=windowsgui -X main.appVersion=$Version" -o build\NASfone.exe .
     if ($LASTEXITCODE) { throw "go build failed" }
 
     Write-Host "== dependencies ==" -ForegroundColor Cyan
@@ -42,9 +42,9 @@ try {
     Write-Host "== Inno Setup ==" -ForegroundColor Cyan
     $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not $iscc) { throw "Inno Setup not found - winget install JRSoftware.InnoSetup" }
-    & $iscc /Q "/DAppVersion=$Version" installer\pocketnas.iss
+    & $iscc /Q "/DAppVersion=$Version" installer\nasfone.iss
     if ($LASTEXITCODE) { throw "ISCC failed ($LASTEXITCODE)" }
-    $out = Get-Item "dist\PocketNAS-Setup-$Version.exe"
+    $out = Get-Item "dist\NASfone-Setup-$Version.exe"
     Write-Host ("Installer: {0} ({1:N1} MB)" -f $out.FullName, ($out.Length / 1MB)) -ForegroundColor Green
 } finally {
     Pop-Location

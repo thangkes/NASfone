@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
 )
 
 const (
-	pairPath      = "/__pnas/pair"
-	challengePath = "/__pnas/auth/challenge"
-	authPath      = "/__pnas/auth"
-	invitePath    = "/__pnas/invite"
+	pairPath      = "/__nasfone/pair"
+	challengePath = "/__nasfone/auth/challenge"
+	authPath      = "/__nasfone/auth"
+	invitePath    = "/__nasfone/invite"
 )
 
 // pairingPublic serves the unauthenticated pairing / sign-in endpoints used by
@@ -100,7 +100,7 @@ func pairError(w http.ResponseWriter, err error) {
 }
 
 // invite lets a signed-in admin web session create a one-time pairing invite
-// for an app on the same computer (opened through the pocketnas:// link).
+// for an app on the same computer (opened through the nasfone:// link).
 // Only admins may invite: an invite grants lasting access, which is more than
 // a 24-hour web session.
 func (h *handler) invite(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +132,7 @@ func (h *handler) invite(w http.ResponseWriter, r *http.Request) {
 	h.opt.Logf("%s tạo lời mời ghép đôi (%s)", who.Name, req.Role)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"invite":  inv,
-		"link":    "pocketnas://pair?i=" + url.QueryEscape(inv),
+		"link":    "nasfone://pair?i=" + url.QueryEscape(inv),
 		"expires": exp.UnixMilli(),
 	})
 }

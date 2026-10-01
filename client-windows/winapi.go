@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-const appTitle = "PocketNAS"
+const appTitle = "NASfone"
 
 var (
 	user32           = windows.NewLazySystemDLL("user32.dll")
@@ -57,14 +57,14 @@ func clipboardText() (string, error) {
 	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(p))), nil
 }
 
-// registerProtocol makes pocketnas:// links open this executable (per user, no admin).
+// registerProtocol makes nasfone:// links open this executable (per user, no admin).
 func registerProtocol(exe string) error {
-	k, _, err := registry.CreateKey(registry.CURRENT_USER, `Software\Classes\pocketnas`, registry.ALL_ACCESS)
+	k, _, err := registry.CreateKey(registry.CURRENT_USER, `Software\Classes\nasfone`, registry.ALL_ACCESS)
 	if err != nil {
 		return err
 	}
 	defer k.Close()
-	k.SetStringValue("", "URL:PocketNAS")
+	k.SetStringValue("", "URL:NASfone")
 	k.SetStringValue("URL Protocol", "")
 	cmd, _, err := registry.CreateKey(k, `shell\open\command`, registry.ALL_ACCESS)
 	if err != nil {
@@ -104,7 +104,7 @@ func setAutostart(on bool, exe string) error {
 // singleInstance holds a named mutex for the tray process. It reports false
 // if another tray instance already owns it.
 func singleInstance() bool {
-	name, _ := windows.UTF16PtrFromString(`Local\PocketNASTray`)
+	name, _ := windows.UTF16PtrFromString(`Local\NASfoneTray`)
 	_, err := windows.CreateMutex(nil, false, name)
 	return !errors.Is(err, windows.ERROR_ALREADY_EXISTS)
 }
@@ -135,14 +135,14 @@ func computerName() string {
 // idYes is the MessageBox return value for the Yes button.
 const idYes = 6
 
-const showEventName = `Local\PocketNASShowWindow`
+const showEventName = `Local\NASfoneShowWindow`
 
 // requestShow asks the running instance to open its window.
 func requestShow() {
 	name, _ := windows.UTF16PtrFromString(showEventName)
 	h, err := windows.OpenEvent(windows.EVENT_MODIFY_STATE, false, name)
 	if err != nil {
-		info("PocketNAS đang chạy — xem biểu tượng ở khay hệ thống (cạnh đồng hồ).")
+		info("NASfone đang chạy — xem biểu tượng ở khay hệ thống (cạnh đồng hồ).")
 		return
 	}
 	defer windows.CloseHandle(h)

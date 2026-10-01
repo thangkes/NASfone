@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PocketNAS – Mockup đăng nhập</title>
+<title>NASfone – Mockup đăng nhập</title>
 <style>
 :root{
   --bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;
@@ -89,7 +89,7 @@ input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18e
 </head>
 <body>
 <header class="top">
-  <h1>PocketNAS – Mockup luồng đăng nhập</h1>
+  <h1>NASfone – Mockup luồng đăng nhập</h1>
   <p>Bản demo tương tác (dữ liệu giả, chạy hoàn toàn trên trang). Bên trái là trình duyệt, bên phải là app trên Honor.</p>
 </header>
 
@@ -98,9 +98,9 @@ input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18e
   <section>
     <p class="panel-label">Trình duyệt trên máy tính / điện thoại khác</p>
     <div class="browser">
-      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://pocketnas.ten-tailnet.ts.net/login</span></div>
+      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://nasfone.ten-tailnet.ts.net/login</span></div>
       <div class="web" id="webLogin">
-        <div class="brand"><div class="logo">P</div><div><b>PocketNAS</b><div class="small">Đăng nhập để truy cập dữ liệu</div></div></div>
+        <div class="brand"><div class="logo">P</div><div><b>NASfone</b><div class="small">Đăng nhập để truy cập dữ liệu</div></div></div>
         <div class="tabs">
           <button class="on" data-tab="otp">Mã một lần</button>
           <button data-tab="key">Khóa truy cập</button>
@@ -109,7 +109,7 @@ input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18e
         <div id="tab-otp">
           <label class="f" for="otpIn">Mã đăng nhập hiển thị trên app</label>
           <input id="otpIn" class="code" type="text" maxlength="9" placeholder="XXXX-XXXX" autocomplete="one-time-code">
-          <div class="hint">Mở app PocketNAS → “Mã đăng nhập một lần”. Mã dùng 1 lần, hết hạn sau 5 phút.</div>
+          <div class="hint">Mở app NASfone → “Mã đăng nhập một lần”. Mã dùng 1 lần, hết hạn sau 5 phút.</div>
         </div>
         <div id="tab-key" hidden>
           <label class="f" for="keyIn">Khóa truy cập (sao chép từ app)</label>
@@ -130,7 +130,7 @@ input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18e
 
       <div class="web" id="webHome" hidden>
         <div class="row">
-          <div class="brand" style="margin:0"><div class="logo">P</div><div><b>PocketNAS</b><div class="small" id="whoami"></div></div></div>
+          <div class="brand" style="margin:0"><div class="logo">P</div><div><b>NASfone</b><div class="small" id="whoami"></div></div></div>
           <div style="display:flex;gap:6px"><button class="btn ghost sm" id="logoutBtn">Đăng xuất</button></div>
         </div>
         <div class="files">
@@ -146,15 +146,15 @@ input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18e
 
   <!-- ================= PHONE ================= -->
   <section>
-    <p class="panel-label">App PocketNAS trên Honor</p>
+    <p class="panel-label">App NASfone trên Honor</p>
     <div class="phone"><div class="screen">
       <div class="sb"><span id="clock">09:41</span><span>Wi-Fi • 82%</span></div>
-      <div class="appbar"><b>PocketNAS</b><span class="pill">● Đang chạy</span></div>
+      <div class="appbar"><b>NASfone</b><span class="pill">● Đang chạy</span></div>
       <div class="scroll">
 
         <div class="card">
           <h3>Địa chỉ truy cập</h3>
-          <div class="addr"><span>pocketnas.ten-tailnet.ts.net</span><button class="btn ghost sm" data-copy="https://pocketnas.ten-tailnet.ts.net">Sao chép</button></div>
+          <div class="addr"><span>nasfone.ten-tailnet.ts.net</span><button class="btn ghost sm" data-copy="https://nasfone.ten-tailnet.ts.net">Sao chép</button></div>
           <div class="addr"><span>100.101.12.34 <span class="small">Tailscale</span></span><button class="btn ghost sm" data-copy="http://100.101.12.34:8080">Sao chép</button></div>
           <div class="addr"><span>192.168.1.23 <span class="small">Wi-Fi</span></span><button class="btn ghost sm" data-copy="http://192.168.1.23:8080">Sao chép</button></div>
         </div>
@@ -207,7 +207,7 @@ input.code{font:600 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.18e
   const $ = s => document.querySelector(s);
   const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   const OTP_TTL = 300;
-  const LS = 'pnas_mock_v1';
+  const LS = 'nasfone_mock_v1';
 
   // ---------- state ----------
   let st = load() || { devices: [], keys: [], logs: [], session: null };

@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"pocketnas/core/auth"
+	"nasfone/core/auth"
 )
 
 const (
-	loginPath  = "/__pnas/login"
-	logoutPath = "/__pnas/logout"
-	cookieName = "pnas_s"
+	loginPath  = "/__nasfone/login"
+	logoutPath = "/__nasfone/logout"
+	cookieName = "nasfone_s"
 )
 
 //go:embed login.html
@@ -121,7 +121,8 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		loginTmpl.Execute(w, map[string]any{"Next": next})
+		lang := pickLang(r)
+		loginTmpl.Execute(w, map[string]any{"Next": next, "L": lang, "T": dict(lang)})
 	case http.MethodPost:
 		// JSON-only: a cross-site HTML form cannot send this content type without CORS.
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -130,24 +131,27 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		}
 		var req loginRequest
 		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Yêu cầu không hợp lệ."})
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": tr(pickLang(r), "err_bad_request")})
 			return
 		}
 		if h.opt.Auth == nil {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Đăng nhập bằng mã chưa được bật."})
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": tr(pickLang(r), "err_disabled")})
 			return
 		}
 		token, dev, err := h.opt.Auth.Redeem(req.Code, req.Name, clientIP(r), viaFrom(r))
 		if err != nil {
 			time.Sleep(500 * time.Millisecond)
+			lang := pickLang(r)
 			var wrong auth.WrongCodeError
 			switch {
 			case errors.As(err, &wrong):
-				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error(), "left": wrong.Left})
-			case errors.Is(err, auth.ErrIPLocked), errors.Is(err, auth.ErrGlobalLock):
-				writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": err.Error()})
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": tr(lang, "err_code_wrong"), "left": wrong.Left})
+			case errors.Is(err, auth.ErrIPLocked):
+				writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": tr(lang, "err_ip_locked")})
+			case errors.Is(err, auth.ErrGlobalLock):
+				writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": tr(lang, "err_global_lock")})
 			default:
-				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error()})
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"error": tr(lang, "err_code")})
 			}
 			return
 		}

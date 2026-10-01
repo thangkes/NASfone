@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
-	"pocketnas/core/server"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
+	"nasfone/core/server"
 )
 
 type env struct {
@@ -83,7 +83,7 @@ func TestPairAuthAndUse(t *testing.T) {
 	}
 
 	// An admin web session can mint an invite link for this computer.
-	if r := e.get(t, tok.Value, "POST", "/__pnas/invite", ""); r.StatusCode != 400 { // wrong content type
+	if r := e.get(t, tok.Value, "POST", "/__nasfone/invite", ""); r.StatusCode != 400 { // wrong content type
 		t.Fatalf("invite content-type check: %d", r.StatusCode)
 	}
 
@@ -136,7 +136,7 @@ func TestFakeServerIsRejected(t *testing.T) {
 	fd, _ := pair.ParseInvite(fakeInvite)
 	decoded.URL, decoded.Token = fake.srv.URL, fd.Token // attacker redirects the client
 	b, _ := json.Marshal(decoded)
-	tampered := "pnas1:" + b64url(b)
+	tampered := "nasfone1:" + b64url(b)
 
 	key, _ := GenerateKey()
 	if _, err := Pair(real.ctx, real.hc, tampered, key, "Victim", "windows"); err == nil || !strings.Contains(err.Error(), "giả mạo") {
@@ -177,9 +177,9 @@ func TestInviteLinkFromWebSession(t *testing.T) {
 	userTok, _, _ := sessions.Redeem(userCode, "Guest", "1.1.1.1", "Funnel")
 
 	ask := func(cookie, role string) *http.Response {
-		req, _ := http.NewRequest("POST", srv.URL+"/__pnas/invite", strings.NewReader(`{"role":"`+role+`"}`))
+		req, _ := http.NewRequest("POST", srv.URL+"/__nasfone/invite", strings.NewReader(`{"role":"`+role+`"}`))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(&http.Cookie{Name: "pnas_s", Value: cookie})
+		req.AddCookie(&http.Cookie{Name: "nasfone_s", Value: cookie})
 		res, _ := http.DefaultClient.Do(req)
 		return res
 	}
@@ -190,10 +190,10 @@ func TestInviteLinkFromWebSession(t *testing.T) {
 	var out struct{ Invite, Link string }
 	b, _ := io.ReadAll(r.Body)
 	json.Unmarshal(b, &out)
-	if r.StatusCode != 200 || !strings.HasPrefix(out.Link, "pocketnas://pair?i=pnas1%3A") {
+	if r.StatusCode != 200 || !strings.HasPrefix(out.Link, "nasfone://pair?i=nasfone1%3A") {
 		t.Fatalf("invite: %d %s", r.StatusCode, b)
 	}
-	// The app is launched with the escaped pocketnas:// link itself.
+	// The app is launched with the escaped nasfone:// link itself.
 	inv, err := pair.ParseInvite(out.Link)
 	if err != nil || inv.URL != srv.URL || inv.Role != auth.RoleUser {
 		t.Fatalf("parse link: %v %+v", err, inv)

@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>PocketNAS</title>
+<title>NASfone</title>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;--acc:#2f6fed;--acc-fg:#fff;--ok:#1f9d55;--warn:#c27c0e;--bad:#d64545;--chip:#eef2fd;--admin:#b42318;--admin-bg:#fde8e8}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c24;--fg:#e6e9ef;--muted:#949cad;--line:#2a303c;--acc:#5b8cff;--acc-fg:#0b0e14;--ok:#3ccf7c;--warn:#e5a53a;--bad:#f06a6a;--chip:#1f2737;--admin:#ff8a80;--admin-bg:#3a1d1d}}
@@ -63,7 +63,7 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
   <header>
     <img class="logo" src="{{ICON}}" alt="">
     <div>
-      <h1>PocketNAS</h1>
+      <h1>NASfone</h1>
       <div class="pill" id="pill"><span class="dot"></span><span id="statusText">…</span></div>
     </div>
   </header>
@@ -77,7 +77,7 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
       <h2>Ổ đĩa</h2>
       <div class="drive">
         <div class="letter" id="driveLetter">–</div>
-        <div><b id="driveTitle">PocketNAS</b><small id="driveSub"></small></div>
+        <div><b id="driveTitle">NASfone</b><small id="driveSub"></small></div>
       </div>
       <div class="row">
         <button class="pri grow" id="btnOpenDrive" onclick="pnOpenDrive()">Mở trong File Explorer</button>
@@ -100,14 +100,14 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
   <!-- Not paired -->
   <section id="unpaired" hidden>
     <div class="card">
-      <h2>Ghép đôi với PocketNAS</h2>
+      <h2>Ghép đôi với NASfone</h2>
       <ol>
-        <li>Mở trang web PocketNAS trên máy này và đăng nhập bằng <b>mã ADMIN</b> trên điện thoại.</li>
+        <li>Mở trang web NASfone trên máy này và đăng nhập bằng <b>mã ADMIN</b> trên điện thoại.</li>
         <li>Bấm <b>🔗 Kết nối app trên máy này</b> và chọn quyền.</li>
         <li>Xác nhận trong hộp thoại hiện ra — xong.</li>
       </ol>
-      <p class="muted">Hoặc dán lời mời <span class="mono">pnas1:…</span> đã sao chép:</p>
-      <textarea id="invite" placeholder="pnas1:…" spellcheck="false"></textarea>
+      <p class="muted">Hoặc dán lời mời <span class="mono">nasfone1:…</span> đã sao chép:</p>
+      <textarea id="invite" placeholder="nasfone1:…" spellcheck="false"></textarea>
       <div class="row">
         <button onclick="pasteInvite()">Dán từ clipboard</button>
         <button class="pri grow" id="btnPair" onclick="doPair()">Ghép đôi</button>
@@ -199,7 +199,7 @@ async function tick(){
 async function pasteInvite(){ $('invite').value = (await pnClipboard()).trim(); }
 async function doPair(){
   const v = $('invite').value.trim();
-  if (!v.includes('pnas1:')) { $('invite').focus(); return; }
+  if (!v.includes('nasfone1:')) { $('invite').focus(); return; }
   await pnPair(v);
 }
 async function setAuto(on){

@@ -1,4 +1,4 @@
-package com.pocketnas.server
+package com.nasfone.server
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -18,7 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.IBinder
 import android.os.PowerManager
-import com.pocketnas.core.mobile.Mobile
+import com.nasfone.core.mobile.Mobile
 import org.json.JSONObject
 import java.io.File
 import kotlin.concurrent.thread
@@ -39,7 +39,7 @@ class NasService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private var lastNetwork: Network? = null
-    private val nudge = Runnable { thread(name = "pnas-netchange") { Mobile.networkChanged() } }
+    private val nudge = Runnable { thread(name = "nasfone-netchange") { Mobile.networkChanged() } }
     // Cập nhật định kỳ để tốc độ về 0 khi hết truyền (trạng thái khi đó không đổi nên không có sự kiện).
     private val tick = object : Runnable {
         override fun run() {
@@ -55,7 +55,7 @@ class NasService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        Core.logFile = getExternalFilesDir(null)?.let { File(it, "pnas.log") }
+        Core.logFile = getExternalFilesDir(null)?.let { File(it, "nasfone.log") }
         Core.appContext = applicationContext
         startInForeground("Đang khởi động…")
         if (!Core.running) {
@@ -74,7 +74,7 @@ class NasService : Service() {
                 .put("controlURL", prefs.controlUrl)
                 .put("funnel", prefs.funnel)
                 .put("verbose", prefs.verboseLog)
-            thread(name = "pnas-start") {
+            thread(name = "nasfone-start") {
                 try {
                     if (!File(prefs.rootDir).let { it.isDirectory || it.mkdirs() }) {
                         throw IllegalStateException("Không truy cập được ${prefs.rootDir}. Đã cấp quyền \"Truy cập tất cả file\" chưa?")
@@ -103,7 +103,7 @@ class NasService : Service() {
         if (Core.running) {
             Core.running = false
             // ts.Close() có thể mất vài giây; không chặn luồng chính.
-            thread(name = "pnas-stop") { Mobile.stop(); Core.notifyChanged() }
+            thread(name = "nasfone-stop") { Mobile.stop(); Core.notifyChanged() }
         }
         wakeLock?.let { if (it.isHeld) it.release() }
         wifiLock?.let { if (it.isHeld) it.release() }
@@ -112,10 +112,10 @@ class NasService : Service() {
 
     private fun acquireLocks() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PocketNAS:server").apply { acquire() }
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "NASfone:server").apply { acquire() }
         val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         @Suppress("DEPRECATION")
-        wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PocketNAS:wifi").apply { acquire() }
+        wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "NASfone:wifi").apply { acquire() }
     }
 
     /**
@@ -219,7 +219,7 @@ class NasService : Service() {
         )
         val n = Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle("PocketNAS đang chạy")
+            .setContentTitle("NASfone đang chạy")
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -234,7 +234,7 @@ class NasService : Service() {
     }
 
     companion object {
-        const val ACTION_STOP = "com.pocketnas.server.STOP"
+        const val ACTION_STOP = "com.nasfone.server.STOP"
         private const val CHANNEL = "server"
         private const val NOTIF_ID = 1
     }

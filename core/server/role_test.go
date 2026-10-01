@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"pocketnas/core/auth"
+	"nasfone/core/auth"
 )
 
 func TestUserRoleIsReadOnly(t *testing.T) {
@@ -32,7 +32,7 @@ func TestUserRoleIsReadOnly(t *testing.T) {
 
 	do := func(tok, method, path string, hdr map[string]string, body string) *http.Response {
 		req, _ := http.NewRequest(method, srv.URL+path, strings.NewReader(body))
-		req.AddCookie(&http.Cookie{Name: "pnas_s", Value: tok})
+		req.AddCookie(&http.Cookie{Name: "nasfone_s", Value: tok})
 		for k, v := range hdr {
 			req.Header.Set(k, v)
 		}
@@ -51,14 +51,16 @@ func TestUserRoleIsReadOnly(t *testing.T) {
 	if r := do(userTok, "PROPFIND", "/", map[string]string{"Depth": "1"}, ""); r.StatusCode != 207 {
 		t.Fatalf("user propfind: %d", r.StatusCode)
 	}
-	if r := do(userTok, "GET", "/__pnas/speed?mb=1", nil, ""); r.StatusCode != 200 {
+	if r := do(userTok, "GET", "/__nasfone/speed?mb=1", nil, ""); r.StatusCode != 200 {
 		t.Fatalf("user speed download: %d", r.StatusCode)
 	}
 	page := read(do(userTok, "GET", "/", nil, ""))
-	if strings.Contains(page, "Tải file lên") || strings.Contains(page, `title="Xóa"`) || !strings.Contains(page, "CHỈ XEM") {
+	// Check the upload input and delete buttons themselves: the texts also
+	// appear in the page's JS dictionary.
+	if strings.Contains(page, `id="f" type="file"`) || strings.Contains(page, `onclick="del(this)"`) || !strings.Contains(page, `class="role user"`) {
 		t.Fatal("user page shows write controls or lacks the read-only badge")
 	}
-	if !strings.Contains(read(do(adminTok, "GET", "/", nil, "")), "Tải file lên") {
+	if !strings.Contains(read(do(adminTok, "GET", "/", nil, "")), `id="f" type="file"`) {
 		t.Fatal("admin page lacks upload button")
 	}
 
@@ -76,8 +78,8 @@ func TestUserRoleIsReadOnly(t *testing.T) {
 		{"COPY", "/a.txt", map[string]string{"Destination": srv.URL + "/c.txt"}, ""},
 		{"PROPPATCH", "/a.txt", nil, ""},
 		{"LOCK", "/a.txt", nil, ""},
-		{"POST", "/__pnas/conflicts", map[string]string{"Content-Type": "application/json"}, `{"base":"/","paths":["a.txt"]}`},
-		{"PUT", "/__pnas/speed", nil, "xxxx"},
+		{"POST", "/__nasfone/conflicts", map[string]string{"Content-Type": "application/json"}, `{"base":"/","paths":["a.txt"]}`},
+		{"PUT", "/__nasfone/speed", nil, "xxxx"},
 		{"POST", "/a.txt", nil, ""},
 	}
 	for _, w := range writes {
@@ -111,7 +113,7 @@ func TestQuotaPropfind(t *testing.T) {
 	propfind := func(body string) (int, string) {
 		req, _ := http.NewRequest("PROPFIND", srv.URL+"/", strings.NewReader(body))
 		req.Header.Set("Depth", "0")
-		req.AddCookie(&http.Cookie{Name: "pnas_s", Value: tok})
+		req.AddCookie(&http.Cookie{Name: "nasfone_s", Value: tok})
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatal(err)

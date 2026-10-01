@@ -1,4 +1,4 @@
-// Package client is the client side of PocketNAS pairing, shared by the
+// Package client is the client side of NASfone pairing, shared by the
 // Windows app and (later) the Android client app.
 package client
 
@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
 )
 
 // Config is what a client remembers about the server after pairing. None of
@@ -76,7 +76,7 @@ func Pair(ctx context.Context, hc *http.Client, inviteStr string, signer crypto.
 	}
 	nc := nonce()
 	var resp pair.PairResponse
-	if err := postJSON(ctx, hc, inv.URL+"/__pnas/pair", pair.PairRequest{
+	if err := postJSON(ctx, hc, inv.URL+"/__nasfone/pair", pair.PairRequest{
 		Token: inv.Token, PubKey: pub, Name: name, Platform: platform, NonceC: nc,
 	}, &resp); err != nil {
 		return Config{}, err
@@ -108,7 +108,7 @@ func Authenticate(ctx context.Context, hc *http.Client, cfg Config, signer crypt
 		NonceS string `json:"nonceS"`
 		Sig    string `json:"sig"`
 	}
-	if err := postJSON(ctx, hc, cfg.URL+"/__pnas/auth/challenge", map[string]string{"deviceId": cfg.DeviceID, "nonceC": nc}, &ch); err != nil {
+	if err := postJSON(ctx, hc, cfg.URL+"/__nasfone/auth/challenge", map[string]string{"deviceId": cfg.DeviceID, "nonceC": nc}, &ch); err != nil {
 		return Token{}, err
 	}
 	if !pair.Verify(cfg.ServerKey, pair.ChallengeMessage(cfg.DeviceID, nc, ch.NonceS), ch.Sig) {
@@ -123,7 +123,7 @@ func Authenticate(ctx context.Context, hc *http.Client, cfg Config, signer crypt
 		ExpiresIn int       `json:"expiresIn"`
 		Role      auth.Role `json:"role"`
 	}
-	if err := postJSON(ctx, hc, cfg.URL+"/__pnas/auth", map[string]string{"deviceId": cfg.DeviceID, "nonceS": ch.NonceS, "sig": sig}, &tok); err != nil {
+	if err := postJSON(ctx, hc, cfg.URL+"/__nasfone/auth", map[string]string{"deviceId": cfg.DeviceID, "nonceS": ch.NonceS, "sig": sig}, &tok); err != nil {
 		return Token{}, err
 	}
 	return Token{Value: tok.Token, Expires: time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second), Role: tok.Role}, nil

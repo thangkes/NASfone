@@ -8,10 +8,10 @@ import (
 	"encoding/binary"
 	"image/png"
 
-	"pocketnas/winclient/iconart"
+	"nasfone/winclient/iconart"
 )
 
-// trayIcon wraps the 32×32 PocketNAS icon PNG in an ICO container
+// trayIcon wraps the 32×32 NASfone icon PNG in an ICO container
 // (Windows accepts PNG-compressed ICO images).
 func trayIcon() []byte {
 	const n = 32

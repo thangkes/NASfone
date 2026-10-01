@@ -1,4 +1,4 @@
-// Package server is the HTTP side of PocketNAS: WebDAV for clients, a small
+// Package server is the HTTP side of NASfone: WebDAV for clients, a small
 // HTML file browser for web browsers, and a speed-test endpoint.
 package server
 
@@ -21,8 +21,8 @@ import (
 
 	"golang.org/x/net/webdav"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
 )
 
 //go:embed browse.html
@@ -50,7 +50,7 @@ type handler struct {
 	noise []byte // 1 MiB of random bytes for the download speed test
 }
 
-// NewHandler returns the PocketNAS HTTP handler.
+// NewHandler returns the NASfone HTTP handler.
 func NewHandler(opt Options) http.Handler {
 	if opt.Logf == nil {
 		opt.Logf = func(string, ...any) {}
@@ -98,14 +98,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(context.WithValue(r.Context(), whoKey{}, who))
 	if !who.CanWrite() && !readOnlyAllowed(r) {
 		// Read-only (user) sessions may browse and download, nothing else.
-		http.Error(w, "Tài khoản chỉ có quyền xem và tải về.", http.StatusForbidden)
+		http.Error(w, tr(pickLang(r), "err_read_only"), http.StatusForbidden)
 		return
 	}
 	switch {
 	case r.URL.Path == invitePath:
 		h.invite(w, r)
 		return
-	case r.URL.Path == "/__pnas/speed":
+	case r.URL.Path == "/__nasfone/speed":
 		h.speed(w, r)
 		return
 	case r.URL.Path == conflictsPath:
@@ -186,7 +186,7 @@ func (h *handler) browse(w http.ResponseWriter, r *http.Request) {
 		return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
 	})
 
-	crumbs := []crumb{{Name: "PocketNAS", Href: "/"}}
+	crumbs := []crumb{{Name: "NASfone", Href: "/"}}
 	href := "/"
 	for _, seg := range strings.Split(strings.Trim(urlPath, "/"), "/") {
 		if seg == "" {
@@ -201,7 +201,10 @@ func (h *handler) browse(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodHead {
 		return
 	}
+	lang := pickLang(r)
 	if err := browseTmpl.Execute(w, map[string]any{
+		"L":       lang,
+		"T":       dict(lang),
 		"Who":     whoFrom(r.Context()),
 		"Crumbs":  crumbs,
 		"Entries": entries,

@@ -1,4 +1,4 @@
-# PocketNAS
+# NASfone
 
 Biến một điện thoại Android cũ thành server lưu trữ di động. Truy cập được qua mạng nội bộ, hotspot của chính điện thoại, hoặc qua Internet bằng Tailscale. Mỗi thiết bị client được ghép đôi bằng **cặp khóa riêng**.
 

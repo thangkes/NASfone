@@ -13,17 +13,17 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"pocketnas/core/client"
+	"nasfone/core/client"
 )
 
-// dataDir is %APPDATA%\PocketNAS: config.json (not secret) and key.bin
+// dataDir is %APPDATA%\NASfone: config.json (not secret) and key.bin
 // (the device private key, encrypted with DPAPI for this Windows user only).
 func dataDir() string {
 	base, err := os.UserConfigDir()
 	if err != nil {
 		base = os.TempDir()
 	}
-	d := filepath.Join(base, "PocketNAS")
+	d := filepath.Join(base, "NASfone")
 	os.MkdirAll(d, 0o700)
 	return d
 }
@@ -107,7 +107,7 @@ func dpapi(data []byte, protect bool) ([]byte, error) {
 	}
 	in := windows.DataBlob{Size: uint32(len(data)), Data: &data[0]}
 	var out windows.DataBlob
-	desc, _ := windows.UTF16PtrFromString("PocketNAS device key")
+	desc, _ := windows.UTF16PtrFromString("NASfone device key")
 	var err error
 	if protect {
 		err = windows.CryptProtectData(&in, desc, nil, 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &out)

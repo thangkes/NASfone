@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"pocketnas/core/client"
+	"nasfone/core/client"
 )
 
 // upgradeURL switches a paired http://*.ts.net address to https:// when the

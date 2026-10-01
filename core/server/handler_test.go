@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"pocketnas/core/auth"
+	"nasfone/core/auth"
 )
 
 func TestHandler(t *testing.T) {
@@ -30,7 +30,7 @@ func TestHandler(t *testing.T) {
 	do := func(method, path string, signedIn bool, body io.Reader) *http.Response {
 		req, _ := http.NewRequest(method, srv.URL+path, body)
 		if signedIn {
-			req.AddCookie(&http.Cookie{Name: "pnas_s", Value: token})
+			req.AddCookie(&http.Cookie{Name: "nasfone_s", Value: token})
 		}
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -70,10 +70,10 @@ func TestHandler(t *testing.T) {
 	if r := do("PROPFIND", "/", true, nil); r.StatusCode != 207 {
 		t.Fatalf("propfind: %d", r.StatusCode)
 	}
-	if r := do("GET", "/__pnas/speed?mb=2", true, nil); len(read(r)) != 2<<20 {
+	if r := do("GET", "/__nasfone/speed?mb=2", true, nil); len(read(r)) != 2<<20 {
 		t.Fatal("speed download size")
 	}
-	if r := do("PUT", "/__pnas/speed", true, strings.NewReader(strings.Repeat("x", 1000))); !strings.Contains(read(r), `"bytes":1000`) {
+	if r := do("PUT", "/__nasfone/speed", true, strings.NewReader(strings.Repeat("x", 1000))); !strings.Contains(read(r), `"bytes":1000`) {
 		t.Fatal("speed upload")
 	}
 	if r := do("GET", "/%E1%BA%A2nh", true, nil); r.Request.URL.Path != "/Ảnh/" {
@@ -92,24 +92,24 @@ func TestLoginFlow(t *testing.T) {
 	req, _ := http.NewRequest("GET", srv.URL+"/docs/", nil)
 	req.Header.Set("Accept", "text/html")
 	res, _ := noRedirect.Do(req)
-	if res.StatusCode != 302 || res.Header.Get("Location") != "/__pnas/login?next=%2Fdocs%2F" {
+	if res.StatusCode != 302 || res.Header.Get("Location") != "/__nasfone/login?next=%2Fdocs%2F" {
 		t.Fatalf("redirect: %d %s", res.StatusCode, res.Header.Get("Location"))
 	}
 	// Login page is public and next is escaped into JS safely.
-	res, _ = http.Get(srv.URL + "/__pnas/login?next=/docs/")
+	res, _ = http.Get(srv.URL + "/__nasfone/login?next=/docs/")
 	b, _ := io.ReadAll(res.Body)
 	if res.StatusCode != 200 || !strings.Contains(string(b), `const NEXT = "/docs/"`) {
 		t.Fatalf("login page: %d %s", res.StatusCode, b)
 	}
 	// Open redirect is neutralised.
-	res, _ = http.Get(srv.URL + "/__pnas/login?next=//evil.com")
+	res, _ = http.Get(srv.URL + "/__nasfone/login?next=//evil.com")
 	b, _ = io.ReadAll(res.Body)
 	if !strings.Contains(string(b), `const NEXT = "/"`) {
 		t.Fatal("open redirect")
 	}
 
 	post := func(code string, ct string) *http.Response {
-		req, _ := http.NewRequest("POST", srv.URL+"/__pnas/login", strings.NewReader(`{"code":"`+code+`","name":"Test"}`))
+		req, _ := http.NewRequest("POST", srv.URL+"/__nasfone/login", strings.NewReader(`{"code":"`+code+`","name":"Test"}`))
 		req.Header.Set("Content-Type", ct)
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -131,7 +131,7 @@ func TestLoginFlow(t *testing.T) {
 	res = post(code, "application/json")
 	var sess *http.Cookie
 	for _, c := range res.Cookies() {
-		if c.Name == "pnas_s" {
+		if c.Name == "nasfone_s" {
 			sess = c
 		}
 	}
@@ -145,7 +145,7 @@ func TestLoginFlow(t *testing.T) {
 	req.AddCookie(sess)
 	res, _ = http.DefaultClient.Do(req)
 	b, _ = io.ReadAll(res.Body)
-	if res.StatusCode != 200 || !strings.Contains(string(b), "Test") || !strings.Contains(string(b), "Đăng xuất") {
+	if res.StatusCode != 200 || !strings.Contains(string(b), "Test") || !strings.Contains(string(b), "Sign out") {
 		t.Fatalf("session browse: %d", res.StatusCode)
 	}
 	if d := store.List(); len(d) != 1 || d[0].Via != "LAN" {
@@ -153,7 +153,7 @@ func TestLoginFlow(t *testing.T) {
 	}
 
 	// Logout invalidates the session.
-	req, _ = http.NewRequest("POST", srv.URL+"/__pnas/logout", nil)
+	req, _ = http.NewRequest("POST", srv.URL+"/__nasfone/logout", nil)
 	req.AddCookie(sess)
 	http.DefaultClient.Do(req)
 	req, _ = http.NewRequest("GET", srv.URL+"/", nil)

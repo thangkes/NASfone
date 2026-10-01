@@ -1,4 +1,4 @@
-// Package iconart draws the PocketNAS icon (a rounded blue square with two
+// Package iconart draws the NASfone icon (a rounded blue square with two
 // drive bays) at any size, for the tray icon and the .exe icon.
 package iconart
 

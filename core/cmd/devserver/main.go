@@ -1,4 +1,4 @@
-// Command devserver runs the PocketNAS web handler on localhost for UI work,
+// Command devserver runs the NASfone web handler on localhost for UI work,
 // without Android or Tailscale. It prints the rolling admin/user login codes every minute.
 //
 //	go run ./cmd/devserver -root ./tmp-root
@@ -12,19 +12,19 @@ import (
 	"path/filepath"
 	"time"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
-	"pocketnas/core/server"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
+	"nasfone/core/server"
 )
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8787", "listen address (keep it on localhost)")
 	invite := flag.String("invite", "", `print a one-time pairing invite for role "admin" or "user" at start`)
-	root := flag.String("root", filepath.Join(os.TempDir(), "pnas-dev-root"), "folder to serve")
+	root := flag.String("root", filepath.Join(os.TempDir(), "nasfone-dev-root"), "folder to serve")
 	flag.Parse()
 
 	os.MkdirAll(*root, 0o755)
-	store, err := auth.Open(filepath.Join(*root, "..", "pnas-dev-auth.json"))
+	store, err := auth.Open(filepath.Join(*root, "..", "nasfone-dev-auth.json"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func main() {
 			time.Sleep(time.Until(exp) + 100*time.Millisecond)
 		}
 	}()
-	pairs, err := pair.Open(filepath.Join(*root, "..", "pnas-dev-pair"))
+	pairs, err := pair.Open(filepath.Join(*root, "..", "nasfone-dev-pair"))
 	if err != nil {
 		log.Fatal(err)
 	}

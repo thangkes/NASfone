@@ -1,14 +1,14 @@
 //go:build windows
 
-// Command PocketNAS is the Windows client: a tray app that pairs with a
-// PocketNAS server (via pocketnas:// links or a pasted invite) and mounts it
+// Command NASfone is the Windows client: a tray app that pairs with a
+// NASfone server (via nasfone:// links or a pasted invite) and mounts it
 // as a drive letter through rclone + WinFsp.
 //
-//	PocketNAS.exe                     run the tray app
-//	PocketNAS.exe pocketnas://pair?…  pair with the server in the link
-//	PocketNAS.exe token               print a fresh bearer token (used by rclone)
-//	PocketNAS.exe --quit              ask the running app to exit (unmounts first)
-//	PocketNAS.exe --cleanup[-all]     uninstall hook: quit, remove pocketnas:// and
+//	NASfone.exe                     run the tray app
+//	NASfone.exe nasfone://pair?…  pair with the server in the link
+//	NASfone.exe token               print a fresh bearer token (used by rclone)
+//	NASfone.exe --quit              ask the running app to exit (unmounts first)
+//	NASfone.exe --cleanup[-all]     uninstall hook: quit, remove nasfone:// and
 //	                                  autostart (and with -all, pairing data)
 package main
 
@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/client"
-	"pocketnas/core/pair"
+	"nasfone/core/auth"
+	"nasfone/core/client"
+	"nasfone/core/pair"
 )
 
 func main() {
@@ -46,12 +46,12 @@ func main() {
 	}
 
 	exe, _ := os.Executable()
-	registerProtocol(exe) // keep the pocketnas:// handler pointing at this copy
+	registerProtocol(exe) // keep the nasfone:// handler pointing at this copy
 
 	switch {
 	case len(args) == 1 && args[0] == "token":
 		os.Exit(printToken())
-	case len(args) >= 1 && strings.HasPrefix(strings.ToLower(args[0]), "pocketnas:"):
+	case len(args) >= 1 && strings.HasPrefix(strings.ToLower(args[0]), "nasfone:"):
 		pairFromInvite(args[0])
 		if !singleInstance() {
 			requestShow() // the running tray picks up the pairing; show its window
@@ -97,7 +97,7 @@ func printToken() int {
 }
 
 // pairFromInvite asks the user to confirm, then pairs. Any web page can open
-// a pocketnas:// link, so pairing must never happen silently: the user sees
+// a nasfone:// link, so pairing must never happen silently: the user sees
 // which server and role they are agreeing to.
 func pairFromInvite(invite string) bool {
 	inv, err := pair.ParseInvite(invite)
@@ -113,8 +113,8 @@ func pairFromInvite(invite string) bool {
 	if inv.Role == auth.RoleAdmin {
 		role = "ADMIN — toàn quyền (tải lên, ghi đè, xóa)"
 	}
-	msg := fmt.Sprintf("Ghép máy tính này với PocketNAS?\n\nServer: %s\nQuyền: %s\nVân tay server: %s\n\n"+
-		"Chỉ đồng ý nếu chính bạn vừa bấm \"Kết nối app\" trên trang PocketNAS của mình.",
+	msg := fmt.Sprintf("Ghép máy tính này với NASfone?\n\nServer: %s\nQuyền: %s\nVân tay server: %s\n\n"+
+		"Chỉ đồng ý nếu chính bạn vừa bấm \"Kết nối app\" trên trang NASfone của mình.",
 		host, role, pair.ShortFP(inv.FP))
 	if old, err := loadConfig(); err == nil {
 		msg += fmt.Sprintf("\n\nMáy này đang ghép với %s — ghép mới sẽ thay thế.", old.URL)
@@ -142,6 +142,6 @@ func pairFromInvite(invite string) bool {
 		fail("Không lưu được cấu hình: " + err.Error())
 		return false
 	}
-	info(fmt.Sprintf("Đã ghép đôi với %s (quyền %s).\n\nPocketNAS sẽ hiện thành một ổ đĩa trong File Explorer sau vài giây.", host, strings.ToUpper(string(cfg.Role))))
+	info(fmt.Sprintf("Đã ghép đôi với %s (quyền %s).\n\nNASfone sẽ hiện thành một ổ đĩa trong File Explorer sau vài giây.", host, strings.ToUpper(string(cfg.Role))))
 	return true
 }

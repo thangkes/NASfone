@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	conflictsPath = "/__pnas/conflicts"
-	tmpPrefix     = ".pnas-upload-"
+	conflictsPath = "/__nasfone/conflicts"
+	tmpPrefix     = ".nasfone-upload-"
 )
 
 // put stores the request body at the URL path. The body goes to a temporary

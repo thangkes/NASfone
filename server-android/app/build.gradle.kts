@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.pocketnas.server"
+    namespace = "com.nasfone.server"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.pocketnas.server"
+        applicationId = "com.nasfone.server"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
@@ -35,8 +35,8 @@ android {
 }
 
 dependencies {
-    // Lõi Go (tsnet + WebDAV), build bằng: core> gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.pocketnas.core -o ../server-android/app/libs/pnascore.aar ./mobile
-    implementation(files("libs/pnascore.aar"))
+    // Lõi Go (tsnet + WebDAV), build bằng: core> gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.nasfone.core -o ../server-android/app/libs/nasfonecore.aar ./mobile
+    implementation(files("libs/nasfonecore.aar"))
 }
 
 kotlin {

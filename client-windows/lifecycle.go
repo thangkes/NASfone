@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-const quitEventName = `Local\PocketNASQuit`
+const quitEventName = `Local\NASfoneQuit`
 
 // requestQuit asks a running instance to exit cleanly (it unmounts the drive
 // first). It reports whether an instance was running.
@@ -40,7 +40,7 @@ func waitQuitRequests(quit func()) {
 // waitForExit polls until no tray instance owns the single-instance mutex.
 func waitForExit(timeout time.Duration) {
 	deadline := time.Now().Add(timeout)
-	name, _ := windows.UTF16PtrFromString(`Local\PocketNASTray`)
+	name, _ := windows.UTF16PtrFromString(`Local\NASfoneTray`)
 	for time.Now().Before(deadline) {
 		h, err := windows.OpenMutex(windows.SYNCHRONIZE, false, name)
 		if err != nil {
@@ -52,16 +52,16 @@ func waitForExit(timeout time.Duration) {
 }
 
 // cleanup undoes per-user integration for the uninstaller: stops the app,
-// removes the pocketnas:// handler and the autostart entry. Pairing data in
-// %APPDATA%\PocketNAS is kept unless removeData is set.
+// removes the nasfone:// handler and the autostart entry. Pairing data in
+// %APPDATA%\NASfone is kept unless removeData is set.
 func cleanup(removeData bool) {
 	if requestQuit() {
 		waitForExit(15 * time.Second)
 	}
-	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\pocketnas\shell\open\command`)
-	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\pocketnas\shell\open`)
-	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\pocketnas\shell`)
-	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\pocketnas`)
+	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\nasfone\shell\open\command`)
+	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\nasfone\shell\open`)
+	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\nasfone\shell`)
+	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\nasfone`)
 	if k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE); err == nil {
 		k.DeleteValue(appTitle)
 		k.Close()

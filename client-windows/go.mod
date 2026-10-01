@@ -1,11 +1,11 @@
-module pocketnas/winclient
+module nasfone/winclient
 
 go 1.27.1
 
 require (
 	fyne.io/systray v1.12.2
 	golang.org/x/sys v0.48.0
-	pocketnas/core v0.0.0
+	nasfone/core v0.0.0
 )
 
 require (
@@ -14,4 +14,4 @@ require (
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 )
 
-replace pocketnas/core => ../core
+replace nasfone/core => ../core

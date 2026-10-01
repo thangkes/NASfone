@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/client"
+	"nasfone/core/auth"
+	"nasfone/core/client"
 )
 
 const createNoWindow = 0x08000000
@@ -37,7 +37,7 @@ func findRclone() (string, error) {
 			return m[len(m)-1], nil
 		}
 	}
-	return "", errors.New("không tìm thấy rclone.exe (đặt cạnh PocketNAS.exe hoặc cài bằng: winget install Rclone.Rclone)")
+	return "", errors.New("không tìm thấy rclone.exe (đặt cạnh NASfone.exe hoặc cài bằng: winget install Rclone.Rclone)")
 }
 
 func winfspInstalled() bool {
@@ -132,7 +132,7 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 		"--webdav-url=" + cfg.URL,
 		"--webdav-vendor=other",
 		"--webdav-bearer-token-command=" + tokenCmd,
-		"--volname=PocketNAS",
+		"--volname=NASfone",
 		"--vfs-cache-mode=full",
 		"--vfs-cache-max-size=2G",
 		"--dir-cache-time=15s",

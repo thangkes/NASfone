@@ -1,4 +1,4 @@
-// Package pair implements key-pair pairing between the PocketNAS server and
+// Package pair implements key-pair pairing between the NASfone server and
 // its client apps (see docs/PAIRING.md):
 //
 //   - the server has a long-lived ECDSA P-256 identity key;
@@ -30,7 +30,7 @@ import (
 	"sync"
 	"time"
 
-	"pocketnas/core/auth"
+	"nasfone/core/auth"
 )
 
 const (
@@ -40,11 +40,11 @@ const (
 	failWindow   = 15 * time.Minute
 	maxFailures  = 20 // per IP across pair/auth attempts
 
-	invitePrefix = "pnas1:"
+	invitePrefix = "nasfone1:"
 
-	ctxPair  = "pnas-pair-v1"
-	ctxAuthS = "pnas-auth-s-v1"
-	ctxAuthC = "pnas-auth-c-v1"
+	ctxPair  = "nasfone-pair-v1"
+	ctxAuthS = "nasfone-auth-s-v1"
+	ctxAuthC = "nasfone-auth-c-v1"
 )
 
 var (
@@ -73,7 +73,7 @@ type Device struct {
 // Invite is the decoded content of an invite string.
 type Invite struct {
 	V     int       `json:"v"`
-	URL   string    `json:"u"` // base URL the client should use, e.g. https://pocketnas.x.ts.net
+	URL   string    `json:"u"` // base URL the client should use, e.g. https://nasfone.x.ts.net
 	FP    string    `json:"f"` // server key fingerprint (hex SHA-256 of DER SPKI)
 	Token string    `json:"t"`
 	Role  auth.Role `json:"r"`
@@ -187,7 +187,7 @@ func ShortFP(fp string) string {
 }
 
 // NewInvite creates a one-time invite for baseURL with the given role and
-// returns it encoded as "pnas1:<base64url JSON>".
+// returns it encoded as "nasfone1:<base64url JSON>".
 func (s *Store) NewInvite(role auth.Role, baseURL string) (string, time.Time) {
 	if role != auth.RoleAdmin {
 		role = auth.RoleUser
@@ -204,11 +204,11 @@ func (s *Store) NewInvite(role auth.Role, baseURL string) (string, time.Time) {
 }
 
 // ParseInvite decodes an invite string (also accepted with surrounding
-// whitespace or as the i= value of a pocketnas://pair link).
+// whitespace or as the i= value of a nasfone://pair link).
 func ParseInvite(sIn string) (Invite, error) {
 	sIn = strings.TrimSpace(sIn)
-	if strings.HasPrefix(strings.ToLower(sIn), "pocketnas:") {
-		// pocketnas://pair?i=<url-escaped invite>, as handed over by the browser
+	if strings.HasPrefix(strings.ToLower(sIn), "nasfone:") {
+		// nasfone://pair?i=<url-escaped invite>, as handed over by the browser
 		if u, err := url.Parse(sIn); err == nil {
 			sIn = u.Query().Get("i")
 		}

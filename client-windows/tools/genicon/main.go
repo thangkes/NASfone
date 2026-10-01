@@ -1,5 +1,5 @@
 // Command genicon writes the app icon sources:
-//   - winres/icon.png  (256×256, embedded into PocketNAS.exe by go-winres)
+//   - winres/icon.png  (256×256, embedded into NASfone.exe by go-winres)
 //   - installer/app.ico (16–256 px, used by the setup program)
 package main
 
@@ -9,7 +9,7 @@ import (
 	"image/png"
 	"os"
 
-	"pocketnas/winclient/iconart"
+	"nasfone/winclient/iconart"
 )
 
 func main() {

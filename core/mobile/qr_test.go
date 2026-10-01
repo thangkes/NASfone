@@ -8,7 +8,7 @@ import (
 )
 
 func TestQRPNG(t *testing.T) {
-	invite := "pnas1:" + strings.Repeat("A", 230) // a realistic invite length
+	invite := "nasfone1:" + strings.Repeat("A", 230) // a realistic invite length
 	b, err := QRPNG(invite, 6)
 	if err != nil {
 		t.Fatal(err)

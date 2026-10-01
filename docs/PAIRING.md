@@ -1,4 +1,4 @@
-# PocketNAS – Đăng nhập, phân quyền và ghép đôi
+# NASfone – Đăng nhập, phân quyền và ghép đôi
 
 ## 0. Đã chốt (2026-10-01)
 
@@ -39,16 +39,16 @@
  Honor (server)                                         Client (Windows/Android)
  1. Bấm "Ghép thiết bị mới", chọn Admin / User
     → tạo LỜI MỜI dùng 1 lần, hạn 5 phút:
-      pnas1:<base64url {v, url, fp_server, token}>
+      nasfone1:<base64url {v, url, fp_server, token}>
       hiện dạng QR + nút Sao chép
                        ──── QR / copy-paste ────►
                                                         2. Tạo cặp khóa trong phần cứng
-                                                        3. POST /__pnas/pair
+                                                        3. POST /__nasfone/pair
                                                            {token, client_pub, name, platform, nonce_c}
  4. Kiểm tra token (1 lần, còn hạn)
     lưu thiết bị {id, name, client_pub, quyền}
     trả {device_id, server_pub,
-         sig_server("pnas-pair-v1" | token | client_pub | device_id | nonce_c)}
+         sig_server("nasfone-pair-v1" | token | client_pub | device_id | nonce_c)}
                        ◄──────────────────────────
                                                         5. Kiểm tra SHA-256(server_pub) == fp_server
                                                            và chữ ký → lưu server_pub (pin)
@@ -63,11 +63,11 @@
 
 ```
 Client                                                   Server
-POST /__pnas/auth/challenge {device_id, nonce_c}  ──►
-                                                   ◄──   {nonce_s, sig_server("pnas-auth-s" | nonce_c | nonce_s)}
+POST /__nasfone/auth/challenge {device_id, nonce_c}  ──►
+                                                   ◄──   {nonce_s, sig_server("nasfone-auth-s" | nonce_c | nonce_s)}
 kiểm tra chữ ký server bằng server_pub đã pin
-POST /__pnas/auth {device_id, nonce_s,
-     sig_client("pnas-auth-c" | nonce_s | nonce_c | host)} ──►
+POST /__nasfone/auth {device_id, nonce_s,
+     sig_client("nasfone-auth-c" | nonce_s | nonce_c | host)} ──►
                                                    ◄──   {access_token, expires_in: 3600}
 ```
 
@@ -86,9 +86,9 @@ POST /__pnas/auth {device_id, nonce_s,
 
 | Endpoint | Cần xác thực | Mục đích |
 |---|---|---|
-| `POST /__pnas/pair` | Token lời mời | Ghép đôi |
-| `POST /__pnas/auth/challenge` | Không | Bắt đầu xác thực |
-| `POST /__pnas/auth` | Chữ ký | Lấy access token |
+| `POST /__nasfone/pair` | Token lời mời | Ghép đôi |
+| `POST /__nasfone/auth/challenge` | Không | Bắt đầu xác thực |
+| `POST /__nasfone/auth` | Chữ ký | Lấy access token |
 | Các endpoint hiện có | Cookie trình duyệt **hoặc** Bearer token | Như cũ |
 
 Giới hạn tần suất áp dụng giống đăng nhập bằng mã: theo IP và toàn hệ thống.

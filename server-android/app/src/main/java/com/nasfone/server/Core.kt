@@ -1,4 +1,4 @@
-package com.pocketnas.server
+package com.nasfone.server
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -9,7 +9,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.pocketnas.core.mobile.Host
+import com.nasfone.core.mobile.Host
 import org.json.JSONObject
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
@@ -44,7 +44,7 @@ object Core : Host {
     fun logLines(): List<String> = synchronized(logs) { logs.toList() }
 
     fun log(line: String) {
-        Log.i("PocketNAS", line)
+        Log.i("NASfone", line)
         synchronized(logs) {
             logs.addLast(timeFmt.format(Date()) + "  " + line)
             while (logs.size > 300) logs.removeFirst()
@@ -90,7 +90,7 @@ object Core : Host {
             (System.currentTimeMillis() % 100000).toInt() + 10,
             Notification.Builder(ctx, "security")
                 .setSmallIcon(R.drawable.ic_stat)
-                .setContentTitle("PocketNAS")
+                .setContentTitle("NASfone")
                 .setContentText(text)
                 .setContentIntent(open)
                 .setAutoCancel(true)
@@ -117,7 +117,7 @@ object Core : Host {
                     .append(flags).append('|').append(addrs.joinToString(",")).append('\n')
             }
         } catch (e: Exception) {
-            Log.w("PocketNAS", "interfaces: $e")
+            Log.w("NASfone", "interfaces: $e")
         }
         return sb.toString()
     }

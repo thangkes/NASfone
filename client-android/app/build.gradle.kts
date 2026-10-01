@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.pocketnas.client"
+    namespace = "com.nasfone.client"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.pocketnas.client"
+        applicationId = "com.nasfone.client"
         minSdk = 29
         targetSdk = 36
         versionCode = 1

@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "pocketnas-server-android"
+rootProject.name = "nasfone-server-android"
 include(":app")

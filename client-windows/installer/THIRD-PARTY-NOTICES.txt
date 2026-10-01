@@ -1,4 +1,4 @@
-PocketNAS for Windows bundles or depends on the following third-party software.
+NASfone for Windows bundles or depends on the following third-party software.
 
 ------------------------------------------------------------------------------
 rclone (rclone.exe, bundled)                https://rclone.org
@@ -33,7 +33,7 @@ The unmodified, digitally signed WinFsp installer is redistributed as is.
 Source code: https://github.com/winfsp/winfsp
 
 ------------------------------------------------------------------------------
-Go modules compiled into PocketNAS.exe
+Go modules compiled into NASfone.exe
 ------------------------------------------------------------------------------
 - Tailscale (tailscale.com) — BSD-3-Clause, Copyright (c) Tailscale Inc & AUTHORS
 - golang.org/x/net, golang.org/x/sys — BSD-3-Clause, Copyright The Go Authors
@@ -41,5 +41,5 @@ Go modules compiled into PocketNAS.exe
 - github.com/jchv/go-webview2 — MIT
 - rsc.io/qr — BSD-3-Clause
 
-"Tailscale" is a trademark of Tailscale Inc. PocketNAS is an independent
+"Tailscale" is a trademark of Tailscale Inc. NASfone is an independent
 project and is not affiliated with or endorsed by Tailscale Inc.

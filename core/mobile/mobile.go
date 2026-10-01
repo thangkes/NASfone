@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
-	"pocketnas/core/server"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
+	"nasfone/core/server"
 
 	"tailscale.com/envknob"
 	"tailscale.com/ipn"
@@ -129,7 +129,7 @@ func Start(configJSON string, host Host) error {
 		return errors.New("config: stateDir and rootDir are required")
 	}
 	if cfg.Hostname == "" {
-		cfg.Hostname = "pocketnas"
+		cfg.Hostname = "nasfone"
 	}
 
 	mu.Lock()
@@ -357,7 +357,7 @@ func NetworkChanged() {
 }
 
 // NewPairInvite creates a one-time invite for a client app with role "admin"
-// or "user": {"invite":"pnas1:…","link":"pocketnas://pair?i=…","expires":<ms>,"fp":"ABCD-…"}.
+// or "user": {"invite":"nasfone1:…","link":"nasfone://pair?i=…","expires":<ms>,"fp":"ABCD-…"}.
 // The invite points at the Funnel URL when Funnel is open (works anywhere),
 // otherwise at the tailnet name.
 func NewPairInvite(role string) (string, error) {
@@ -377,7 +377,7 @@ func NewPairInvite(role string) (string, error) {
 	inv, exp := n.pairs.NewInvite(auth.Role(role), base)
 	b, _ := json.Marshal(map[string]any{
 		"invite":  inv,
-		"link":    "pocketnas://pair?i=" + url.QueryEscape(inv),
+		"link":    "nasfone://pair?i=" + url.QueryEscape(inv),
 		"expires": exp.UnixMilli(),
 		"fp":      pair.ShortFP(n.pairs.Fingerprint()),
 	})

@@ -1,4 +1,4 @@
-package com.pocketnas.client
+package com.nasfone.client
 
 import android.app.Activity
 import android.os.Bundle

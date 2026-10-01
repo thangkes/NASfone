@@ -1,4 +1,4 @@
-package com.pocketnas.server
+package com.nasfone.server
 
 import android.content.Context
 import android.os.Environment
@@ -6,10 +6,10 @@ import java.io.File
 
 /** Cài đặt của server. Không có gì về tài khoản Tailscale được gán cứng ở đây. */
 class Prefs(private val ctx: Context) {
-    private val sp = ctx.getSharedPreferences("pocketnas", Context.MODE_PRIVATE)
+    private val sp = ctx.getSharedPreferences("nasfone", Context.MODE_PRIVATE)
 
     var hostname: String
-        get() = sp.getString("hostname", "pocketnas")!!
+        get() = sp.getString("hostname", "nasfone")!!
         set(v) = sp.edit().putString("hostname", v).apply()
 
     /** Trống = máy chủ điều khiển mặc định của Tailscale. Điền URL nếu dùng Headscale. */
@@ -18,7 +18,7 @@ class Prefs(private val ctx: Context) {
         set(v) = sp.edit().putString("controlUrl", v).apply()
 
     var rootDir: String
-        get() = sp.getString("rootDir", File(Environment.getExternalStorageDirectory(), "PocketNAS").path)!!
+        get() = sp.getString("rootDir", File(Environment.getExternalStorageDirectory(), "NASfone").path)!!
         set(v) = sp.edit().putString("rootDir", v).apply()
 
     init {

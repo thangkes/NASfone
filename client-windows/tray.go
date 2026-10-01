@@ -13,8 +13,8 @@ import (
 
 	"fyne.io/systray"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/client"
+	"nasfone/core/auth"
+	"nasfone/core/client"
 )
 
 type app struct {
@@ -47,15 +47,15 @@ func (a *app) onReady() {
 	systray.SetTooltip(appTitle)
 	systray.SetOnTapped(a.openWindow) // left click opens the window; right click shows the menu
 
-	a.mWindow = systray.AddMenuItem("Mở cửa sổ PocketNAS", "")
+	a.mWindow = systray.AddMenuItem("Mở cửa sổ NASfone", "")
 	systray.AddSeparator()
 	a.mStatus = systray.AddMenuItem("Đang khởi động…", "")
 	a.mStatus.Disable()
 	systray.AddSeparator()
-	a.mOpen = systray.AddMenuItem("Mở ổ PocketNAS", "Mở trong File Explorer")
-	a.mWeb = systray.AddMenuItem("Mở trang web PocketNAS", "")
+	a.mOpen = systray.AddMenuItem("Mở ổ NASfone", "Mở trong File Explorer")
+	a.mWeb = systray.AddMenuItem("Mở trang web NASfone", "")
 	systray.AddSeparator()
-	a.mPair = systray.AddMenuItem("Ghép đôi bằng lời mời đã sao chép", "Dán lời mời pnas1:… từ clipboard")
+	a.mPair = systray.AddMenuItem("Ghép đôi bằng lời mời đã sao chép", "Dán lời mời nasfone1:… từ clipboard")
 	a.mAuto = systray.AddMenuItemCheckbox("Khởi động cùng Windows", "", autostartEnabled())
 	a.mForget = systray.AddMenuItem("Hủy ghép đôi với server này", "")
 	systray.AddSeparator()
@@ -81,7 +81,7 @@ func (a *app) menuLoop() {
 			if d, ok, _ := a.mount.status(); ok && d != "" {
 				exec.Command("explorer.exe", d+`\`).Start()
 			} else {
-				warn("Ổ PocketNAS chưa sẵn sàng.\n\n" + a.statusText())
+				warn("Ổ NASfone chưa sẵn sàng.\n\n" + a.statusText())
 			}
 		case <-a.mWeb.ClickedCh:
 			a.mu.Lock()
@@ -92,8 +92,8 @@ func (a *app) menuLoop() {
 			}
 		case <-a.mPair.ClickedCh:
 			text, err := clipboardText()
-			if err != nil || !strings.Contains(text, "pnas1:") {
-				warn("Clipboard không có lời mời PocketNAS.\n\nTrên điện thoại hoặc trang web PocketNAS, chọn \"Ghép thiết bị\" → \"Sao chép lời mời\", rồi bấm lại mục này.")
+			if err != nil || !strings.Contains(text, "nasfone1:") {
+				warn("Clipboard không có lời mời NASfone.\n\nTrên điện thoại hoặc trang web NASfone, chọn \"Ghép thiết bị\" → \"Sao chép lời mời\", rồi bấm lại mục này.")
 				continue
 			}
 			if pairFromInvite(text) {
@@ -160,7 +160,7 @@ func (a *app) reload(force bool) {
 	a.refreshMenu()
 }
 
-// watch notices pairings made by another process (a pocketnas:// link) and
+// watch notices pairings made by another process (a nasfone:// link) and
 // keeps the connection status fresh.
 func (a *app) watch() {
 	t := time.NewTicker(2 * time.Second)
@@ -207,7 +207,7 @@ func (a *app) statusText() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.paired {
-		return "Chưa ghép đôi — bấm \"Kết nối app\" trên trang web PocketNAS"
+		return "Chưa ghép đôi — bấm \"Kết nối app\" trên trang web NASfone"
 	}
 	role := "User (chỉ xem)"
 	if a.cfg.Role == auth.RoleAdmin {

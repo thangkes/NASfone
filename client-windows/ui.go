@@ -14,8 +14,8 @@ import (
 	webview2 "github.com/jchv/go-webview2"
 	"golang.org/x/sys/windows"
 
-	"pocketnas/core/auth"
-	"pocketnas/core/pair"
+	"nasfone/core/auth"
+	"nasfone/core/pair"
 )
 
 //go:embed ui.html
@@ -231,7 +231,7 @@ func (a *app) unpair() {
 	a.mu.Lock()
 	u := a.cfg.URL
 	a.mu.Unlock()
-	if !ask("Hủy ghép đôi với " + u + "?\n\nỔ PocketNAS sẽ bị ngắt và khóa của máy này bị xóa. Nên thu hồi thêm máy này trong app trên điện thoại.") {
+	if !ask("Hủy ghép đôi với " + u + "?\n\nỔ NASfone sẽ bị ngắt và khóa của máy này bị xóa. Nên thu hồi thêm máy này trong app trên điện thoại.") {
 		return
 	}
 	a.mount.stopMount()
