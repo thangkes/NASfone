@@ -3,7 +3,6 @@ package com.pocketnas.server
 import android.content.Context
 import android.os.Environment
 import java.io.File
-import java.security.SecureRandom
 
 /** Cài đặt của server. Không có gì về tài khoản Tailscale được gán cứng ở đây. */
 class Prefs(private val ctx: Context) {
@@ -22,10 +21,10 @@ class Prefs(private val ctx: Context) {
         get() = sp.getString("rootDir", File(Environment.getExternalStorageDirectory(), "PocketNAS").path)!!
         set(v) = sp.edit().putString("rootDir", v).apply()
 
-    /** Mật khẩu tạm của giai đoạn 1 (sẽ thay bằng ghép đôi cặp khóa). Tự sinh lần đầu. */
-    var password: String
-        get() = sp.getString("password", null) ?: randomPassword().also { password = it }
-        set(v) = sp.edit().putString("password", v).apply()
+    init {
+        // Bản cũ có mật khẩu truy cập; cơ chế này đã bị bỏ, xóa giá trị còn lưu.
+        if (sp.contains("password")) sp.edit().remove("password").apply()
+    }
 
     var funnel: Boolean
         get() = sp.getBoolean("funnel", false)
@@ -41,10 +40,4 @@ class Prefs(private val ctx: Context) {
 
     /** Trạng thái đăng nhập tailnet; xóa thư mục này = quên tài khoản. */
     val stateDir: File get() = File(ctx.filesDir, "tsnet")
-
-    private fun randomPassword(): String {
-        val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
-        val rnd = SecureRandom()
-        return (1..10).map { alphabet[rnd.nextInt(alphabet.length)] }.joinToString("")
-    }
 }

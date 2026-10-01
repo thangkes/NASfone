@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/subtle"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -29,8 +28,8 @@ var loginTmpl = template.Must(template.New("login").Parse(loginHTML))
 
 // Who describes the authenticated caller of a request.
 type Who struct {
-	Name     string // device name, or "WebDAV" for password logins
-	DeviceID string // empty for password logins
+	Name     string // device name chosen at sign-in
+	DeviceID string
 }
 
 type whoKey struct{}
@@ -65,11 +64,6 @@ func (h *handler) authenticate(r *http.Request) (Who, bool) {
 	if c, err := r.Cookie(cookieName); err == nil && h.opt.Auth != nil {
 		if d, ok := h.opt.Auth.Check(c.Value, clientIP(r), viaFrom(r)); ok {
 			return Who{Name: d.Name, DeviceID: d.ID}, true
-		}
-	}
-	if h.opt.Password != "" {
-		if _, pass, ok := r.BasicAuth(); ok && subtle.ConstantTimeCompare([]byte(pass), []byte(h.opt.Password)) == 1 {
-			return Who{Name: "WebDAV"}, true
 		}
 	}
 	return Who{}, false

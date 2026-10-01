@@ -46,7 +46,6 @@ class NasService : Service() {
                 .put("rootDir", prefs.rootDir)
                 .put("hostname", prefs.hostname)
                 .put("controlURL", prefs.controlUrl)
-                .put("password", prefs.password)
                 .put("funnel", prefs.funnel)
                 .put("verbose", prefs.verboseLog)
             thread(name = "pnas-start") {

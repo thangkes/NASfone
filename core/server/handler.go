@@ -33,10 +33,9 @@ var browseTmpl = template.Must(template.New("browse").Funcs(template.FuncMap{
 
 // Options configures the handler.
 type Options struct {
-	Root     string      // directory served as "/"
-	Password string      // WebDAV password (HTTP Basic, any username)
-	Auth     *auth.Store // browser sessions from one-time login codes
-	Logf     func(format string, args ...any)
+	Root string      // directory served as "/"
+	Auth *auth.Store // browser sessions from one-time login codes
+	Logf func(format string, args ...any)
 }
 
 type handler struct {
@@ -82,10 +81,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, loginPath+"?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusFound)
 			return
 		}
-		if r.Header.Get("Authorization") != "" {
-			time.Sleep(400 * time.Millisecond) // slow down password guessing
-		}
-		w.Header().Set("WWW-Authenticate", `Basic realm="PocketNAS", charset="UTF-8"`)
+		// No WWW-Authenticate header: there is no password login, so browsers
+		// must never show a user/password prompt.
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

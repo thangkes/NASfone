@@ -46,7 +46,6 @@ type Config struct {
 	RootDir    string `json:"rootDir"`
 	Hostname   string `json:"hostname"`
 	ControlURL string `json:"controlURL"` // empty = Tailscale's default; set for Headscale
-	Password   string `json:"password"`
 	Funnel     bool   `json:"funnel"`
 	Verbose    bool   `json:"verbose"`
 }
@@ -117,9 +116,6 @@ func Start(configJSON string, host Host) error {
 	if cfg.StateDir == "" || cfg.RootDir == "" {
 		return errors.New("config: stateDir and rootDir are required")
 	}
-	if cfg.Password == "" {
-		return errors.New("config: password is required")
-	}
 	if cfg.Hostname == "" {
 		cfg.Hostname = "pocketnas"
 	}
@@ -166,7 +162,7 @@ func Start(configJSON string, host Host) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store}
 	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
-	n.handler = server.NewHandler(server.Options{Root: cfg.RootDir, Password: cfg.Password, Auth: store, Logf: n.logf})
+	n.handler = server.NewHandler(server.Options{Root: cfg.RootDir, Auth: store, Logf: n.logf})
 
 	// Embedded Tailscale node.
 	n.ts = &tsnet.Server{

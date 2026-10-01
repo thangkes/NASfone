@@ -56,7 +56,6 @@ class MainActivity : Activity() {
     private lateinit var hostEt: EditText
     private lateinit var controlEt: EditText
     private lateinit var rootEt: EditText
-    private lateinit var passEt: EditText
     private lateinit var verboseCb: CheckBox
     private lateinit var autoCb: CheckBox
     private lateinit var permTv: TextView
@@ -163,7 +162,6 @@ class MainActivity : Activity() {
 
         section(col, "Địa chỉ truy cập")
         addrBox = vbox().also { col.addView(it) }
-        col.addView(row("Mật khẩu (giai đoạn 1)", prefs.password))
 
         section(col, "Funnel (truy cập công khai qua Internet)")
         funnelSw = Switch(this).apply {
@@ -186,7 +184,6 @@ class MainActivity : Activity() {
         hostEt = field(col, "Tên máy trong tailnet", prefs.hostname)
         controlEt = field(col, "Máy chủ điều khiển (để trống = Tailscale; điền URL nếu dùng Headscale)", prefs.controlUrl)
         rootEt = field(col, "Thư mục lưu trữ", prefs.rootDir)
-        passEt = field(col, "Mật khẩu truy cập", prefs.password)
         verboseCb = CheckBox(this).apply { text = "Ghi log chi tiết của Tailscale"; isChecked = prefs.verboseLog }.also { col.addView(it) }
         autoCb = CheckBox(this).apply {
             text = "Tự chạy khi khởi động máy"
@@ -390,8 +387,6 @@ class MainActivity : Activity() {
     }
 
     private fun save(): Boolean {
-        val pass = passEt.text.toString().trim()
-        if (pass.length < 6) return toast("Mật khẩu tối thiểu 6 ký tự")
         val host = hostEt.text.toString().trim().lowercase()
         if (!host.matches(Regex("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?"))) return toast("Tên máy chỉ gồm a-z, 0-9 và dấu -")
         val control = controlEt.text.toString().trim()
@@ -403,7 +398,6 @@ class MainActivity : Activity() {
             prefs.stateDir.deleteRecursively()
             Core.log("Đã đổi máy chủ điều khiển, cần đăng nhập lại")
         }
-        prefs.password = pass
         prefs.hostname = host
         prefs.controlUrl = control
         prefs.rootDir = rootEt.text.toString().trim()
