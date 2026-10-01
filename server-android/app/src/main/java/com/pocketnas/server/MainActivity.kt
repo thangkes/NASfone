@@ -72,8 +72,13 @@ class MainActivity : Activity() {
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
-            renderCode()
-            renderDevices()
+            // Lỗi hiển thị không được làm sập app (service vẫn chạy trong cùng tiến trình).
+            try {
+                renderCode()
+                renderDevices()
+            } catch (e: Exception) {
+                Core.log("Lỗi hiển thị: $e")
+            }
             ticker.postDelayed(this, 1000)
         }
     }
@@ -353,7 +358,7 @@ class MainActivity : Activity() {
         if (json == lastDevicesJson) return
         lastDevicesJson = json
         devBox.removeAllViews()
-        val arr = JSONArray(json)
+        val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
         if (arr.length() == 0) {
             devBox.addView(text(if (Core.running) "Chưa có thiết bị nào." else "—", 14f))
             return

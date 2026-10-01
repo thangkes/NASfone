@@ -95,3 +95,10 @@ func TestRandomStringAlphabet(t *testing.T) {
 		t.Fatalf("only %d/%d chars seen", len(seen), len(codeAlphabet))
 	}
 }
+
+func TestListEmptyIsArray(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "a.json"))
+	if l := s.List(); l == nil {
+		t.Fatal("List must return an empty slice, not nil (JSON [] not null)")
+	}
+}

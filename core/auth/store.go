@@ -268,7 +268,7 @@ func (s *Store) List() []Device {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	kept := s.devices[:0]
-	var out []Device
+	out := []Device{} // encode as [] rather than null
 	for _, d := range s.devices {
 		if now.After(d.Expires) {
 			continue
