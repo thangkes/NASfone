@@ -111,6 +111,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.put(w, r)
 		return
 	}
+	if h.quotaPropfind(w, r) {
+		return
+	}
 	if (r.Method == http.MethodGet || r.Method == http.MethodHead) && h.isDir(r.URL.Path) {
 		h.browse(w, r)
 		return

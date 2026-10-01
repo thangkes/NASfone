@@ -99,3 +99,34 @@ func TestUserRoleIsReadOnly(t *testing.T) {
 		t.Fatalf("admin put: %d", r.StatusCode)
 	}
 }
+
+func TestQuotaPropfind(t *testing.T) {
+	root := t.TempDir()
+	store, _ := auth.Open(filepath.Join(t.TempDir(), "a.json"))
+	srv := httptest.NewServer(WithVia(NewHandler(Options{Root: root, Auth: store}), "Tailnet"))
+	defer srv.Close()
+	_, userCode, _ := store.CurrentCodes()
+	tok, _, _ := store.Redeem(userCode, "x", "1.1.1.1", "Tailnet")
+
+	propfind := func(body string) (int, string) {
+		req, _ := http.NewRequest("PROPFIND", srv.URL+"/", strings.NewReader(body))
+		req.Header.Set("Depth", "0")
+		req.AddCookie(&http.Cookie{Name: "pnas_s", Value: tok})
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(b)
+	}
+	code, body := propfind(`<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:prop><D:quota-available-bytes/><D:quota-used-bytes/></D:prop></D:propfind>`)
+	total, free, _ := diskUsage(root)
+	if code != 207 || !strings.Contains(body, "<D:quota-available-bytes>") || total == 0 || free == 0 {
+		t.Fatalf("quota: %d %s", code, body)
+	}
+	// Ordinary PROPFINDs still go to the WebDAV handler.
+	code, body = propfind(`<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:allprop/></D:propfind>`)
+	if code != 207 || strings.Contains(body, "quota-available-bytes") {
+		t.Fatalf("allprop: %d %s", code, body)
+	}
+}
