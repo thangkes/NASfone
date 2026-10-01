@@ -48,7 +48,7 @@ Thông số máy (tên máy, User-Agent, IP) **chỉ dùng để hiển thị v�
 | Mức | Đối tượng | Cơ chế |
 |---|---|---|
 | Cao | App client (Windows, Android) | Cặp khóa ghép đôi |
-| Thường | Trình duyệt | Mã một lần (8 ký tự, 5 phút, sai 5 lần là hủy), sau đó cookie thiết bị `HttpOnly` hoặc passkey |
+| Thường | Trình duyệt | **Mã 6 số tự đổi mỗi phút** (đã làm), sau đó cookie phiên `HttpOnly`. Sau này thêm passkey |
 | Thường | App WebDAV bên thứ ba | Khóa truy cập `pnk_…` riêng cho từng app, thu hồi được |
 
 **Chế độ khóa cứng:** chỉ chấp nhận thiết bị đã ghép đôi bằng cặp khóa, tắt mã một lần và WebDAV dùng mật khẩu.
@@ -66,7 +66,6 @@ Thông số máy (tên máy, User-Agent, IP) **chỉ dùng để hiển thị v�
 
 ## 6. Câu hỏi còn mở
 - [ ] Đăng nhập thiết bị mới có cần bấm "Cho phép" trên server không?
-- [ ] Thời hạn ghi nhớ trình duyệt: 90 ngày tự gia hạn, hay vĩnh viễn cho tới khi thu hồi?
 - [ ] Chế độ khóa cứng: bật hay tắt mặc định?
 - [ ] Passkey cho iPhone có làm ngay ở bản đầu không?
 - [ ] Tự backup ảnh có phải tính năng chính của client Android không?
@@ -86,3 +85,18 @@ Thông số máy (tên máy, User-Agent, IP) **chỉ dùng để hiển thị v�
 | Mạng lúc đo | wlan0 `192.168.100.14/24` |
 
 APK server khung đã cài và chạy được trên máy.
+
+## 8. Đăng nhập trình duyệt (đã chốt và đã làm, 2026-10-01)
+
+- **Mã:** 6 chữ số, tự đổi vào đầu mỗi phút. App hiện mã liên tục, có thanh đếm ngược, không có nút tạo mã. Mở app là server tự chạy.
+- Mỗi mã dùng 1 lần. Mã cũ còn được chấp nhận thêm 10 giây sau khi đổi. Sai 5 lần thì đổi mã sớm.
+- **Giới hạn thử sai:** mỗi IP 10 lần / 15 phút; toàn hệ thống 20 lần / 5 phút, quá mức thì khóa đăng nhập 5 phút.
+- **Phiên:** cookie phiên (không có Max-Age), tắt trình duyệt là mất. Server cắt phiên tối đa 24 giờ sau khi đăng nhập, không gia hạn.
+- Thiết bị đã đăng nhập hiện trong app, thu hồi được. Có thông báo khi có thiết bị mới đăng nhập, hoặc khi mã bị đổi sớm do nhập sai nhiều.
+- Mật khẩu chỉ còn dùng cho WebDAV. Sẽ thay bằng khóa truy cập riêng cho từng app.
+
+## 9. Ghi chú mạng thực tế
+
+- Mạng nhà người dùng có thể có **hai lớp NAT** (router phụ). Khi đó máy tính không truy cập được server qua LAN, nhưng tailnet vẫn kết nối trực tiếp P2P được.
+- Client phải thử nhiều đường (LAN → tailnet → Funnel) và tự chọn đường chạy được.
+- Logcat trên MagicOS bị mã hóa. App tự ghi `pnas.log` và `go-crash.txt` vào `/sdcard/Android/data/com.pocketnas.server/files/`.
