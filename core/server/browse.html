@@ -107,6 +107,7 @@ summary{cursor:pointer;font-weight:600}
     </div>
     <div id="pairResult" style="display:none;margin-top:12px;font-size:13px">
       <p id="pairMsg"></p>
+      <a class="btn pri" id="pairOpen" href="#" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px"></a>
       <p style="color:var(--muted)">{{.T.pair_fallback}}</p>
       <button class="btn" id="pairCopy">{{.T.pair_copy}}</button>
     </div>
@@ -272,13 +273,19 @@ function openPair(){
     }
     const j = await r.json();
     document.getElementById('pairResult').style.display = '';
-    document.getElementById('pairMsg').textContent = tr('js_opening_app', b.dataset.role === 'admin' ? 'Admin' : 'User');
+    document.getElementById('pairMsg').textContent = tr('js_invite_ready', b.dataset.role === 'admin' ? 'Admin' : 'User');
     document.getElementById('pairCopy').onclick = () => {
       // navigator.clipboard only exists on HTTPS; fall back to a prompt the user can copy from.
       if (navigator.clipboard) navigator.clipboard.writeText(j.invite).then(() => alert(tr('js_copied')), () => prompt(tr('js_copy_prompt'), j.invite));
       else prompt(tr('js_copy_prompt'), j.invite);
     };
-    location.href = j.link; // hands the invite to the installed app via nasfone://
+    // A real link the user clicks always opens the app; the automatic attempt
+    // below can be blocked because it no longer counts as a user click after
+    // waiting for the server.
+    const open = document.getElementById('pairOpen');
+    open.href = j.link;
+    open.textContent = tr('js_open_app');
+    location.href = j.link; // best effort: hands the invite to the installed app via nasfone://
   });
   box.classList.add('on');
 }
