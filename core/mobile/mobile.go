@@ -46,7 +46,6 @@ type Config struct {
 	RootDir    string `json:"rootDir"`
 	Hostname   string `json:"hostname"`
 	ControlURL string `json:"controlURL"` // empty = Tailscale's default; set for Headscale
-	LanPort    int    `json:"lanPort"`
 	Password   string `json:"password"`
 	Funnel     bool   `json:"funnel"`
 	Verbose    bool   `json:"verbose"`
@@ -61,7 +60,6 @@ type Status struct {
 	TailnetName  string   `json:"tailnetName,omitempty"`
 	DNSName      string   `json:"dnsName,omitempty"`
 	TailscaleIPs []string `json:"tailscaleIPs,omitempty"`
-	LanPort      int      `json:"lanPort"`
 	FunnelWanted bool     `json:"funnelWanted"`
 	FunnelURL    string   `json:"funnelURL,omitempty"`
 	FunnelError  string   `json:"funnelError,omitempty"`
@@ -109,7 +107,8 @@ func SetCrashFile(path string) error {
 	return debug.SetCrashOutput(f, debug.CrashOptions{})
 }
 
-// Start launches the LAN listener and the embedded Tailscale node.
+// Start launches the embedded Tailscale node. The server is reachable only
+// through the tailnet (and Funnel when enabled); there is no LAN listener.
 func Start(configJSON string, host Host) error {
 	var cfg Config
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
@@ -123,9 +122,6 @@ func Start(configJSON string, host Host) error {
 	}
 	if cfg.Hostname == "" {
 		cfg.Hostname = "pocketnas"
-	}
-	if cfg.LanPort == 0 {
-		cfg.LanPort = 8080
 	}
 
 	mu.Lock()
@@ -169,16 +165,8 @@ func Start(configJSON string, host Host) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store}
-	n.status = Status{LanPort: cfg.LanPort, FunnelWanted: cfg.Funnel, BackendState: "Starting"}
+	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
 	n.handler = server.NewHandler(server.Options{Root: cfg.RootDir, Password: cfg.Password, Auth: store, Logf: n.logf})
-
-	// LAN / hotspot listener.
-	lanLn, err := net.Listen("tcp", ":"+strconv.Itoa(cfg.LanPort))
-	if err != nil {
-		cancel()
-		return fmt.Errorf("không mở được cổng %d: %w", cfg.LanPort, err)
-	}
-	n.serve(lanLn, "LAN")
 
 	// Embedded Tailscale node.
 	n.ts = &tsnet.Server{
@@ -205,7 +193,7 @@ func Start(configJSON string, host Host) error {
 
 	current = n
 	go n.loop()
-	n.logf("Đã khởi động: LAN cổng %d, tên máy tailnet %q", cfg.LanPort, cfg.Hostname)
+	n.logf("Đã khởi động, tên máy tailnet %q", cfg.Hostname)
 	return nil
 }
 

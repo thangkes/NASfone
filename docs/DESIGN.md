@@ -22,11 +22,12 @@ Tài liệu này tổng hợp các quyết định đã thống nhất. Những 
 
 | Đường | Địa chỉ | Ghi chú |
 |---|---|---|
-| LAN / hotspot | `https://<ip>:8443` | HTTPS bằng chứng chỉ tự ký, client kiểm tra vân tay chứng chỉ (pinning). Tìm server qua mDNS `pocketnas.local` hoặc QR |
 | Tailnet | `https://pocketnas.<tailnet>.ts.net` | Kết nối thẳng P2P. Máy client phải ở trong cùng tailnet |
 | Funnel | `https://pocketnas.<tailnet>.ts.net` (công khai) | Chỉ cần Internet. Đi qua relay của Tailscale nên chậm hơn |
 
-Client tự chọn theo thứ tự: **LAN → Tailnet → Funnel**.
+Client tự chọn theo thứ tự: **Tailnet → Funnel**.
+
+> **Đã bỏ chế độ LAN** (2026-10-01): server không mở cổng nào ngoài mạng Tailscale. Tailnet đã tự kết nối thẳng P2P khi hai máy ở gần nhau, nên vẫn nhanh. Đổi lại không còn chế độ hotspot offline (Tailscale cần Internet để kết nối ban đầu).
 
 ## 4. Định danh và xác thực
 
@@ -98,5 +99,5 @@ APK server khung đã cài và chạy được trên máy.
 ## 9. Ghi chú mạng thực tế
 
 - Mạng nhà người dùng có thể có **hai lớp NAT** (router phụ). Khi đó máy tính không truy cập được server qua LAN, nhưng tailnet vẫn kết nối trực tiếp P2P được.
-- Client phải thử nhiều đường (LAN → tailnet → Funnel) và tự chọn đường chạy được.
+- Đây là một lý do để bỏ chế độ LAN: tailnet đi xuyên được double NAT.
 - Logcat trên MagicOS bị mã hóa. App tự ghi `pnas.log` và `go-crash.txt` vào `/sdcard/Android/data/com.pocketnas.server/files/`.

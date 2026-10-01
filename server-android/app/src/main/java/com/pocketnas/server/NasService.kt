@@ -46,7 +46,6 @@ class NasService : Service() {
                 .put("rootDir", prefs.rootDir)
                 .put("hostname", prefs.hostname)
                 .put("controlURL", prefs.controlUrl)
-                .put("lanPort", prefs.lanPort)
                 .put("password", prefs.password)
                 .put("funnel", prefs.funnel)
                 .put("verbose", prefs.verboseLog)
@@ -95,9 +94,9 @@ class NasService : Service() {
         val text = when (st.optString("backendState")) {
             "Running" -> st.optString("dnsName").ifEmpty { "Tailnet đã kết nối" } +
                 if (st.optString("funnelURL").isNotEmpty()) " • Funnel bật" else ""
-            "NeedsLogin" -> "Chờ đăng nhập Tailscale • LAN cổng ${st.optInt("lanPort")}"
+            "NeedsLogin" -> "Chờ đăng nhập Tailscale"
             "" -> "Đang khởi động…"
-            else -> st.optString("backendState") + " • LAN cổng ${st.optInt("lanPort")}"
+            else -> st.optString("backendState")
         }
         if (text != lastNotifText) startInForeground(text)
     }

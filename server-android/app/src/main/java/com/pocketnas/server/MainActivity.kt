@@ -55,7 +55,6 @@ class MainActivity : Activity() {
     private lateinit var funnelHelpBtn: Button
     private lateinit var hostEt: EditText
     private lateinit var controlEt: EditText
-    private lateinit var portEt: EditText
     private lateinit var rootEt: EditText
     private lateinit var passEt: EditText
     private lateinit var verboseCb: CheckBox
@@ -186,7 +185,6 @@ class MainActivity : Activity() {
         section(col, "Cài đặt (áp dụng khi khởi động lại)")
         hostEt = field(col, "Tên máy trong tailnet", prefs.hostname)
         controlEt = field(col, "Máy chủ điều khiển (để trống = Tailscale; điền URL nếu dùng Headscale)", prefs.controlUrl)
-        portEt = field(col, "Cổng LAN", prefs.lanPort.toString(), InputType.TYPE_CLASS_NUMBER)
         rootEt = field(col, "Thư mục lưu trữ", prefs.rootDir)
         passEt = field(col, "Mật khẩu truy cập", prefs.password)
         verboseCb = CheckBox(this).apply { text = "Ghi log chi tiết của Tailscale"; isChecked = prefs.verboseLog }.also { col.addView(it) }
@@ -299,8 +297,6 @@ class MainActivity : Activity() {
             if (dns.isNotEmpty()) addrBox.addView(row("Tailnet", "http://$dns"))
             val ips = st.optJSONArray("tailscaleIPs")
             if (ips != null && ips.length() > 0) addrBox.addView(row("Tailnet IP", "http://${ips.getString(0)}"))
-            val port = st.optInt("lanPort", prefs.lanPort)
-            for ((label, ip) in Core.lanAddresses()) addrBox.addView(row(label, "http://$ip:$port"))
             val funnel = st.optString("funnelURL")
             if (funnel.isNotEmpty()) addrBox.addView(row("Funnel (công khai)", funnel))
         } else {
@@ -394,8 +390,6 @@ class MainActivity : Activity() {
     }
 
     private fun save(): Boolean {
-        val port = portEt.text.toString().toIntOrNull()
-        if (port == null || port !in 1024..65535) return toast("Cổng phải trong khoảng 1024–65535")
         val pass = passEt.text.toString().trim()
         if (pass.length < 6) return toast("Mật khẩu tối thiểu 6 ký tự")
         val host = hostEt.text.toString().trim().lowercase()
@@ -409,7 +403,6 @@ class MainActivity : Activity() {
             prefs.stateDir.deleteRecursively()
             Core.log("Đã đổi máy chủ điều khiển, cần đăng nhập lại")
         }
-        prefs.lanPort = port
         prefs.password = pass
         prefs.hostname = host
         prefs.controlUrl = control

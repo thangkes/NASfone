@@ -11,7 +11,6 @@ import android.os.Looper
 import android.util.Log
 import com.pocketnas.core.mobile.Host
 import org.json.JSONObject
-import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -117,30 +116,5 @@ object Core : Host {
             Log.w("PocketNAS", "interfaces: $e")
         }
         return sb.toString()
-    }
-
-    /** Địa chỉ IPv4 trong mạng nội bộ (Wi-Fi, hotspot, USB tethering), kèm nhãn. */
-    fun lanAddresses(): List<Pair<String, String>> {
-        val out = mutableListOf<Pair<String, String>>()
-        try {
-            for (ni in NetworkInterface.getNetworkInterfaces()) {
-                if (!ni.isUp || ni.isLoopback) continue
-                val n = ni.name
-                if (listOf("rmnet", "ccmni", "dummy", "tun", "ifb", "v4-").any { n.startsWith(it) }) continue
-                for (a in ni.inetAddresses) {
-                    if (a is Inet4Address && !a.isLoopbackAddress) out += label(n) to a.hostAddress!!
-                }
-            }
-        } catch (_: Exception) {
-        }
-        return out
-    }
-
-    private fun label(name: String) = when {
-        name == "wlan0" -> "Wi-Fi"
-        name.startsWith("ap") || name.startsWith("swlan") || name.startsWith("wlan") -> "Hotspot ($name)"
-        name.startsWith("rndis") || name.startsWith("usb") || name.startsWith("ncm") -> "USB tethering"
-        name.startsWith("eth") -> "Ethernet"
-        else -> name
     }
 }

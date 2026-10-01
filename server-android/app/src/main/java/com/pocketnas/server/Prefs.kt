@@ -18,10 +18,6 @@ class Prefs(private val ctx: Context) {
         get() = sp.getString("controlUrl", "")!!
         set(v) = sp.edit().putString("controlUrl", v).apply()
 
-    var lanPort: Int
-        get() = sp.getInt("lanPort", 8080)
-        set(v) = sp.edit().putInt("lanPort", v).apply()
-
     var rootDir: String
         get() = sp.getString("rootDir", File(Environment.getExternalStorageDirectory(), "PocketNAS").path)!!
         set(v) = sp.edit().putString("rootDir", v).apply()
