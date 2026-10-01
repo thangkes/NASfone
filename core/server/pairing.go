@@ -88,15 +88,20 @@ func (h *handler) pairingPublic(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func pairError(w http.ResponseWriter, err error) {
-	status := http.StatusUnauthorized
+	status, code := http.StatusUnauthorized, "auth_failed"
 	switch {
 	case errors.Is(err, pair.ErrRateLimit):
-		status = http.StatusTooManyRequests
+		status, code = http.StatusTooManyRequests, "rate_limited"
 	case errors.Is(err, pair.ErrBadRequest), errors.Is(err, pair.ErrBadKey):
-		status = http.StatusBadRequest
+		status, code = http.StatusBadRequest, "bad_request"
+	case errors.Is(err, pair.ErrUnknown):
+		// Clients use this to tell "you were revoked/unpaired" from network trouble.
+		code = "unknown_device"
+	case errors.Is(err, pair.ErrBadInvite):
+		code = "bad_invite"
 	}
 	time.Sleep(300 * time.Millisecond)
-	writeJSON(w, status, map[string]any{"error": err.Error()})
+	writeJSON(w, status, map[string]any{"error": err.Error(), "code": code})
 }
 
 // invite lets a signed-in admin web session create a one-time pairing invite

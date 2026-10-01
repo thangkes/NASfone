@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -94,8 +95,8 @@ func TestPairAuthAndUse(t *testing.T) {
 	if r := e.get(t, tok.Value, "GET", "/a.txt", ""); r.StatusCode != 401 {
 		t.Fatalf("revoked token still works: %d", r.StatusCode)
 	}
-	if _, err := Authenticate(e.ctx, e.hc, cfg, key); err == nil {
-		t.Fatal("revoked device signed in")
+	if _, err := Authenticate(e.ctx, e.hc, cfg, key); !errors.Is(err, ErrRevoked) {
+		t.Fatalf("revoked device: want ErrRevoked, got %v", err)
 	}
 }
 

@@ -133,7 +133,12 @@ func Authenticate(ctx context.Context, hc *http.Client, cfg Config, signer crypt
 type HTTPError struct {
 	Status int
 	Msg    string
+	Code   string // machine-readable reason from the server, e.g. "unknown_device"
 }
+
+// ErrRevoked means the server no longer knows this device: it was revoked
+// (or unpaired) on the server. Retrying will not help; the user must pair again.
+var ErrRevoked = errors.New("this device was revoked on the NASfone server")
 
 func (e *HTTPError) Error() string { return fmt.Sprintf("server %d: %s", e.Status, e.Msg) }
 
@@ -153,12 +158,17 @@ func postJSON(ctx context.Context, hc *http.Client, url string, in, out any) err
 	if res.StatusCode != http.StatusOK {
 		var e struct {
 			Error string `json:"error"`
+			Code  string `json:"code"`
 		}
 		msg := strings.TrimSpace(string(body))
 		if json.Unmarshal(body, &e) == nil && e.Error != "" {
 			msg = e.Error
 		}
-		return &HTTPError{Status: res.StatusCode, Msg: msg}
+		herr := &HTTPError{Status: res.StatusCode, Msg: msg, Code: e.Code}
+		if e.Code == "unknown_device" {
+			return fmt.Errorf("%w (%v)", ErrRevoked, herr)
+		}
+		return herr
 	}
 	return json.Unmarshal(body, out)
 }

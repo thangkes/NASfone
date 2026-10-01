@@ -66,6 +66,14 @@ var msgs = map[string][2]string{
 	"s_ok":             {"Connected", "Đã kết nối"},
 	"s_drive_err":      {"Drive error", "Ổ đĩa gặp lỗi"},
 	"s_connecting":     {"Connecting…", "Đang kết nối…"},
+	"s_revoked":        {"Revoked by the server", "Đã bị thu hồi"},
+	"st_revoked":       {"⛔ This computer was revoked on the server — pair again", "⛔ Máy này đã bị thu hồi trên server — hãy ghép đôi lại"},
+	"revoked_msg": {
+		"This computer's access was revoked on the NASfone server, so the drive was disconnected.\n\nTo use it again, click \"Pair again\" in the NASfone window and pair from the web page.",
+		"Quyền truy cập của máy này đã bị thu hồi trên NASfone Server nên ổ đĩa đã được ngắt.\n\nMuốn dùng lại, bấm \"Ghép đôi lại\" trong cửa sổ NASfone rồi ghép đôi từ trang web.",
+	},
+	"w_disconnected": {"Disconnected", "Đã ngắt"},
+	"w_repair":       {"Pair again", "Ghép đôi lại"},
 
 	// window (ui.html)
 	"w_drive":         {"Drive", "Ổ đĩa"},

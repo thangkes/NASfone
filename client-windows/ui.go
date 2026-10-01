@@ -102,7 +102,7 @@ type uiState struct {
 
 func (a *app) state() uiState {
 	a.mu.Lock()
-	cfg, paired, connErr, busy, notice := a.cfg, a.paired, a.connErr, a.busy, a.notice
+	cfg, paired, connErr, busy, notice, revoked := a.cfg, a.paired, a.connErr, a.busy, a.notice, a.revoked
 	a.mu.Unlock()
 	drive, mounted, mErr := a.mount.status()
 	_, rcErr := findRclone()
@@ -123,6 +123,8 @@ func (a *app) state() uiState {
 	switch {
 	case !paired:
 		s.Status, s.StatusText = "unpaired", t("s_unpaired")
+	case revoked:
+		s.Status, s.StatusText = "revoked", t("s_revoked")
 	case connErr != "":
 		s.Status, s.StatusText = "error", t("s_conn_err")
 	case mounted:
@@ -131,6 +133,9 @@ func (a *app) state() uiState {
 		s.Status, s.StatusText = "error", t("s_drive_err")
 	default:
 		s.Status, s.StatusText = "connecting", t("s_connecting")
+	}
+	if s.Status == "revoked" {
+		s.Notice = t("revoked_msg")
 	}
 	if s.Status == "error" {
 		if connErr != "" {
@@ -211,6 +216,13 @@ func (a *app) bind(w webview2.WebView) {
 	})
 	w.Bind("pnUnpair", func() {
 		go a.unpair()
+	})
+	// After a revocation: drop the dead pairing at once (no question) so the
+	// pairing steps show again.
+	w.Bind("pnRepair", func() {
+		a.mount.stopMount()
+		forget()
+		go a.reload(true)
 	})
 	w.Bind("pnDict", func() map[string]string { return uiDict() })
 	w.Bind("pnLang", func() string { return lang() })

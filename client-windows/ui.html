@@ -18,6 +18,7 @@ header h1{font-size:18px;margin:0;line-height:1.2}
 .ok .dot{background:var(--ok)} .ok{color:var(--ok)}
 .connecting .dot{background:var(--warn);animation:blink 1s infinite} .connecting{color:var(--warn)}
 .error .dot{background:var(--bad)} .error{color:var(--bad)}
+.revoked .dot{background:var(--bad)} .revoked{color:var(--bad)}
 @keyframes blink{50%{opacity:.3}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
 .card h2{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
@@ -69,6 +70,7 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
   </header>
 
   <div class="notice" id="notice" hidden></div>
+  <div class="row" id="repairRow" hidden style="margin:-4px 0 12px"><button class="pri grow" onclick="pnRepair()" data-i18n="w_repair"></button></div>
   <div class="notice" id="deps" hidden></div>
 
   <!-- Paired -->
@@ -165,6 +167,7 @@ function render(s){
   $('unpaired').hidden = s.paired;
   $('btnUnpair').hidden = !s.paired;
 
+  $('repairRow').hidden = s.status !== 'revoked';
   const n = $('notice');
   n.hidden = !s.notice;
   n.textContent = s.notice || '';
@@ -188,7 +191,7 @@ function render(s){
     L.className = 'letter' + (s.mounted ? '' : ' off');
     $('driveSub').textContent = s.mounted
       ? tr(s.role === 'admin' ? 'w_rw' : 'w_ro') + ' • ' + tr('w_drive_n') + ' ' + s.drive
-      : tr(s.status === 'error' ? 'w_not_mounted' : 'w_mounting');
+      : tr(s.status === 'revoked' ? 'w_disconnected' : s.status === 'error' ? 'w_not_mounted' : 'w_mounting');
     $('btnOpenDrive').disabled = !s.mounted;
   }
   $('btnPair').disabled = s.busy;

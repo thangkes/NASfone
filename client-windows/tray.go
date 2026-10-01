@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"strings"
@@ -25,6 +26,7 @@ type app struct {
 	cfgStamp  time.Time
 	connected bool
 	connErr   string
+	revoked   bool   // the server revoked this computer; drive stopped
 	busy      bool   // pairing in progress
 	notice    string // message for the window
 
@@ -134,7 +136,7 @@ func (a *app) reload(force bool) {
 	cfg, err := loadConfig()
 	a.paired = err == nil
 	a.cfg = cfg
-	a.connected, a.connErr = false, ""
+	a.connected, a.connErr, a.revoked = false, "", false
 	a.mu.Unlock()
 
 	if a.paired {
@@ -167,7 +169,11 @@ func (a *app) watch() {
 	for range t.C {
 		a.reload(false)
 		n++
-		if n%15 == 0 { // ~30s
+		_, running, _ := a.mount.status()
+		a.mu.Lock()
+		revoked, paired := a.revoked, a.paired
+		a.mu.Unlock()
+		if n%8 == 0 || (paired && !revoked && !running && n%2 == 0) { // ~15 s, or ~4 s while the drive is down
 			a.checkConnection()
 		}
 		a.refreshMenu()
@@ -192,13 +198,21 @@ func (a *app) checkConnection() {
 			saveConfig(cfg)
 		}
 	}
+	revoked := errors.Is(err, client.ErrRevoked)
 	a.mu.Lock()
+	first := revoked && !a.revoked
+	a.revoked = revoked
 	a.connected = err == nil
 	a.connErr = ""
-	if err != nil {
+	if err != nil && !revoked {
 		a.connErr = err.Error()
 	}
 	a.mu.Unlock()
+	if first {
+		// Stop retrying the mount: the server will refuse this device until it pairs again.
+		a.mount.stopMount()
+		go warn(t("revoked_msg"))
+	}
 	a.refreshMenu()
 }
 
@@ -207,6 +221,9 @@ func (a *app) statusText() string {
 	defer a.mu.Unlock()
 	if !a.paired {
 		return t("st_unpaired_hint")
+	}
+	if a.revoked {
+		return t("st_revoked")
 	}
 	role := t("st_role_user")
 	if a.cfg.Role == auth.RoleAdmin {
