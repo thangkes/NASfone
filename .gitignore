@@ -42,3 +42,11 @@ windows/dist/
 windows/build/
 windows/installer/deps/
 windows/rsrc_windows_*.syso
+
+# iOS (generated / built in CI)
+ios/Frameworks/
+ios/*.xcodeproj/
+ios/build/
+ios/Payload/
+ios/*.ipa
+ios/NASfone/Info.plist

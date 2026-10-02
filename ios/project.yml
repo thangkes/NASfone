@@ -1,0 +1,57 @@
+# NASfone for iOS (client role). The Xcode project is generated from this file
+# with XcodeGen (`xcodegen generate`); the Go core comes from
+# `gomobile bind -target=ios -o Frameworks/Nasfonecore.xcframework ./mobileclient`.
+# Both run in .github/workflows/ios.yml on a macOS runner.
+name: NASfone
+options:
+  bundleIdPrefix: com.nasfone
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  NASfone:
+    type: application
+    platform: iOS
+    sources:
+      - path: NASfone
+    dependencies:
+      - framework: Frameworks/Nasfonecore.xcframework
+        embed: false # gomobile builds a static framework
+      - sdk: libresolv.tbd # Go's DNS resolver
+    info:
+      path: NASfone/Info.plist
+      properties:
+        CFBundleDisplayName: NASfone
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSCameraUsageDescription: "Scan the pairing QR code shown by your NASfone server."
+        NSPhotoLibraryUsageDescription: "Back up your photos and videos to your NASfone server, and upload the ones you pick."
+        NSLocalNetworkUsageDescription: "Reach your NASfone server directly on the local network (faster than over the internet)."
+        UIBackgroundModes: [fetch, processing]
+        BGTaskSchedulerPermittedIdentifiers: [com.nasfone.ios.backup]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.nasfone.pair
+            CFBundleURLSchemes: [nasfone]
+        # Downloaded files show up in the Files app under "On My iPhone > NASfone".
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nasfone.ios
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_BITCODE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""

@@ -10,16 +10,17 @@ import (
 	"nasfone/core/update"
 )
 
-func isClientAPK(name string) bool {
-	return strings.HasPrefix(name, "NASfone-Client-") && strings.HasSuffix(name, ".apk")
+func isIOSApp(name string) bool {
+	return strings.HasPrefix(name, "NASfone-iOS-") && strings.HasSuffix(name, ".ipa")
 }
 
-// CheckUpdate returns a JSON release newer than current that ships the
-// client APK, or "" when up to date.
+// CheckUpdate (iOS app) returns a JSON release newer than current that ships
+// the iOS app, or "" when up to date. The app cannot install it itself; it
+// shows the release page ("pageURL").
 func CheckUpdate(current string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	r, err := update.Check(ctx, http.DefaultClient, current, isClientAPK)
+	r, err := update.Check(ctx, http.DefaultClient, current, isIOSApp)
 	if err != nil || r == nil {
 		return "", err
 	}

@@ -1,0 +1,89 @@
+# Builds NASfone for iOS on a macOS runner (no Mac needed locally):
+#   Go core -> Nasfonecore.xcframework (gomobile) -> Xcode project (XcodeGen) -> unsigned .ipa
+# On every push that touches the app it uploads the .ipa as a build artifact;
+# when a release is published it also attaches NASfone-iOS-<version>.ipa to it
+# and adds its checksum to SHA256SUMS.txt.
+#
+# The .ipa is not signed: install it with Sideloadly or AltStore (signed with
+# your own Apple ID) until the app goes through TestFlight / the App Store.
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", "core/**", ".github/workflows/ios.yml"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      - name: Install gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
+          gomobile init
+
+      - name: Go core -> xcframework
+        working-directory: core
+        run: |
+          go test ./mobileclient/
+          gomobile bind -target=ios -iosversion 16.0 -trimpath -ldflags="-s -w" \
+            -o ../ios/Frameworks/Nasfonecore.xcframework ./mobileclient
+
+      - name: Version
+        id: v
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then V="${GITHUB_REF_NAME#v}"; else V="0.0.0-ci${{ github.run_number }}"; fi
+          NUM="${V%%-*}"
+          sed -i '' "s/MARKETING_VERSION: \".*\"/MARKETING_VERSION: \"$NUM\"/" ios/project.yml
+          sed -i '' "s/CURRENT_PROJECT_VERSION: \".*\"/CURRENT_PROJECT_VERSION: \"${{ github.run_number }}\"/" ios/project.yml
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Xcode project
+        working-directory: ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build (unsigned)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -project NASfone.xcodeproj -scheme NASfone -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -n 200
+          rm -rf Payload && mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/NASfone.app Payload/
+          zip -qry "NASfone-iOS-${{ steps.v.outputs.version }}.ipa" Payload
+          ls -la *.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NASfone-iOS-${{ steps.v.outputs.version }}
+          path: ios/*.ipa
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: ios
+        run: |
+          F="NASfone-iOS-${{ steps.v.outputs.version }}.ipa"
+          gh release download "$GITHUB_REF_NAME" -p SHA256SUMS.txt -O SHA256SUMS.txt || touch SHA256SUMS.txt
+          grep -v " $F\$" SHA256SUMS.txt > sums.tmp || true
+          shasum -a 256 "$F" | sed 's/ \*/  /' >> sums.tmp
+          mv sums.tmp SHA256SUMS.txt
+          gh release upload "$GITHUB_REF_NAME" "$F" SHA256SUMS.txt --clobber
