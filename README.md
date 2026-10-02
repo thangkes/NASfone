@@ -20,6 +20,11 @@ Any browser works as a client too.
 > **Download:** [latest release](https://github.com/thangkes/NASfone/releases/latest):
 > `NASfone-Android-<version>.apk`, `NASfone-Windows-Setup-<version>.exe` and `NASfone-iOS-<version>.ipa` (beta, see below).
 
+<p align="center">
+  <a href="docs/media/nasfone-short.mp4"><img src="docs/media/nasfone-short-poster.jpg" width="240" alt="NASfone in 37 seconds (video)"></a><br>
+  <sub>▶ <a href="docs/media/nasfone-short.mp4">Watch NASfone in 37 seconds</a> (English voice, Vietnamese subtitles)</sub>
+</p>
+
 ## Features
 
 **Server role**

@@ -20,6 +20,11 @@ Trình duyệt bất kỳ cũng dùng làm client được.
 > **Tải về:** [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest):
 > `NASfone-Android-<phiên bản>.apk`, `NASfone-Windows-Setup-<phiên bản>.exe` và `NASfone-iOS-<phiên bản>.ipa` (beta, xem bên dưới).
 
+<p align="center">
+  <a href="docs/media/nasfone-short.mp4"><img src="docs/media/nasfone-short-poster.jpg" width="240" alt="NASfone trong 37 giây (video)"></a><br>
+  <sub>▶ <a href="docs/media/nasfone-short.mp4">Xem NASfone trong 37 giây</a> (lời đọc tiếng Anh, phụ đề tiếng Việt)</sub>
+</p>
+
 ## Tính năng
 
 **Vai trò server**
