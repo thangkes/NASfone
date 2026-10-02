@@ -19,7 +19,7 @@ if (-not $SkipCore) {
     try {
         go test ./server/
         if ($LASTEXITCODE) { throw "go test failed" }
-        gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.nasfone.core -ldflags="-s -w" `
+        gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.nasfone.core -trimpath -ldflags="-s -w" `
             -o "$root\server-android\app\libs\nasfonecore.aar" ./mobile
         if ($LASTEXITCODE) { throw "gomobile bind failed" }
     } finally { Pop-Location }

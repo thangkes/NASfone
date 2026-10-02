@@ -4,7 +4,7 @@ Tài liệu này tổng hợp các quyết định đã thống nhất. Những 
 
 ## 1. Mục tiêu
 
-- Điện thoại phụ (Honor 400 Lite, không root) làm **server lưu trữ di động**.
+- Một điện thoại Android phụ (không root) làm **server lưu trữ di động**.
 - Truy cập được bằng **mạng nội bộ**, **hotspot của chính server**, **USB tethering**, hoặc **Internet** (chỉ cần có mạng, không cần cấu hình router).
 - Mỗi thiết bị client **ghép đôi bằng cặp khóa riêng**. Server ghi nhớ public key của client, client ghi nhớ public key của server.
 - Có thể phát hành cho người khác dùng: mỗi người dùng tài khoản Tailscale của chính họ, không cần server trung gian của dự án.
@@ -72,20 +72,15 @@ Thông số máy (tên máy, User-Agent, IP) **chỉ dùng để hiển thị v�
 - [ ] Tự backup ảnh có phải tính năng chính của client Android không?
 - [ ] Client Windows: gắn ổ đĩa (cần WinFsp) hay chỉ cửa sổ duyệt file?
 
-## 7. Thiết bị server thực tế (đo qua ADB, 2026-10-01)
+## 7. Thiết bị server đã thử
 
 | Thông số | Giá trị |
 |---|---|
-| Máy | HONOR ABR-NX1 (Honor 400 Lite) |
-| Hệ điều hành | Android 16 (SDK 36), MagicOS 10.0.0, bản vá 2026-09-01 |
+| Hệ điều hành | Android 16 (SDK 36) |
 | CPU ABI | arm64-v8a |
-| Bộ nhớ | 223 GB, còn trống 124 GB |
-| Keystore | Có Keystore phần cứng (TEE), **không có StrongBox** |
-| USB OTG | Có (`usb.host`) |
+| Keystore | Keystore phần cứng (TEE), không có StrongBox |
+| USB OTG | Có |
 | Bootloader | Khóa (không root) |
-| Mạng lúc đo | wlan0 `192.168.100.14/24` |
-
-APK server khung đã cài và chạy được trên máy.
 
 ## 8. Đăng nhập trình duyệt (đã chốt và đã làm, 2026-10-01)
 

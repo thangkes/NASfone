@@ -27,7 +27,7 @@
 
 | Bên | Nơi giữ private key |
 |---|---|
-| Server (Honor) | Lõi Go giữ khóa trong RAM khi chạy. Trên đĩa, khóa được mã hóa bằng AES-GCM với khóa nằm trong Android Keystore (TEE), không xuất ra được |
+| Server (điện thoại) | Lõi Go giữ khóa trong RAM khi chạy. Trên đĩa, khóa được mã hóa bằng AES-GCM với khóa nằm trong Android Keystore (TEE), không xuất ra được |
 | Client Android | Android Keystore (TEE/StrongBox), không xuất ra được |
 | Client Windows | TPM qua CNG (Microsoft Platform Crypto Provider). Máy không có TPM thì dùng khóa phần mềm mã hóa bằng DPAPI |
 
@@ -36,7 +36,7 @@
 ## 3. Luồng ghép đôi
 
 ```
- Honor (server)                                         Client (Windows/Android)
+ Điện thoại (server)                                    Client (Windows/Android)
  1. Bấm "Ghép thiết bị mới", chọn Admin / User
     → tạo LỜI MỜI dùng 1 lần, hạn 5 phút:
       nasfone1:<base64url {v, url, fp_server, token}>
@@ -57,7 +57,7 @@
 
 - Lời mời chứa vân tay server, nên client phát hiện được server giả **ngay từ lần đầu**.
 - Token chỉ dùng 1 lần và hết hạn sau 5 phút. Lộ lời mời cũ cũng vô hại.
-- Lời mời do chủ máy tạo trực tiếp trên Honor, nên bản thân nó đã là sự cho phép. Không cần bấm duyệt thêm.
+- Lời mời do chủ máy tạo trực tiếp trên điện thoại server, nên bản thân nó đã là sự cho phép. Không cần bấm duyệt thêm.
 
 ## 4. Xác thực mỗi lần kết nối (hai chiều)
 
