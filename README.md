@@ -9,7 +9,7 @@ NASfone is **one app per platform**. On first launch you pick what the device do
 | | 📦 **Server** — stores the files | 📲💻 **Client** — uses a NAS elsewhere |
 |---|---|---|
 | **Android** | Shares the phone's storage | Browse, upload/download, NAS in the Files app, photo backup |
-| **Windows** | Shares a folder of the PC | Mounts the NAS as a drive letter (`P:`) |
+| **Windows** | Shares a folder of the PC | Mounts each paired NAS as a drive letter (`P:`, `Q:`…) |
 | **iPhone / iPad** (beta) | — (iOS cannot run a server in the background) | Browse, view, upload/download, photo backup |
 
 The role can be changed later in Settings. Servers join your own
@@ -48,7 +48,10 @@ Any browser works as a client too.
   - browse, open, share, download, and upload (Admin);
   - the NAS appears in the **Files app** and in file pickers;
   - **automatic photo & video backup**, optionally Wi-Fi only.
-- **Windows:** mounts the NAS as a drive with its real free space (read-only for the User role) and detects revocation.
+- **Several servers at once** (Android, iPhone and Windows): pair with your phone and your PC server, for example, and switch between them.
+- **Windows:**
+  - each server becomes its own drive (`P:`, `Q:`…) with its real free space; the letter can be changed per server;
+  - read-only for the User role; a revoked server is disconnected without touching the others.
 
 **Both:** updates from GitHub Releases in one tap, with checksums verified and your setup kept. English and Vietnamese everywhere.
 

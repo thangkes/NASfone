@@ -113,14 +113,25 @@ func singleInstance() bool {
 	return !errors.Is(err, windows.ERROR_ALREADY_EXISTS)
 }
 
-// freeDriveLetter returns preferred if unused, else the first free letter from P to Z.
-func freeDriveLetter(preferred string) string {
+// freeDriveLetter returns preferred if unused, else the first free letter
+// from P to Z, then D to O. Letters in skip count as used.
+func freeDriveLetter(preferred string, skip []string) string {
 	used, _ := windows.GetLogicalDrives()
+	for _, d := range skip {
+		if len(d) > 0 && d[0] >= 'A' && d[0] <= 'Z' {
+			used |= 1 << (d[0] - 'A')
+		}
+	}
 	free := func(l byte) bool { return used&(1<<(l-'A')) == 0 }
 	if p := strings.ToUpper(preferred); len(p) >= 1 && p[0] >= 'A' && p[0] <= 'Z' && free(p[0]) {
 		return string(p[0]) + ":"
 	}
 	for l := byte('P'); l <= 'Z'; l++ {
+		if free(l) {
+			return string(l) + ":"
+		}
+	}
+	for l := byte('D'); l < 'P'; l++ {
 		if free(l) {
 			return string(l) + ":"
 		}

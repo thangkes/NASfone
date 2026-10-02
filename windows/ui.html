@@ -57,6 +57,14 @@ select{font:inherit;padding:4px 8px;border-radius:6px;border:1px solid var(--lin
 .muted{color:var(--muted);font-size:12px}
 footer{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
 [hidden]{display:none!important}
+.ell{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srvline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:3px}
+.srvline .pill{margin-top:0}
+.srv .drive{margin-bottom:10px}
+.srv .notice{margin-bottom:10px}
+details{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+summary{cursor:pointer;color:var(--muted);font-size:12px;margin-bottom:6px}
+.kv select{padding:1px 6px}
 </style>
 </head>
 <body>
@@ -70,38 +78,15 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
   </header>
 
   <div class="notice" id="notice" hidden></div>
-  <div class="row" id="repairRow" hidden style="margin:-4px 0 12px"><button class="pri grow" onclick="pnRepair()" data-i18n="w_repair"></button></div>
   <div class="notice" id="deps" hidden></div>
   <div class="notice info row" id="updRow" hidden style="align-items:center;gap:10px"><span class="grow" id="updText"></span><button class="pri" id="btnUpd" onclick="pnUpdate()"></button></div>
 
-  <!-- Paired -->
-  <section id="paired" hidden>
-    <div class="card">
-      <h2 data-i18n="w_drive"></h2>
-      <div class="drive">
-        <div class="letter" id="driveLetter">–</div>
-        <div><b id="driveTitle">NASfone</b><small id="driveSub"></small></div>
-      </div>
-      <div class="row">
-        <button class="pri grow" id="btnOpenDrive" onclick="pnOpenDrive()" data-i18n="w_open_explorer"></button>
-        <button onclick="pnOpenWeb()" data-i18n="w_web"></button>
-        <button onclick="pnReconnect()" data-i18n-title="w_reconnect">⟳</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2 data-i18n="w_connection"></h2>
-      <div class="kv">
-        <span data-i18n="w_server"></span><span class="mono" id="host"></span>
-        <span data-i18n="w_access"></span><span><span class="role" id="role"></span></span>
-        <span data-i18n="w_this_pc"></span><span id="deviceName"></span>
-        <span data-i18n="w_server_fp"></span><span class="mono" id="fp"></span>
-        <span data-i18n="w_paired_at"></span><span id="pairedAt"></span>
-      </div>
-    </div>
-  </section>
+  <!-- Paired servers, one card each (built by render) -->
+  <div id="servers"></div>
+  <div class="row" id="addRow" hidden style="margin:-2px 0 12px"><button class="grow" onclick="showPair(true)" data-i18n="w_add_server"></button></div>
 
-  <!-- Not paired -->
-  <section id="unpaired" hidden>
+  <!-- Pairing steps: always shown with no server, on demand otherwise -->
+  <section id="pairCard" hidden>
     <div class="card">
       <h2 data-i18n="w_pair_title"></h2>
       <ol>
@@ -114,16 +99,13 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
       <div class="row">
         <button onclick="pasteInvite()" data-i18n="w_paste"></button>
         <button class="pri grow" id="btnPair" onclick="doPair()"></button>
+        <button id="btnCancelPair" onclick="showPair(false)" data-i18n="w_cancel"></button>
       </div>
     </div>
   </section>
 
   <div class="card">
     <h2 data-i18n="w_settings"></h2>
-    <div class="set">
-      <span data-i18n="w_drive_pref"></span>
-      <select id="drivePref" onchange="pnSetDrive(this.value)"></select>
-    </div>
     <div class="set">
       <span data-i18n="w_autostart"></span>
       <label class="switch"><input type="checkbox" id="auto" onchange="setAuto(this.checked)"><span></span></label>
@@ -140,36 +122,120 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
 
   <footer>
     <span><button onclick="pnOpenLogs()" data-i18n="w_logs"></button> <span class="muted" id="ver"></span></span>
-    <button class="danger" id="btnUnpair" onclick="pnUnpair()" hidden data-i18n="w_unpair"></button>
   </footer>
 </main>
 
+<template id="srvTpl">
+  <div class="card srv">
+    <div class="drive">
+      <div class="letter" data-f="letter">–</div>
+      <div class="grow" style="min-width:0">
+        <b class="mono ell" data-f="host"></b>
+        <div class="srvline"><span class="role" data-f="role"></span><span class="pill" data-f="pill"><span class="dot"></span><span data-f="status"></span></span></div>
+      </div>
+    </div>
+    <div class="notice" data-f="err" hidden></div>
+    <div class="row" data-f="actions">
+      <button class="pri grow" data-f="open" data-i18n="w_open_explorer"></button>
+      <button data-f="web" data-i18n="w_web"></button>
+      <button data-f="reconnect" data-i18n-title="w_reconnect">⟳</button>
+    </div>
+    <div class="row" data-f="removeRow" hidden><button class="pri grow" data-f="remove" data-i18n="w_remove"></button></div>
+    <details>
+      <summary data-i18n="w_details"></summary>
+      <div class="kv">
+        <span data-i18n="w_drive_letter"></span><span><select data-f="drive"></select></span>
+        <span data-i18n="w_this_pc"></span><span data-f="device"></span>
+        <span data-i18n="w_server_fp"></span><span class="mono" data-f="fp"></span>
+        <span data-i18n="w_paired_at"></span><span data-f="pairedAt"></span>
+      </div>
+      <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="danger" data-f="unpair" data-i18n="w_unpair"></button></div>
+    </details>
+  </div>
+</template>
+
 <script>
 const $ = id => document.getElementById(id);
-let drivesKey = '';
 let T = {};
 const tr = k => T[k] || k;
+let pairOpen = false;
+const cards = {}; // server id -> {el, f: {field: element}, drivesKey}
 
 // applyI18n fills every element marked with data-i18n / -html / -title.
+function i18n(root){
+  root.querySelectorAll('[data-i18n]').forEach(e => e.textContent = tr(e.dataset.i18n));
+  root.querySelectorAll('[data-i18n-html]').forEach(e => e.innerHTML = tr(e.dataset.i18nHtml));
+  root.querySelectorAll('[data-i18n-title]').forEach(e => e.title = tr(e.dataset.i18nTitle));
+}
 async function applyI18n(){
   T = await pnDict();
   document.documentElement.lang = await pnLang();
-  document.querySelectorAll('[data-i18n]').forEach(e => e.textContent = tr(e.dataset.i18n));
-  document.querySelectorAll('[data-i18n-html]').forEach(e => e.innerHTML = tr(e.dataset.i18nHtml));
-  document.querySelectorAll('[data-i18n-title]').forEach(e => e.title = tr(e.dataset.i18nTitle));
+  i18n(document);
   $('langSel').value = document.documentElement.lang;
 }
 async function setLang(l){ await pnSetLang(l); await applyI18n(); }
 
-function render(s){
-  const pill = $('pill');
-  pill.className = 'pill ' + s.status;
-  $('statusText').textContent = s.statusText;
-  $('paired').hidden = !s.paired;
-  $('unpaired').hidden = s.paired;
-  $('btnUnpair').hidden = !s.paired;
+function showPair(on){
+  pairOpen = on;
+  if (on) setTimeout(() => $('pairCard').scrollIntoView({behavior:'smooth'}), 0);
+}
 
-  $('repairRow').hidden = s.status !== 'revoked';
+function makeCard(id){
+  const el = $('srvTpl').content.firstElementChild.cloneNode(true);
+  const f = {};
+  el.querySelectorAll('[data-f]').forEach(e => f[e.dataset.f] = e);
+  i18n(el);
+  f.open.onclick = () => pnOpenDrive(id);
+  f.web.onclick = () => pnOpenWeb(id);
+  f.reconnect.onclick = () => pnReconnect(id);
+  f.remove.onclick = () => pnRemove(id);
+  f.unpair.onclick = () => pnUnpair(id);
+  f.drive.onchange = () => pnSetDrive(id, f.drive.value);
+  return {el, f, drivesKey: ''};
+}
+
+function renderServer(c, s, free){
+  const f = c.f;
+  f.host.textContent = s.host;
+  f.host.title = s.url;
+  f.role.className = 'role ' + (s.role === 'admin' ? 'admin' : 'user');
+  f.role.textContent = tr(s.role === 'admin' ? 'w_role_admin' : 'w_role_user');
+  f.pill.className = 'pill ' + s.status;
+  f.status.textContent = s.mounted
+    ? s.statusText + ' • ' + tr(s.role === 'admin' ? 'w_rw' : 'w_ro')
+    : s.statusText;
+  f.letter.textContent = s.mounted ? s.drive.replace(':', '') : (s.prefDrive || '–');
+  f.letter.className = 'letter' + (s.mounted ? '' : ' off');
+  f.err.hidden = !s.error;
+  f.err.textContent = s.error || '';
+  const revoked = s.status === 'revoked';
+  f.actions.hidden = revoked;
+  f.removeRow.hidden = !revoked;
+  f.open.disabled = !s.mounted;
+  f.device.textContent = s.deviceName;
+  f.fp.textContent = s.serverFP;
+  f.pairedAt.textContent = s.pairedAt;
+
+  // Letter choices: free letters plus this server's own (current and preferred).
+  const own = [s.prefDrive, s.drive.replace(':', '')].filter(Boolean);
+  const opts = Array.from(new Set([...own, ...free])).sort();
+  const key = opts.join() + '|' + s.prefDrive;
+  if (key !== c.drivesKey && document.activeElement !== f.drive) {
+    c.drivesKey = key;
+    f.drive.innerHTML = '';
+    for (const l of opts) {
+      const o = document.createElement('option');
+      o.value = l; o.textContent = l + ':';
+      if (l === s.prefDrive) o.selected = true;
+      f.drive.appendChild(o);
+    }
+  }
+}
+
+function render(s){
+  $('pill').className = 'pill ' + s.status;
+  $('statusText').textContent = s.statusText;
+
   const n = $('notice');
   n.hidden = !s.notice;
   n.textContent = s.notice || '';
@@ -180,22 +246,26 @@ function render(s){
   $('deps').hidden = !missing.length;
   $('deps').textContent = tr('w_missing') + missing.join(', ');
 
-  if (s.paired) {
-    $('host').textContent = s.host;
-    const r = $('role');
-    r.className = 'role ' + (s.role === 'admin' ? 'admin' : 'user');
-    r.textContent = tr(s.role === 'admin' ? 'w_role_admin' : 'w_role_user');
-    $('deviceName').textContent = s.deviceName;
-    $('fp').textContent = s.serverFP;
-    $('pairedAt').textContent = s.pairedAt;
-    const L = $('driveLetter');
-    L.textContent = s.mounted ? s.drive.replace(':', '') : '–';
-    L.className = 'letter' + (s.mounted ? '' : ' off');
-    $('driveSub').textContent = s.mounted
-      ? tr(s.role === 'admin' ? 'w_rw' : 'w_ro') + ' • ' + tr('w_drive_n') + ' ' + s.drive
-      : tr(s.status === 'revoked' ? 'w_disconnected' : s.status === 'error' ? 'w_not_mounted' : 'w_mounting');
-    $('btnOpenDrive').disabled = !s.mounted;
+  // Server cards, kept across polls so open menus and details stay open.
+  const box = $('servers');
+  const seen = new Set();
+  for (const sv of s.servers) {
+    seen.add(sv.id);
+    let c = cards[sv.id];
+    if (!c) c = cards[sv.id] = makeCard(sv.id);
+    box.appendChild(c.el); // also keeps the server order
+    renderServer(c, sv, s.freeDrives || []);
   }
+  for (const id of Object.keys(cards)) {
+    if (!seen.has(id)) { cards[id].el.remove(); delete cards[id]; }
+  }
+
+  const none = s.servers.length === 0;
+  if (none) pairOpen = false;
+  $('pairCard').hidden = !(none || pairOpen || s.busy);
+  $('btnCancelPair').hidden = none;
+  $('addRow').hidden = none || pairOpen || s.busy;
+
   $('btnPair').disabled = s.busy;
   $('btnPair').textContent = tr(s.busy ? 'w_pairing' : 'w_pair');
   $('auto').checked = s.autostart;
@@ -206,25 +276,16 @@ function render(s){
     $('btnUpd').textContent = tr(s.updating ? 'w_updating' : 'w_update_btn');
     $('btnUpd').disabled = s.updating;
   }
-
-  // Drive letter choices: free letters plus the current preference.
-  const opts = Array.from(new Set([s.prefDrive, ...(s.freeDrives || [])])).sort();
-  const key = opts.join() + '|' + s.prefDrive;
-  if (key !== drivesKey) {
-    drivesKey = key;
-    const sel = $('drivePref');
-    sel.innerHTML = '';
-    for (const l of opts) {
-      const o = document.createElement('option');
-      o.value = l; o.textContent = l + ':';
-      if (l === s.prefDrive) o.selected = true;
-      sel.appendChild(o);
-    }
-  }
 }
 
+let lastCount = -1;
 async function tick(){
-  try { render(await pnState()); } catch (e) {}
+  try {
+    const s = await pnState();
+    if (lastCount >= 0 && s.servers.length > lastCount) { pairOpen = false; $('invite').value = ''; }
+    lastCount = s.servers.length;
+    render(s);
+  } catch (e) {}
   setTimeout(tick, 1000);
 }
 async function pasteInvite(){ $('invite').value = (await pnClipboard()).trim(); }

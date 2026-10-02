@@ -4,7 +4,6 @@ package main
 
 import (
 	_ "embed"
-	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -75,31 +74,39 @@ func (a *app) openWindow() {
 	}()
 }
 
+// uiServer is one paired server as the window shows it.
+type uiServer struct {
+	ID         string `json:"id"`
+	Host       string `json:"host"`
+	URL        string `json:"url"`
+	Role       string `json:"role"`
+	DeviceName string `json:"deviceName"`
+	ServerFP   string `json:"serverFP"`
+	PairedAt   string `json:"pairedAt"`
+	Status     string `json:"status"` // ok | connecting | error | revoked
+	StatusText string `json:"statusText"`
+	Error      string `json:"error"`
+	Drive      string `json:"drive"` // mounted drive, e.g. "P:"
+	Mounted    bool   `json:"mounted"`
+	PrefDrive  string `json:"prefDrive"` // preferred letter, e.g. "P"
+}
+
 // uiState is everything the window renders; the page polls it.
 type uiState struct {
-	Paired     bool     `json:"paired"`
-	Host       string   `json:"host"`
-	URL        string   `json:"url"`
-	Role       string   `json:"role"`
-	DeviceName string   `json:"deviceName"`
-	ServerFP   string   `json:"serverFP"`
-	PairedAt   string   `json:"pairedAt"`
-	Status     string   `json:"status"` // ok | connecting | error | unpaired
-	StatusText string   `json:"statusText"`
-	Drive      string   `json:"drive"`
-	Mounted    bool     `json:"mounted"`
-	Autostart  bool     `json:"autostart"`
-	PrefDrive  string   `json:"prefDrive"`
-	FreeDrives []string `json:"freeDrives"`
-	Busy       bool     `json:"busy"`
-	Notice     string   `json:"notice"`
-	DataDir    string   `json:"dataDir"`
-	RcloneOK   bool     `json:"rcloneOK"`
-	WinFspOK   bool     `json:"winfspOK"`
-	Computer   string   `json:"computer"`
-	Version    string   `json:"version"`
-	Update     string   `json:"update"` // newer version on offer, "" if none
-	Updating   bool     `json:"updating"`
+	Servers    []uiServer `json:"servers"`
+	Status     string     `json:"status"` // overall: ok | connecting | error | unpaired
+	StatusText string     `json:"statusText"`
+	Autostart  bool       `json:"autostart"`
+	FreeDrives []string   `json:"freeDrives"`
+	Busy       bool       `json:"busy"`
+	Notice     string     `json:"notice"`
+	DataDir    string     `json:"dataDir"`
+	RcloneOK   bool       `json:"rcloneOK"`
+	WinFspOK   bool       `json:"winfspOK"`
+	Computer   string     `json:"computer"`
+	Version    string     `json:"version"`
+	Update     string     `json:"update"` // newer version on offer, "" if none
+	Updating   bool       `json:"updating"`
 }
 
 func (a *app) state() uiState {
@@ -108,48 +115,61 @@ func (a *app) state() uiState {
 	if a.update != nil {
 		upd = a.update.Version
 	}
-	cfg, paired, connErr, busy, notice, revoked := a.cfg, a.paired, a.connErr, a.busy, a.notice, a.revoked
+	busy, notice := a.busy, a.notice
 	a.mu.Unlock()
-	drive, mounted, mErr := a.mount.status()
 	_, rcErr := findRclone()
 	s := uiState{
-		Paired: paired, URL: cfg.URL, Role: string(cfg.Role), DeviceName: cfg.Name,
-		Drive: drive, Mounted: mounted, Autostart: autostartEnabled(),
-		PrefDrive: getSettings().Drive, FreeDrives: freeLetters(), Busy: busy, Notice: notice,
+		Autostart: autostartEnabled(), FreeDrives: freeLetters(), Busy: busy, Notice: notice,
 		DataDir: dataDir(), RcloneOK: rcErr == nil, WinFspOK: winfspInstalled(), Computer: computerName(), Version: appVersion,
-		Updating: updating, Update: upd,
+		Updating: updating, Update: upd, Servers: []uiServer{},
 	}
-	if paired {
-		s.Host = cfg.URL
-		if u, err := url.Parse(cfg.URL); err == nil && u.Host != "" {
-			s.Host = u.Host
+	counts := map[string]int{}
+	for _, sv := range a.list() {
+		code, errText := a.serverStatus(sv)
+		drive, mounted, _ := sv.mount.status()
+		a.mu.Lock()
+		cfg, connErr := sv.cfg, sv.connErr
+		a.mu.Unlock()
+		u := uiServer{
+			ID: sv.id, Host: hostOf(cfg.URL), URL: cfg.URL, Role: string(cfg.Role), DeviceName: cfg.Name,
+			ServerFP: pair.ShortFP(cfg.ServerFP), PairedAt: cfg.PairedAt.Local().Format("15:04 02/01/2006"),
+			Status: code, Error: errText, Drive: drive, Mounted: mounted, PrefDrive: serverDrive(sv.id),
 		}
-		s.ServerFP = pair.ShortFP(cfg.ServerFP)
-		s.PairedAt = cfg.PairedAt.Local().Format("15:04 02/01/2006")
+		switch code {
+		case "ok":
+			u.StatusText = t("s_ok")
+		case "revoked":
+			u.StatusText, u.Error = t("s_revoked"), t("revoked_msg", u.Host)
+		case "error":
+			u.StatusText = t("s_conn_err")
+			if connErr == "" {
+				u.StatusText = t("s_drive_err")
+			}
+		default:
+			u.StatusText = t("s_connecting")
+		}
+		if u.PrefDrive == "" {
+			u.PrefDrive = strings.TrimSuffix(drive, ":")
+		}
+		counts[code]++
+		s.Servers = append(s.Servers, u)
 	}
+	n := len(s.Servers)
 	switch {
-	case !paired:
+	case n == 0:
 		s.Status, s.StatusText = "unpaired", t("s_unpaired")
-	case revoked:
-		s.Status, s.StatusText = "revoked", t("s_revoked")
-	case connErr != "":
-		s.Status, s.StatusText = "error", t("s_conn_err")
-	case mounted:
+	case counts["ok"] == n:
 		s.Status, s.StatusText = "ok", t("s_ok")
-	case mErr != "":
-		s.Status, s.StatusText = "error", t("s_drive_err")
+		if n > 1 {
+			s.StatusText = t("s_ok_n", n)
+		}
+	case counts["error"]+counts["revoked"] > 0:
+		s.Status, s.StatusText = "error", t("s_some_err", counts["error"]+counts["revoked"], n)
+		if n == 1 {
+			s.StatusText = s.Servers[0].StatusText
+		}
 	default:
 		s.Status, s.StatusText = "connecting", t("s_connecting")
-	}
-	if s.Status == "revoked" {
-		s.Notice = t("revoked_msg")
-	}
-	if s.Status == "error" {
-		if connErr != "" {
-			s.Notice = connErr
-		} else {
-			s.Notice = mErr
-		}
 	}
 	return s
 }
@@ -168,26 +188,25 @@ func freeLetters() []string {
 func (a *app) bind(w webview2.WebView) {
 	exe, _ := os.Executable()
 	w.Bind("pnState", func() uiState { return a.state() })
-	w.Bind("pnOpenDrive", func() {
-		if d, ok, _ := a.mount.status(); ok && d != "" {
-			exec.Command("explorer.exe", d+`\`).Start()
+	w.Bind("pnOpenDrive", func(id string) {
+		if s := a.get(id); s != nil {
+			if d, ok, _ := s.mount.status(); ok && d != "" {
+				exec.Command("explorer.exe", d+`\`).Start()
+			}
 		}
 	})
-	w.Bind("pnOpenWeb", func() {
-		a.mu.Lock()
-		u := a.cfg.URL
-		a.mu.Unlock()
-		if u != "" {
-			openURL(u)
+	w.Bind("pnOpenWeb", func(id string) {
+		if s := a.get(id); s != nil {
+			a.mu.Lock()
+			u := s.cfg.URL
+			a.mu.Unlock()
+			if u != "" {
+				openURL(u)
+			}
 		}
 	})
 	w.Bind("pnOpenLogs", func() { exec.Command("explorer.exe", dataDir()).Start() })
-	w.Bind("pnReconnect", func() {
-		go func() {
-			a.reload(true)
-			a.checkConnection()
-		}()
-	})
+	w.Bind("pnReconnect", func(id string) { go a.remount(id) })
 	w.Bind("pnClipboard", func() string {
 		t, _ := clipboardText()
 		return t
@@ -200,7 +219,7 @@ func (a *app) bind(w webview2.WebView) {
 			ok := pairFromInvite(text)
 			a.setBusy(false, "")
 			if ok {
-				a.reload(true)
+				a.reload()
 			}
 		}()
 	})
@@ -217,26 +236,47 @@ func (a *app) bind(w webview2.WebView) {
 		}
 		return ""
 	})
-	w.Bind("pnSetDrive", func(letter string) {
-		setDrive(letter)
-		go a.reload(true) // remount on the new letter
+	// pnSetDrive moves one server to another letter; a letter another
+	// server prefers is swapped with it, so preferences never collide.
+	w.Bind("pnSetDrive", func(id, letter string) {
+		l := normLetter(letter)
+		if a.get(id) == nil || l == "" {
+			return
+		}
+		old := serverDrive(id)
+		var other string
+		for _, s := range a.list() {
+			if s.id != id && serverDrive(s.id) == l {
+				other = s.id
+			}
+		}
+		setServerDrive(id, l)
+		go func() {
+			if o := a.get(other); o != nil && old != "" {
+				setServerDrive(other, old)
+				o.mount.stopMount() // free the letter first
+				a.remount(id)
+				a.remount(other)
+				return
+			}
+			a.remount(id)
+		}()
 	})
-	w.Bind("pnUnpair", func() {
-		go a.unpair()
-	})
-	// After a revocation: drop the dead pairing at once (no question) so the
-	// pairing steps show again.
+	w.Bind("pnUnpair", func(id string) { go a.unpair(id) })
 	w.Bind("pnUpdate", func() { go a.applyUpdate() })
 	w.Bind("pnSwitchRole", func() {
 		go func() {
-			a.mount.stopMount()
+			a.stopAll()
 			switchRole(roleServer)
 		}()
 	})
-	w.Bind("pnRepair", func() {
-		a.mount.stopMount()
-		forget()
-		go a.reload(true)
+	// After a revocation: drop the dead pairing at once (no question).
+	w.Bind("pnRemove", func(id string) {
+		if s := a.get(id); s != nil {
+			s.mount.stopMount()
+			forget(id)
+			go a.reload()
+		}
 	})
 	w.Bind("pnDict", func() map[string]string { return uiDict() })
 	w.Bind("pnLang", func() string { return lang() })
@@ -252,16 +292,20 @@ func (a *app) setBusy(b bool, notice string) {
 	a.mu.Unlock()
 }
 
-func (a *app) unpair() {
-	a.mu.Lock()
-	u := a.cfg.URL
-	a.mu.Unlock()
-	if !ask(t("unpair_q", u)) {
+func (a *app) unpair(id string) {
+	s := a.get(id)
+	if s == nil {
 		return
 	}
-	a.mount.stopMount()
-	forget()
-	a.reload(true)
+	a.mu.Lock()
+	host := s.host()
+	a.mu.Unlock()
+	if !ask(t("unpair_q", host)) {
+		return
+	}
+	s.mount.stopMount()
+	forget(id)
+	a.reload()
 }
 
 func openURL(u string) {

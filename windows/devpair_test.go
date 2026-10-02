@@ -24,13 +24,14 @@ func TestDevPair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := saveKey(key); err != nil {
+	id := serverID(cfg.ServerFP)
+	if err := saveKey(id, key); err != nil {
 		t.Fatal(err)
 	}
-	if err := saveConfig(cfg); err != nil {
+	if err := saveConfig(id, cfg); err != nil {
 		t.Fatal(err)
 	}
-	k2, err := loadKey()
+	k2, err := loadKey(id)
 	if err != nil || !k2.Equal(key) {
 		t.Fatalf("DPAPI round-trip: %v", err)
 	}

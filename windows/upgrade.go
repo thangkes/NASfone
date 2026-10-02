@@ -16,12 +16,12 @@ import (
 // https (Funnel) address also works from anywhere on the internet. The
 // server identity is checked by the key-pair sign-in, so trying the other
 // scheme is safe. It returns the (possibly updated) config and whether it changed.
-func upgradeURL(cfg client.Config) (client.Config, bool) {
+func upgradeURL(id string, cfg client.Config) (client.Config, bool) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil || u.Scheme != "http" || !strings.HasSuffix(u.Hostname(), ".ts.net") {
 		return cfg, false
 	}
-	key, err := loadKey()
+	key, err := loadKey(id)
 	if err != nil {
 		return cfg, false
 	}
@@ -33,7 +33,7 @@ func upgradeURL(cfg client.Config) (client.Config, bool) {
 	if _, err := client.Authenticate(ctx, httpClient, try, key); err != nil {
 		return cfg, false
 	}
-	if saveConfig(try) != nil {
+	if saveConfig(id, try) != nil {
 		return cfg, false
 	}
 	return try, true

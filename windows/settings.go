@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
 // settings are local preferences of this Windows app (not part of pairing).
 type settings struct {
-	Drive string `json:"drive"` // preferred drive letter, e.g. "P"
+	Drive string `json:"drive"` // drive letter of the single pairing of NASfone ≤ 0.2.0 (migrated per server)
 	Lang  string `json:"lang"`  // "", "en" or "vi" ("" = follow Windows)
 }
 
@@ -36,21 +35,6 @@ func getSettings() settings {
 		}
 	}
 	return *settingsV
-}
-
-func setDrive(letter string) {
-	letter = strings.ToUpper(strings.TrimSuffix(strings.TrimSpace(letter), ":"))
-	if len(letter) != 1 || letter[0] < 'D' || letter[0] > 'Z' {
-		return
-	}
-	settingsMu.Lock()
-	if settingsV == nil {
-		settingsV = &settings{}
-	}
-	settingsV.Drive = letter
-	b, _ := json.MarshalIndent(settingsV, "", "  ")
-	settingsMu.Unlock()
-	writeAtomic(settingsPath(), b)
 }
 
 func setLang(l string) {

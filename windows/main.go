@@ -12,7 +12,7 @@
 //     NASfone.exe                     run in the saved role (ask on first launch)
 //     NASfone.exe --minimized         same, quietly in the tray (autostart)
 //     NASfone.exe nasfone://pair?…  pair with the server in the link (client)
-//     NASfone.exe token               print a fresh bearer token (used by rclone)
+//     NASfone.exe token <id>          print a fresh bearer token for a paired server (used by rclone)
 //     NASfone.exe --quit              ask the running app to exit (unmounts first)
 //     NASfone.exe --cleanup[-all]     uninstall hook: quit, remove nasfone:// and
 //     autostart (and with -all, pairing data)
@@ -53,8 +53,11 @@ func main() {
 			srv.Quit()
 			return
 		case "token":
-			os.Exit(printToken())
+			os.Exit(printToken("")) // drives mounted by NASfone ≤ 0.2.0
 		}
+	}
+	if len(args) == 2 && args[0] == "token" {
+		os.Exit(printToken(args[1]))
 	}
 
 	srv.SetVersion(appVersion)
@@ -115,14 +118,23 @@ var httpClient = &http.Client{Timeout: 30 * time.Second}
 var appVersion = "dev"
 
 // printToken is called by rclone (--webdav-bearer-token-command). It must
-// print only the token on stdout.
-func printToken() int {
-	cfg, err := loadConfig()
+// print only the token on stdout. An empty id means the first server.
+func printToken(id string) int {
+	if id == "" {
+		if ids := listServers(); len(ids) > 0 {
+			id = ids[0]
+		}
+	}
+	if !validID(id) {
+		fmt.Fprintln(os.Stderr, errNotPaired)
+		return 1
+	}
+	cfg, err := loadConfig(id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	key, err := loadKey()
+	key, err := loadKey(id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -156,8 +168,11 @@ func pairFromInvite(invite string) bool {
 		role = t("role_admin_long")
 	}
 	msg := t("pair_confirm", host, role, pair.ShortFP(inv.FP))
-	if old, err := loadConfig(); err == nil {
-		msg += t("pair_replaces", old.URL)
+	id := serverID(inv.FP)
+	if _, err := loadConfig(id); err == nil {
+		msg += t("pair_replaces") // pairing the same server again
+	} else if n := len(listServers()); n > 0 {
+		msg += t("pair_adds", n)
 	}
 	if !ask(msg) {
 		return false
@@ -174,14 +189,21 @@ func pairFromInvite(invite string) bool {
 		fail(t("pair_fail", err.Error()))
 		return false
 	}
-	if err := saveKey(key); err != nil {
+	if id = serverID(cfg.ServerFP); !validID(id) {
+		fail(t("pair_fail", "bad server fingerprint"))
+		return false
+	}
+	if serverDrive(id) == "" {
+		setServerDrive(id, newDriveLetter(id))
+	}
+	if err := saveKey(id, key); err != nil {
 		fail(t("key_save_fail", err.Error()))
 		return false
 	}
-	if err := saveConfig(cfg); err != nil {
+	if err := saveConfig(id, cfg); err != nil {
 		fail(t("cfg_save_fail", err.Error()))
 		return false
 	}
-	info(t("pair_done", host, strings.ToUpper(string(cfg.Role))))
+	info(t("pair_done", host, strings.ToUpper(string(cfg.Role)), serverDrive(id)+":"))
 	return true
 }

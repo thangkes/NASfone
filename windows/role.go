@@ -3,7 +3,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +31,7 @@ func loadRole() string {
 			return r
 		}
 	}
-	if _, err := loadConfig(); !errors.Is(err, errNotPaired) {
+	if len(listServers()) > 0 {
 		saveRole(roleClient) // already paired: a client
 		return roleClient
 	}

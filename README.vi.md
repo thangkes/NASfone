@@ -9,7 +9,7 @@ NASfone có **một app cho mỗi nền tảng**. Lần đầu mở app, bạn c
 | | 📦 **Server**: chứa file | 📲💻 **Client**: dùng NAS ở máy khác |
 |---|---|---|
 | **Android** | Chia sẻ bộ nhớ điện thoại | Duyệt, tải lên/tải về, NAS hiện trong app Tệp, sao lưu ảnh |
-| **Windows** | Chia sẻ một thư mục của máy | Gắn NAS thành ổ đĩa (`P:`) |
+| **Windows** | Chia sẻ một thư mục của máy | Gắn mỗi NAS đã ghép thành một ổ đĩa (`P:`, `Q:`…) |
 | **iPhone / iPad** (beta) | — (iOS không cho chạy server nền) | Duyệt, xem, tải lên/tải về, sao lưu ảnh |
 
 Vai trò đổi được sau này trong phần Cài đặt. Server tham gia mạng
@@ -50,7 +50,10 @@ Trình duyệt bất kỳ cũng dùng làm client được.
   - duyệt, mở, chia sẻ, tải về; tải lên với quyền Admin;
   - NAS hiện trong **app Tệp** và trong mọi bộ chọn file;
   - **tự sao lưu ảnh và video**, có tuỳ chọn chỉ khi có Wi-Fi.
-- **Windows:** gắn NAS thành ổ đĩa với dung lượng trống thật. Với quyền User thì ổ chỉ đọc. App tự nhận biết khi bị thu hồi.
+- **Kết nối nhiều server cùng lúc** (Android, iPhone và Windows): ví dụ ghép cả điện thoại lẫn PC server rồi chuyển qua lại.
+- **Windows:**
+  - mỗi server là một ổ đĩa riêng (`P:`, `Q:`…) với dung lượng trống thật; đổi được ký tự ổ cho từng server;
+  - quyền User thì ổ chỉ đọc; server nào thu hồi máy này thì chỉ ổ đó bị ngắt, các ổ khác vẫn chạy.
 
 **Chung:** tự cập nhật từ GitHub bằng một chạm (kiểm tra SHA-256, giữ nguyên cấu hình). Giao diện tiếng Anh và tiếng Việt ở mọi nơi.
 

@@ -65,7 +65,7 @@ func (a *app) serveLocalPairing() {
 			ok := pairFromInvite(req.Invite) // shows the confirmation dialog
 			a.setBusy(false, "")
 			if ok {
-				a.reload(true)
+				a.reload()
 			}
 		}()
 		w.WriteHeader(http.StatusAccepted)
