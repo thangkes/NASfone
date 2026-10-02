@@ -10,6 +10,7 @@ NASfone có **một app cho mỗi nền tảng**. Lần đầu mở app, bạn c
 |---|---|---|
 | **Android** | Chia sẻ bộ nhớ điện thoại | Duyệt, tải lên/tải về, NAS hiện trong app Tệp, sao lưu ảnh |
 | **Windows** | Chia sẻ một thư mục của máy | Gắn NAS thành ổ đĩa (`P:`) |
+| **iPhone / iPad** (beta) | — (iOS không cho chạy server nền) | Duyệt, xem, tải lên/tải về, sao lưu ảnh |
 
 Vai trò đổi được sau này trong phần Cài đặt. Server tham gia mạng
 [Tailscale](https://tailscale.com) của chính bạn (nhúng sẵn, không cần cài app Tailscale riêng).
@@ -17,7 +18,7 @@ Trình duyệt bất kỳ cũng dùng làm client được.
 
 > Trạng thái: giai đoạn đầu (0.x). Đang dùng hằng ngày trên máy của tác giả, có thể còn lỗi vặt.
 > **Tải về:** [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest):
-> `NASfone-Android-<phiên bản>.apk` và `NASfone-Windows-Setup-<phiên bản>.exe`.
+> `NASfone-Android-<phiên bản>.apk`, `NASfone-Windows-Setup-<phiên bản>.exe` và `NASfone-iOS-<phiên bản>.ipa` (beta, xem bên dưới).
 
 ## Tính năng
 
@@ -82,6 +83,14 @@ Trình duyệt bất kỳ cũng dùng làm client được.
    - quét mã QR ở mục "Ghép thiết bị mới" trên server;
    - trên Windows, bấm **Kết nối app trên máy này** ở trang web của server.
 
+### iPhone / iPad (beta)
+
+File `NASfone-iOS-<phiên bản>.ipa` được build tự động bằng GitHub Actions và **chưa được ký**
+(chưa có trên App Store hay TestFlight). Cài bằng [Sideloadly](https://sideloadly.io) hoặc
+[AltStore](https://altstore.io) với Apple ID của bạn. Apple ID miễn phí thì cần ký lại app
+mỗi 7 ngày. Sau đó ghép đôi như client Android: quét mã QR của server. File tải về nằm trong
+app Tệp, mục *Trên iPhone › NASfone*.
+
 > Một số hãng điện thoại tắt app nền rất mạnh tay. Hãy cho phép NASfone chạy nền / tự
 > khởi chạy trong phần cài đặt pin của máy.
 
@@ -117,6 +126,7 @@ Trình duyệt bất kỳ cũng dùng làm client được.
 | [`core/`](core/) | Mã Go dùng chung: server (`server`, `mobile`), client (`client`, `mobileclient`), ghép đôi, xác thực, cập nhật |
 | [`android/`](android/) | App Android: `com.nasfone.server` (vai trò server, màn hình chọn vai trò) và `com.nasfone.client` (vai trò client) |
 | [`windows/`](windows/) | App Windows: vai trò client (gắn ổ) và vai trò server (`srv/`), bộ cài |
+| [`ios/`](ios/) | Client iOS (SwiftUI + lõi Go client); build bằng [`.github/workflows/ios.yml`](.github/workflows/ios.yml) |
 | [`scripts/`](scripts/) | Script build và phát hành |
 | [`docs/`](docs/) | Ghi chú thiết kế |
 
@@ -124,6 +134,7 @@ Trình duyệt bất kỳ cũng dùng làm client được.
 
 - Khoá truy cập WebDAV cho app bên thứ ba
 - Bộ cài Windows có chữ ký số
+- iOS: TestFlight / App Store, NAS hiện trong app Tệp
 
 ## Giấy phép
 

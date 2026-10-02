@@ -10,6 +10,7 @@ NASfone is **one app per platform**. On first launch you pick what the device do
 |---|---|---|
 | **Android** | Shares the phone's storage | Browse, upload/download, NAS in the Files app, photo backup |
 | **Windows** | Shares a folder of the PC | Mounts the NAS as a drive letter (`P:`) |
+| **iPhone / iPad** (beta) | — (iOS cannot run a server in the background) | Browse, view, upload/download, photo backup |
 
 The role can be changed later in Settings. Servers join your own
 [Tailscale](https://tailscale.com) network (embedded, no separate Tailscale app needed).
@@ -17,7 +18,7 @@ Any browser works as a client too.
 
 > Status: early (0.x). Works day to day on the author's devices; expect rough edges.
 > **Download:** [latest release](https://github.com/thangkes/NASfone/releases/latest):
-> `NASfone-Android-<version>.apk` and `NASfone-Windows-Setup-<version>.exe`.
+> `NASfone-Android-<version>.apk`, `NASfone-Windows-Setup-<version>.exe` and `NASfone-iOS-<version>.ipa` (beta, see below).
 
 ## Features
 
@@ -80,6 +81,14 @@ Any browser works as a client too.
    - scan the QR code from "Pair a new device" on the server, or
    - on Windows, click **Connect the app on this computer** on the server's web page.
 
+### iPhone / iPad (beta)
+
+`NASfone-iOS-<version>.ipa` is built by GitHub Actions and is **not signed** yet (no App Store
+or TestFlight listing so far). Install it with [Sideloadly](https://sideloadly.io) or
+[AltStore](https://altstore.io) using your own Apple ID. With a free Apple ID the app must be
+re-signed every 7 days. Then pair it like the Android client: scan the server's QR code.
+Downloaded files appear in the Files app under *On My iPhone › NASfone*.
+
 > Some Android brands kill background apps aggressively. Allow NASfone to run in the
 > background / auto-launch in the phone's battery settings.
 
@@ -111,6 +120,7 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 | [`core/`](core/) | Shared Go code: server (`server`, `mobile`), client (`client`, `mobileclient`), pairing, auth, updates |
 | [`android/`](android/) | Android app: `com.nasfone.server` (server role, role chooser) and `com.nasfone.client` (client role) |
 | [`windows/`](windows/) | Windows app: client role (drive mount) and server role (`srv/`), installer |
+| [`ios/`](ios/) | iOS client (SwiftUI + the Go client core); built by [`.github/workflows/ios.yml`](.github/workflows/ios.yml) |
 | [`scripts/`](scripts/) | Build and release scripts |
 | [`docs/`](docs/) | Design notes |
 
@@ -118,6 +128,7 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 
 - WebDAV access keys for third-party apps
 - Code-signed Windows installer
+- iOS: TestFlight / App Store, NAS in the Files app
 
 ## License
 
