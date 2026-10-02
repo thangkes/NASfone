@@ -27,7 +27,7 @@ func (a *app) updateLoop() {
 }
 
 func isSetupAsset(name string) bool {
-	return strings.HasPrefix(name, "NASfone-Setup-") && strings.HasSuffix(name, ".exe")
+	return strings.HasPrefix(name, "NASfone-Windows-Client-Setup-") && strings.HasSuffix(name, ".exe")
 }
 
 func (a *app) checkUpdate() {

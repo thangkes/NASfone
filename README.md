@@ -28,7 +28,7 @@ Open it in any browser, or map it as a drive letter on Windows.
   - sessions live only until the browser closes (24 h server-side cap).
 - **Paired devices with their own keys** — each client app gets its own key pair and a
   role (Admin or User). Revoke or change roles from the phone at any time.
-- **Windows app** — tray icon, mounts the phone as a drive (`P:` by default) with the
+- **Windows app (NASfone for Windows - Client)** — tray icon, mounts the phone as a drive (`P:` by default) with the
   real free space, read-only for the User role, detects revocation. Pair in one click
   from the web page ("Connect the app on this computer").
 - **Updates from GitHub Releases** — both apps check for new versions and update in one
@@ -60,7 +60,7 @@ Open it in any browser, or map it as a drive letter on Windows.
 3. Under **Tailscale account**, tap **Sign in** and sign in with your own account.
 4. Open the address shown in the app from a device on the same tailnet (or turn on
    Funnel for a public HTTPS link) and log in with the current Admin or User code.
-5. On Windows: install `NASfone-Setup-<version>.exe`, then on the web page click
+5. On Windows: install `NASfone-Windows-Client-Setup-<version>.exe`, then on the web page click
    **Connect the app on this computer** and confirm in the NASfone dialog.
 
 > Some Android brands kill background apps aggressively. Allow NASfone to run in the
@@ -77,7 +77,7 @@ Android SDK + NDK, the JDK bundled with Android Studio. For the Windows installe
 ```powershell
 .\scripts\build-server.ps1             # Go core -> AAR -> server APK
 .\scripts\build-server.ps1 -Install    # ...and install on a phone via adb
-.\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Setup-<version>.exe
+.\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Windows-Client-Setup-<version>.exe
 .\scripts\release.ps1 0.2.0            # bump, build both, tag and publish a GitHub Release
 ```
 

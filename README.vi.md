@@ -27,7 +27,7 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
   - phiên đăng nhập mất khi tắt trình duyệt (tối đa 24 giờ phía server).
 - **Thiết bị ghép đôi có khoá riêng** — mỗi app client có cặp khoá riêng và một quyền
   (Admin hoặc User). Thu hồi hay đổi quyền ngay trên điện thoại.
-- **App Windows** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
+- **App Windows (NASfone for Windows - Client)** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
   với dung lượng trống thật, chỉ đọc với quyền User, tự nhận biết khi bị thu hồi. Ghép
   đôi một chạm từ trang web ("Kết nối app trên máy này").
 - **Tự cập nhật từ GitHub Releases** — cả hai app tự tìm bản mới và cập nhật bằng một chạm
@@ -58,7 +58,7 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
 3. Trong mục **Tài khoản Tailscale**, bấm **Đăng nhập** và đăng nhập bằng tài khoản của bạn.
 4. Mở địa chỉ hiện trong app từ thiết bị cùng tailnet (hoặc bật Funnel để có link HTTPS
    công khai) rồi đăng nhập bằng mã Admin hoặc User đang hiện.
-5. Trên Windows: cài `NASfone-Setup-<phiên bản>.exe`, rồi trên trang web bấm
+5. Trên Windows: cài `NASfone-Windows-Client-Setup-<phiên bản>.exe`, rồi trên trang web bấm
    **Kết nối app trên máy này** và xác nhận trong hộp thoại NASfone.
 
 > Một số hãng điện thoại tắt app nền rất mạnh tay. Hãy cho phép NASfone chạy nền / tự
@@ -75,7 +75,7 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 ```powershell
 .\scripts\build-server.ps1             # lõi Go -> AAR -> APK server
 .\scripts\build-server.ps1 -Install    # ...và cài lên điện thoại qua adb
-.\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Setup-<phiên bản>.exe
+.\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Windows-Client-Setup-<phiên bản>.exe
 .\scripts\release.ps1 0.2.0            # tăng phiên bản, build cả hai, gắn tag và tạo GitHub Release
 ```
 

@@ -62,7 +62,7 @@ try {
     if (Test-Path $out) { Remove-Item $out -Recurse -Force }
     New-Item -ItemType Directory -Force $out | Out-Null
     Copy-Item $apkSrc "$out\NASfone-Server-$Version.apk"
-    Copy-Item "$root\client-windows\dist\NASfone-Setup-$Version.exe" $out
+    Copy-Item "$root\client-windows\dist\NASfone-Windows-Client-Setup-$Version.exe" $out
     $sums = Get-ChildItem $out -File | ForEach-Object {
         "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
     }

@@ -1,4 +1,4 @@
-; NASfone for Windows — Inno Setup script.
+; NASfone for Windows - Client: Inno Setup script.
 ; Built by scripts\build-windows.ps1 (which passes /DAppVersion=x.y.z).
 
 #ifndef AppVersion
@@ -7,9 +7,9 @@
 
 [Setup]
 AppId={{89CEEE73-3F07-4F84-B203-C7FEAB44D07A}
-AppName=NASfone
+AppName=NASfone for Windows - Client
 AppVersion={#AppVersion}
-AppVerName=NASfone {#AppVersion}
+AppVerName=NASfone for Windows - Client {#AppVersion}
 AppPublisher=NASfone
 AppPublisherURL=https://github.com/
 VersionInfoVersion={#AppVersion}
@@ -18,10 +18,10 @@ DefaultGroupName=NASfone
 DisableProgramGroupPage=yes
 DisableDirPage=auto
 OutputDir=..\dist
-OutputBaseFilename=NASfone-Setup-{#AppVersion}
+OutputBaseFilename=NASfone-Windows-Client-Setup-{#AppVersion}
 SetupIconFile=app.ico
 UninstallDisplayIcon={app}\NASfone.exe
-UninstallDisplayName=NASfone
+UninstallDisplayName=NASfone for Windows - Client
 Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
@@ -61,9 +61,14 @@ Source: "deps\rclone.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "deps\winfsp.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: not WinFspInstalled
 
+[InstallDelete]
+; Shortcuts from 0.1.0, before the app was renamed
+Type: files; Name: "{autoprograms}\NASfone.lnk"
+Type: files; Name: "{autodesktop}\NASfone.lnk"
+
 [Icons]
-Name: "{autoprograms}\NASfone"; Filename: "{app}\NASfone.exe"
-Name: "{autodesktop}\NASfone"; Filename: "{app}\NASfone.exe"; Tasks: desktopicon
+Name: "{autoprograms}\NASfone for Windows - Client"; Filename: "{app}\NASfone.exe"
+Name: "{autodesktop}\NASfone for Windows - Client"; Filename: "{app}\NASfone.exe"; Tasks: desktopicon
 
 [Registry]
 ; Per-user autostart for the user running setup (the app manages this value afterwards).

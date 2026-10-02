@@ -51,7 +51,7 @@ func (a *app) openWindow() {
 			DataPath:  dataDir() + `\webview`,
 			AutoFocus: true,
 			WindowOptions: webview2.WindowOptions{
-				Title:  appTitle,
+				Title:  appName,
 				IconId: 1, // RT_GROUP_ICON #1 from winres/winres.json
 				Width:  460,
 				Height: 720,

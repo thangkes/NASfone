@@ -11,7 +11,7 @@
                                                                  "name":  "NASfone",
                                                                  "version":  "0.1.0.0"
                                                              },
-                                                "description":  "NASfone for Windows",
+                                                "description":  "NASfone for Windows - Client",
                                                 "minimum-os":  "win10",
                                                 "execution-level":  "as invoker",
                                                 "dpi-awareness":  "per monitor v2",
@@ -30,12 +30,12 @@
                                                "info":  {
                                                             "0409":  {
                                                                          "CompanyName":  "NASfone",
-                                                                         "FileDescription":  "NASfone for Windows",
+                                                                         "FileDescription":  "NASfone for Windows - Client",
                                                                          "FileVersion":  "0.1.0",
                                                                          "InternalName":  "NASfone",
                                                                          "LegalCopyright":  "Copyright (c) 2026 NASfone contributors",
                                                                          "OriginalFilename":  "NASfone.exe",
-                                                                         "ProductName":  "NASfone",
+                                                                         "ProductName":  "NASfone for Windows - Client",
                                                                          "ProductVersion":  "0.1.0"
                                                                      }
                                                         }

@@ -12,7 +12,11 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+// appTitle names the Run registry value (also written by the installer): keep it stable.
 const appTitle = "NASfone"
+
+// appName is the name shown to people (window, tray, message boxes).
+const appName = "NASfone for Windows - Client"
 
 var (
 	user32           = windows.NewLazySystemDLL("user32.dll")
@@ -26,7 +30,7 @@ var (
 
 func msgBox(text string, flags uint32) int {
 	t, _ := windows.UTF16PtrFromString(text)
-	c, _ := windows.UTF16PtrFromString(appTitle)
+	c, _ := windows.UTF16PtrFromString(appName)
 	r, _ := windows.MessageBox(0, t, c, flags|windows.MB_SETFOREGROUND|windows.MB_TOPMOST)
 	return int(r)
 }

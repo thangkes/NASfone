@@ -98,7 +98,10 @@ class MainActivity : Activity() {
         Lang.init(this)
         setContentView(buildUi())
         // Mở app là có mã đăng nhập: tự khởi động server nếu đang dừng.
-        if (!Core.running && savedInstanceState == null) toggle()
+        if (!Core.running && savedInstanceState == null) {
+            // Vừa cài lại app và còn file sao lưu cấu hình: hỏi khôi phục trước khi chạy server.
+            if (ConfigBackup.shouldOfferRestore(this)) offerRestore() else toggle()
+        }
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -204,6 +207,7 @@ class MainActivity : Activity() {
         }.also { col.addView(it) }
         col.addView(button(L("Lưu cài đặt", "Save settings")) { save() })
         col.addView(button(L("Kiểm tra cập nhật", "Check for updates") + " (v${Updater.currentVersion(this)})") { checkUpdate() })
+        col.addView(button(L("Sao lưu cấu hình (trước khi gỡ / cài lại app)", "Back up configuration (before reinstalling)")) { backupConfig() })
         col.addView(button(L("Ngôn ngữ: ", "Language: ") + when (prefs.lang) {
             "vi" -> "Tiếng Việt"; "en" -> "English"; else -> L("theo máy", "follow the phone")
         }) { chooseLanguage() })
@@ -620,6 +624,73 @@ class MainActivity : Activity() {
                 }
             }
             .setNegativeButton(L("Hủy", "Cancel"), null)
+            .show()
+    }
+
+    /** Dừng hẳn server (chờ lõi Go tắt xong), chạy work trên luồng nền, rồi bật lại nếu cần. */
+    private fun withServerStopped(restart: Boolean, work: () -> Unit) {
+        thread(name = "nasfone-config") {
+            Mobile.stop() // chặn tới khi tắt xong; lệnh dừng của service sau đó không còn gì để làm
+            runOnUiThread { if (Core.running) stopService(Intent(this, NasService::class.java)) }
+            try {
+                work()
+            } finally {
+                runOnUiThread {
+                    if (restart && !Core.running) startForegroundService(Intent(this, NasService::class.java))
+                    render()
+                }
+            }
+        }
+    }
+
+    private fun backupConfig() {
+        AlertDialog.Builder(this)
+            .setTitle(L("Sao lưu cấu hình?", "Back up configuration?"))
+            .setMessage(L(
+                "Lưu tài khoản Tailscale, thiết bị đã ghép và cài đặt vào:\n${ConfigBackup.file().path}\n\nServer tạm dừng vài giây. File này chứa khoá bí mật: giữ kín, và nó sẽ tự xoá sau khi khôi phục. Sau khi cài lại app, mở app là được hỏi khôi phục.",
+                "Saves the Tailscale account, paired devices and settings to:\n${ConfigBackup.file().path}\n\nThe server pauses for a few seconds. The file holds secret keys: keep it private; it is deleted after a restore. After reinstalling, open the app and it offers to restore."
+            ))
+            .setPositiveButton(L("Sao lưu", "Back up")) { _, _ ->
+                val wasRunning = Core.running
+                withServerStopped(wasRunning) {
+                    val msg = try {
+                        val f = ConfigBackup.export(this)
+                        L("Đã sao lưu: ${f.path}", "Backed up: ${f.path}")
+                    } catch (e: Exception) {
+                        L("Sao lưu lỗi: $e", "Backup failed: $e")
+                    }
+                    Core.log(msg)
+                    runOnUiThread { toast(msg) }
+                }
+            }
+            .setNegativeButton(L("Huỷ", "Cancel"), null)
+            .show()
+    }
+
+    private fun offerRestore() {
+        AlertDialog.Builder(this)
+            .setTitle(L("Khôi phục cấu hình?", "Restore configuration?"))
+            .setMessage(L(
+                "Tìm thấy bản sao lưu cấu hình NASfone:\n${ConfigBackup.file().path}\n\nKhôi phục để giữ tài khoản Tailscale, địa chỉ truy cập, thiết bị đã ghép và cài đặt như trước khi cài lại.",
+                "Found a NASfone configuration backup:\n${ConfigBackup.file().path}\n\nRestore it to keep the Tailscale account, address, paired devices and settings from before the reinstall."
+            ))
+            .setCancelable(false)
+            .setPositiveButton(L("Khôi phục", "Restore")) { _, _ ->
+                withServerStopped(restart = true) {
+                    val msg = try {
+                        ConfigBackup.restore(this)
+                        L("Đã khôi phục cấu hình", "Configuration restored")
+                    } catch (e: Exception) {
+                        L("Khôi phục lỗi: $e", "Restore failed: $e")
+                    }
+                    Core.log(msg)
+                    runOnUiThread {
+                        toast(msg)
+                        recreate() // đọc lại cài đặt vừa khôi phục vào các ô nhập
+                    }
+                }
+            }
+            .setNegativeButton(L("Bắt đầu mới", "Start fresh")) { _, _ -> toggle() }
             .show()
     }
 

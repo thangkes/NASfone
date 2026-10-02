@@ -47,8 +47,8 @@ func runTray(showWindow bool) {
 
 func (a *app) onReady() {
 	systray.SetIcon(trayIcon())
-	systray.SetTitle(appTitle)
-	systray.SetTooltip(appTitle)
+	systray.SetTitle(appName)
+	systray.SetTooltip(appName)
 	systray.SetOnTapped(a.openWindow) // left click opens the window; right click shows the menu
 
 	a.mWindow = systray.AddMenuItem(t("m_window"), "")
@@ -256,7 +256,7 @@ func (a *app) statusText() string {
 func (a *app) refreshMenu() {
 	s := a.statusText()
 	a.mStatus.SetTitle(s)
-	systray.SetTooltip(appTitle + "\n" + s)
+	systray.SetTooltip(appName + "\n" + s)
 	if _, running, _ := a.mount.status(); running {
 		a.mOpen.Enable()
 	} else {
