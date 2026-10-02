@@ -230,3 +230,18 @@ func shortAgent(ua string) string {
 	}
 	return os
 }
+
+// addresses lists where paired apps can reach this server, fastest first:
+// LAN (same network), tailnet, then the public Funnel URL.
+func (n *node) addresses() []string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	out := append([]string(nil), n.status.LANURLs...)
+	if n.status.DNSName != "" {
+		out = append(out, "http://"+n.status.DNSName)
+	}
+	if n.status.FunnelURL != "" {
+		out = append(out, n.status.FunnelURL)
+	}
+	return out
+}

@@ -42,8 +42,13 @@ type Options struct {
 	// instead of whatever address the browser happened to use.
 	PublicURL func() string
 	// LAN, if set, enables QR sign-in for browsers on the LAN listener (ViaLAN).
-	LAN  *LAN
-	Logf func(format string, args ...any)
+	LAN *LAN
+	// Addresses, if set, lists the base URLs this server is reachable at right
+	// now, fastest first (LAN, tailnet, Funnel). Paired apps fetch it from
+	// AddrsPath to pick the best path; each path is still verified by the
+	// server's signature when the app signs in.
+	Addresses func() []string
+	Logf      func(format string, args ...any)
 }
 
 type handler struct {
@@ -124,6 +129,16 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.URL.Path == invitePath:
 		h.invite(w, r)
+		return
+	case r.URL.Path == AddrsPath:
+		var urls []string
+		if h.opt.Addresses != nil {
+			urls = h.opt.Addresses()
+		}
+		if urls == nil {
+			urls = []string{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"urls": urls})
 		return
 	case r.URL.Path == "/__nasfone/speed":
 		h.speed(w, r)

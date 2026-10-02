@@ -195,6 +195,7 @@ func Start(configJSON string, host Host) error {
 	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
 	n.handler = server.NewHandler(server.Options{
 		Root: cfg.RootDir, Auth: store, Pair: pairs, LAN: n.lan, Logf: n.logf,
+		Addresses: n.addresses,
 		PublicURL: func() string {
 			n.mu.Lock()
 			defer n.mu.Unlock()

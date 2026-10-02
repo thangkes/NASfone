@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	// AddrsPath lists the server's current addresses for paired apps.
+	AddrsPath     = "/__nasfone/addrs"
 	conflictsPath = "/__nasfone/conflicts"
 	tmpPrefix     = ".nasfone-upload-"
 )
