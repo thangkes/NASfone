@@ -22,7 +22,7 @@ android {
         applicationId = "com.nasfone.client"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
+        versionCode = 10001
         versionName = "0.1.0-beta.1"
         ndk {
             abiFilters += "arm64-v8a"
