@@ -159,8 +159,8 @@ enum Backup {
                     let fd = dup(h.fileDescriptor)
                     try? h.close()
                     let size = (try? FileManager.default.attributesOfItem(atPath: tmp.path)[.size] as? Int64) ?? -1
-                    let written = try sess.upload(dir + "/" + r.originalFilename, fd: Int(fd), size: size,
-                                                  mode: MobileclientModeSkip, progress: nil)
+                    let written = try goCall { sess.upload(dir + "/" + r.originalFilename, fd: Int(fd), size: size,
+                                                              mode: MobileclientModeSkip, progress: nil, error: $0) }
                     if written.isEmpty { skipped += 1 } else { done += 1 }
                     Servers.shared.update(s.id) { $0.backupSince = created.timeIntervalSince1970 } // resume point
                 } catch {

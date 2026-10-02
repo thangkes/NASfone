@@ -91,7 +91,7 @@ final class Servers: ObservableObject {
     func connect(_ id: String, fresh: Bool = false) throws -> [String: String] {
         let s = try session(id)
         do {
-            let js = fresh ? try s.reconnect() : try s.connect()
+            let js = try goCall { fresh ? s.reconnect($0) : s.connect($0) }
             let info = (try? JSONSerialization.jsonObject(with: Data(js.utf8))) as? [String: String] ?? [:]
             let addrs = s.addrs()
             update(id) {

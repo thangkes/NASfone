@@ -177,9 +177,9 @@ struct BrowseView: View {
             do {
                 let info = try Servers.shared.connect(id)
                 let s = try Servers.shared.session(id)
-                let list = try JSONDecoder().decode([Entry].self, from: Data(try s.list(p).utf8))
+                let list = try JSONDecoder().decode([Entry].self, from: Data(try goCall { s.list(p, error: $0) }.utf8))
                 var line = L("Qua ", "Via ") + (info["via"] == "lan" ? "LAN" : info["via"] == "tailnet" ? "tailnet" : "Internet")
-                if let q = try? JSONSerialization.jsonObject(with: Data(try s.quota().utf8)) as? [String: Int64],
+                if let q = try? JSONSerialization.jsonObject(with: Data(try goCall { s.quota($0) }.utf8)) as? [String: Int64],
                    let a = q["avail"], a >= 0 {
                     line += " • " + L("trống ", "free ") + humanSize(a)
                 }
@@ -331,7 +331,8 @@ final class Uploader: ObservableObject {
                     let sink = ProgressSink { d, t in
                         DispatchQueue.main.async { self.progress = t > 0 ? "\(label) \(d * 100 / t)%" : label }
                     }
-                    return try Servers.shared.session(server).upload(target, fd: Int(fd), size: size, mode: mode, progress: sink)
+                    let sess = try Servers.shared.session(server)
+                    return try goCall { sess.upload(target, fd: Int(fd), size: size, mode: mode, progress: sink, error: $0) }
                 }
                 do {
                     var result: String

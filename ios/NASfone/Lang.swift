@@ -41,4 +41,13 @@ func friendly(_ e: Error) -> String {
     return m
 }
 
+/// Calls a Go function that returns a string and reports errors through an
+/// NSError pointer (gomobile's shape), turning the error into a Swift throw.
+func goCall(_ f: (NSErrorPointer) -> String) throws -> String {
+    var err: NSError?
+    let r = f(&err)
+    if let err = err { throw err }
+    return r
+}
+
 func isRevoked(_ e: Error) -> Bool { (e as NSError).localizedDescription.hasPrefix("revoked:") }
