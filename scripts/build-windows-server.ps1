@@ -1,14 +1,16 @@
 # Build NASfoneServer.exe and the installer server-windows\dist\NASfone-Windows-Server-Setup-<version>.exe
-#   .\scripts\build-windows-server.ps1                 # version from client-windows\VERSION
-#   .\scripts\build-windows-server.ps1 -Version 0.2.0
+#   .\scripts\build-windows-server.ps1                        # version from server-windows\VERSION
+#   .\scripts\build-windows-server.ps1 -Version 0.2.0-beta.1
 param([string]$Version)
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path $PSScriptRoot -Parent
 $srv = "$root\server-windows"
 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:USERPROFILE\go\bin"
-if (-not $Version) { $Version = (Get-Content "$root\client-windows\VERSION" -Raw).Trim() }
-$v4 = "$Version.0"
+if (-not $Version) { $Version = (Get-Content "$srv\VERSION" -Raw).Trim() }
+# Windows version resources take numbers only: 0.2.0-beta.1 -> 0.2.0.0
+$num = ($Version -split '-')[0]
+$v4 = "$num.0"
 
 Push-Location $srv
 $ErrorActionPreference = "Continue" # native tools write progress to stderr; check exit codes instead

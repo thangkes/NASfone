@@ -10,7 +10,8 @@ Open it in any browser, or map it as a drive letter on Windows.
 
 > Status: early (0.1.x). Works day to day on the author's phone; expect rough edges.
 > **Download:** [latest release](https://github.com/thangkes/NASfone/releases/latest)
-> (server APK for the phone, installer for Windows).
+> (server APK for the phone, client installer for Windows). The **Windows server** has its
+> own releases tagged `windows-server-v…` on the [releases page](https://github.com/thangkes/NASfone/releases) (beta).
 
 ## Features
 
@@ -30,6 +31,9 @@ Open it in any browser, or map it as a drive letter on Windows.
   - sessions live only until the browser closes (24 h server-side cap).
 - **Paired devices with their own keys** — each client app gets its own key pair and a
   role (Admin or User). Revoke or change roles from the phone at any time.
+- **Windows server (NASfone for Windows - Server, beta)** — share a folder of a PC the same
+  way: embedded Tailscale, Funnel, sign-in codes, paired apps, LAN access (LAN QR requests
+  are approved in its window), tray icon and start with Windows.
 - **Windows app (NASfone for Windows - Client)** — tray icon, mounts the phone as a drive (`P:` by default) with the
   real free space, read-only for the User role, detects revocation. Pair in one click
   from the web page ("Connect the app on this computer").
@@ -94,6 +98,8 @@ Android SDK + NDK, the JDK bundled with Android Studio. For the Windows installe
 .\scripts\build-server.ps1 -Install    # ...and install on a phone via adb
 .\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Windows-Client-Setup-<version>.exe
 .\scripts\release.ps1 0.2.0            # bump, build both, tag and publish a GitHub Release
+.\scripts\build-windows-server.ps1     # NASfoneServer.exe + server-windows\dist\NASfone-Windows-Server-Setup-<version>.exe
+.\scripts\release-windows-server.ps1 0.2.0-beta.1 -NotesFile notes.md   # Windows server release
 ```
 
 For quick web UI work there is a local dev server: `cd core; go run ./cmd/devserver`
@@ -110,6 +116,7 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 | [`core/`](core/) | Shared Go code: auth codes, pairing, LAN QR sign-in, WebDAV + web UI, updates, gomobile bindings |
 | [`server-android/`](server-android/) | Android server app (Kotlin shell around the Go core) |
 | [`client-windows/`](client-windows/) | Windows tray app, drive mount, installer |
+| [`server-windows/`](server-windows/) | Windows server app (beta) and its installer |
 | [`client-android/`](client-android/) | Android client (planned) |
 | [`scripts/`](scripts/) | Build scripts |
 | [`docs/`](docs/) | Design notes |
@@ -118,7 +125,6 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 
 - Android client app (QR pairing, file browser, photo backup)
 - WebDAV access keys for third-party apps
-- NASfone server for Windows
 - Code-signed Windows installer
 
 ## License

@@ -4,6 +4,9 @@
 #ifndef AppVersion
   #define AppVersion "0.1.0"
 #endif
+#ifndef AppVersionNum
+  #define AppVersionNum "0.1.0.0"
+#endif
 
 [Setup]
 AppId={{4DA80CE8-09F4-4666-8874-4E57A15C9284}
@@ -12,7 +15,7 @@ AppVersion={#AppVersion}
 AppVerName=NASfone for Windows - Server {#AppVersion}
 AppPublisher=NASfone
 AppPublisherURL=https://github.com/thangkes/NASfone
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppVersionNum}
 DefaultDirName={autopf}\NASfone Server
 DefaultGroupName=NASfone
 DisableProgramGroupPage=yes

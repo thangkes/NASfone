@@ -38,6 +38,7 @@ type ghRelease struct {
 	Body    string `json:"body"`
 	HTMLURL string `json:"html_url"`
 	Draft   bool   `json:"draft"`
+	Pre     bool   `json:"prerelease"`
 	Assets  []struct {
 		Name string `json:"name"`
 		URL  string `json:"browser_download_url"`
@@ -47,7 +48,9 @@ type ghRelease struct {
 
 // Check returns the newest release above current that has an asset accepted
 // by match, or nil when this build is up to date. Development builds
-// (current not a version number) never update.
+// (current not a version number) never update. Pre-releases (betas) are
+// offered only to builds that are themselves pre-releases, so stable users
+// stay on stable versions while beta testers move on to the final release.
 func Check(ctx context.Context, hc *http.Client, current string, match func(name string) bool) (*Release, error) {
 	cur, ok := parse(current)
 	if !ok {
@@ -68,11 +71,14 @@ func Check(ctx context.Context, hc *http.Client, current string, match func(name
 		return nil, err
 	}
 	var best *Release
-	var bestV [3]int
+	var bestV version
 	for _, r := range list {
 		v, ok := parse(r.TagName)
 		if r.Draft || !ok || !less(cur, v) || (best != nil && !less(bestV, v)) {
 			continue
+		}
+		if cur.pre == "" && (r.Pre || v.pre != "") {
+			continue // stable builds never move to a beta
 		}
 		var rel Release
 		for _, a := range r.Assets {
@@ -86,7 +92,7 @@ func Check(ctx context.Context, hc *http.Client, current string, match func(name
 		if rel.AssetURL == "" || rel.SumsURL == "" {
 			continue // without checksums we do not install anything
 		}
-		rel.Version = fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2])
+		rel.Version = v.String()
 		rel.Notes, rel.PageURL = r.Body, r.HTMLURL
 		best, bestV = &rel, v
 	}
@@ -158,11 +164,38 @@ func Newer(a, b string) bool {
 	return ok1 && ok2 && less(va, vb)
 }
 
-func parse(s string) ([3]int, bool) {
-	var v [3]int
-	s = strings.TrimPrefix(strings.TrimSpace(s), "v")
-	if i := strings.IndexAny(s, "-+"); i >= 0 {
-		s = s[:i]
+// version is MAJOR.MINOR.PATCH with an optional pre-release tag ("beta.1").
+type version struct {
+	n   [3]int
+	pre string
+}
+
+func (v version) String() string {
+	s := fmt.Sprintf("%d.%d.%d", v.n[0], v.n[1], v.n[2])
+	if v.pre != "" {
+		s += "-" + v.pre
+	}
+	return s
+}
+
+// parse reads "1.2.3", "v1.2.3-beta.1" and product tags such as
+// "windows-server-v0.2.0" (each app line is released under its own tag
+// prefix; which release fits an app is decided by its asset names).
+func parse(s string) (version, bool) {
+	var v version
+	s = strings.TrimSpace(s)
+	if i := strings.LastIndex(s, "-v"); i >= 0 && i+2 < len(s) && s[i+2] >= '0' && s[i+2] <= '9' {
+		s = s[i+2:]
+	}
+	s = strings.TrimPrefix(s, "v")
+	if i := strings.IndexByte(s, '+'); i >= 0 {
+		s = s[:i] // build metadata does not count
+	}
+	if i := strings.IndexByte(s, '-'); i >= 0 {
+		s, v.pre = s[:i], s[i+1:]
+		if v.pre == "" {
+			return v, false
+		}
 	}
 	parts := strings.Split(s, ".")
 	if len(parts) != 3 {
@@ -173,16 +206,42 @@ func parse(s string) ([3]int, bool) {
 		if err != nil || n < 0 {
 			return v, false
 		}
-		v[i] = n
+		v.n[i] = n
 	}
 	return v, true
 }
 
-func less(a, b [3]int) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return a[i] < b[i]
+// less orders versions like SemVer: 0.2.0-beta.1 < 0.2.0-beta.2 < 0.2.0 < 0.2.1.
+func less(a, b version) bool {
+	for i := range a.n {
+		if a.n[i] != b.n[i] {
+			return a.n[i] < b.n[i]
 		}
 	}
-	return false
+	switch {
+	case a.pre == b.pre:
+		return false
+	case a.pre == "":
+		return false // a final release is above its betas
+	case b.pre == "":
+		return true
+	}
+	ap, bp := strings.Split(a.pre, "."), strings.Split(b.pre, ".")
+	for i := 0; i < len(ap) && i < len(bp); i++ {
+		if ap[i] == bp[i] {
+			continue
+		}
+		an, aerr := strconv.Atoi(ap[i])
+		bn, berr := strconv.Atoi(bp[i])
+		switch {
+		case aerr == nil && berr == nil:
+			return an < bn
+		case aerr == nil:
+			return true // numbers sort before words
+		case berr == nil:
+			return false
+		}
+		return ap[i] < bp[i]
+	}
+	return len(ap) < len(bp)
 }

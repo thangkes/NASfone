@@ -10,7 +10,8 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
 
 > Trạng thái: giai đoạn đầu (0.1.x). Đang dùng hằng ngày trên điện thoại của tác giả, có thể còn lỗi vặt.
 > **Tải về:** [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest)
-> (APK server cho điện thoại, bộ cài cho Windows).
+> (APK server cho điện thoại, bộ cài client cho Windows). **Server cho Windows** có bản phát
+> hành riêng, tag `windows-server-v…`, trên [trang Releases](https://github.com/thangkes/NASfone/releases) (beta).
 
 ## Tính năng
 
@@ -29,6 +30,9 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
   - phiên đăng nhập mất khi tắt trình duyệt (tối đa 24 giờ phía server).
 - **Thiết bị ghép đôi có khoá riêng** — mỗi app client có cặp khoá riêng và một quyền
   (Admin hoặc User). Thu hồi hay đổi quyền ngay trên điện thoại.
+- **Server cho Windows (NASfone for Windows - Server, beta)** — chia sẻ một thư mục của PC
+  theo cùng cách: Tailscale nhúng, Funnel, mã đăng nhập, app đã ghép, kết nối LAN (yêu cầu
+  đăng nhập QR qua LAN được duyệt ngay trong cửa sổ), biểu tượng khay, tự khởi động.
 - **App Windows (NASfone for Windows - Client)** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
   với dung lượng trống thật, chỉ đọc với quyền User, tự nhận biết khi bị thu hồi. Ghép
   đôi một chạm từ trang web ("Kết nối app trên máy này").
@@ -62,13 +66,18 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
 
 ## Bắt đầu
 
-1. Cài **APK server** lên điện thoại dùng để chứa file và mở app.
+1. Tải `NASfone-Server-<phiên bản>.apk` từ
+   [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest), cài lên
+   điện thoại dùng để chứa file và mở app.
 2. Cấp các quyền app yêu cầu (truy cập mọi file, thông báo, bỏ tối ưu pin).
 3. Trong mục **Tài khoản Tailscale**, bấm **Đăng nhập** và đăng nhập bằng tài khoản của bạn.
 4. Mở địa chỉ hiện trong app từ thiết bị cùng tailnet (hoặc bật Funnel để có link HTTPS
    công khai) rồi đăng nhập bằng mã Admin hoặc User đang hiện.
 5. Trên Windows: cài `NASfone-Windows-Client-Setup-<phiên bản>.exe`, rồi trên trang web bấm
    **Kết nối app trên máy này** và xác nhận trong hộp thoại NASfone.
+
+6. Tuỳ chọn: trong mục **Kết nối LAN**, gạt bật để vào thẳng điện thoại từ cùng mạng, kể cả
+   khi không có internet.
 
 > Một số hãng điện thoại tắt app nền rất mạnh tay. Hãy cho phép NASfone chạy nền / tự
 > khởi chạy trong phần cài đặt pin của máy.
@@ -86,9 +95,12 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 .\scripts\build-server.ps1 -Install    # ...và cài lên điện thoại qua adb
 .\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Windows-Client-Setup-<phiên bản>.exe
 .\scripts\release.ps1 0.2.0            # tăng phiên bản, build cả hai, gắn tag và tạo GitHub Release
+.\scripts\build-windows-server.ps1     # NASfoneServer.exe + server-windows\dist\NASfone-Windows-Server-Setup-<phiên bản>.exe
+.\scripts\release-windows-server.ps1 0.2.0-beta.1 -NotesFile notes.md   # phát hành server Windows
 ```
 
-Để sửa giao diện web nhanh có server chạy local: `cd core; go run ./cmd/devserver`.
+Để sửa giao diện web nhanh có server chạy local: `cd core; go run ./cmd/devserver`
+(thêm `-lan` để thử trang đăng nhập bằng QR).
 
 > APK release được ký bằng khoá trong `~/.nasfone-signing/keystore.properties` (nằm ngoài
 > repo). Không có khoá này thì build dùng debug key. Android chỉ nhận bản cập nhật ký cùng
@@ -98,9 +110,10 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 
 | Thư mục | Nội dung |
 |---|---|
-| [`core/`](core/) | Mã Go dùng chung: mã đăng nhập, ghép đôi, WebDAV + web UI, gomobile |
+| [`core/`](core/) | Mã Go dùng chung: mã đăng nhập, ghép đôi, đăng nhập LAN bằng QR, WebDAV + web UI, cập nhật, gomobile |
 | [`server-android/`](server-android/) | App server Android (vỏ Kotlin bọc lõi Go) |
 | [`client-windows/`](client-windows/) | App khay Windows, gắn ổ đĩa, bộ cài |
+| [`server-windows/`](server-windows/) | App server cho Windows (beta) và bộ cài |
 | [`client-android/`](client-android/) | App client Android (dự kiến) |
 | [`scripts/`](scripts/) | Script build |
 | [`docs/`](docs/) | Ghi chú thiết kế |
@@ -109,7 +122,6 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 
 - App client Android (ghép đôi bằng QR, duyệt file, sao lưu ảnh)
 - Khoá truy cập WebDAV cho app bên thứ ba
-- NASfone server cho Windows
 - Bộ cài Windows có chữ ký số
 
 ## Giấy phép

@@ -41,7 +41,7 @@ func freePort(t *testing.T) int {
 // The LAN listener switches on and off while running, and a local IP change
 // or switching off ends LAN sessions.
 func TestSetLANLive(t *testing.T) {
-	h := &fakeHost{ifaces: "wlan0|3|1500|ubm|192.168.1.248/24,100.101.102.103/32\nlo|1|65536|ul|127.0.0.1/8\n"}
+	h := &fakeHost{ifaces: "wlan0|3|1500|ubm|192.168.50.20/24,100.101.102.103/32\nlo|1|65536|ul|127.0.0.1/8\n"}
 	hostRef = h
 	defer func() { hostRef = nil }()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,7 +67,7 @@ func TestSetLANLive(t *testing.T) {
 	if err := get(); err != nil {
 		t.Fatalf("LAN listener not reachable: %v", err)
 	}
-	if u := n.status.LANURLs; len(u) != 1 || u[0] != fmt.Sprintf("http://192.168.1.248:%d", port) {
+	if u := n.status.LANURLs; len(u) != 1 || u[0] != fmt.Sprintf("http://192.168.50.20:%d", port) {
 		t.Fatalf("LANURLs = %v (Tailscale and loopback must be left out)", u)
 	}
 
