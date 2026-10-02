@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NASfone</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--muted:#6b7385;--line:#e3e6ec;--acc:#2f6fed;--acc-fg:#fff;--ok:#1f9d55;--warn:#c27c0e;--bad:#d64545;--chip:#eef2fd;--admin:#b42318;--admin-bg:#fde8e8}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c24;--fg:#e6e9ef;--muted:#949cad;--line:#2a303c;--acc:#5b8cff;--acc-fg:#0b0e14;--ok:#3ccf7c;--warn:#e5a53a;--bad:#f06a6a;--chip:#1f2737;--admin:#ff8a80;--admin-bg:#3a1d1d}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;user-select:none;overflow-y:auto}
+main{padding:18px 18px 24px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.logo{width:42px;height:42px;flex:none}
+header h1{font-size:18px;margin:0;line-height:1.2}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;margin-top:2px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.ok .dot{background:var(--ok)} .ok{color:var(--ok)}
+.connecting .dot{background:var(--warn);animation:blink 1s infinite} .connecting{color:var(--warn)}
+.error .dot{background:var(--bad)} .error{color:var(--bad)}
+.revoked .dot{background:var(--bad)} .revoked{color:var(--bad)}
+@keyframes blink{50%{opacity:.3}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13px}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mono{font-family:Consolas,ui-monospace,monospace}
+.role{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px}
+.role.admin{background:var(--admin-bg);color:var(--admin)}
+.role.user{background:var(--chip);color:var(--acc)}
+.drive{display:flex;align-items:center;gap:12px;margin:2px 0 12px}
+.drive .letter{width:52px;height:52px;border-radius:12px;background:var(--chip);display:grid;place-items:center;font-size:22px;font-weight:700;color:var(--acc)}
+.drive .letter.off{color:var(--muted)}
+.drive b{display:block;font-size:15px}
+.drive small{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;background:var(--chip);color:var(--fg)}
+button.pri{background:var(--acc);color:var(--acc-fg);font-weight:600}
+button.danger{background:transparent;color:var(--bad);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.grow{flex:1}
+ol{margin:0 0 12px;padding-left:20px;font-size:13px}
+ol li{margin-bottom:4px}
+textarea{width:100%;height:64px;resize:none;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:12px Consolas,monospace;padding:8px;margin-bottom:8px;user-select:text}
+.set{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:13px}
+.set + .set{border-top:1px solid var(--line)}
+select{font:inherit;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.switch{position:relative;width:40px;height:22px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;border-radius:99px;background:var(--line);cursor:pointer;transition:.15s}
+.switch span::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}
+.switch input:checked + span{background:var(--acc)}
+.switch input:checked + span::before{transform:translateX(18px)}
+.notice{font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:12px;background:var(--admin-bg);color:var(--admin);word-break:break-word}
+.notice.info{background:var(--chip);color:var(--fg)}
+.muted{color:var(--muted);font-size:12px}
+footer{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img class="logo" src="{{ICON}}" alt="">
+    <div>
+      <h1>NASfone</h1>
+      <div class="pill" id="pill"><span class="dot"></span><span id="statusText">…</span></div>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+  <div class="row" id="repairRow" hidden style="margin:-4px 0 12px"><button class="pri grow" onclick="pnRepair()" data-i18n="w_repair"></button></div>
+  <div class="notice" id="deps" hidden></div>
+  <div class="notice info row" id="updRow" hidden style="align-items:center;gap:10px"><span class="grow" id="updText"></span><button class="pri" id="btnUpd" onclick="pnUpdate()"></button></div>
+
+  <!-- Paired -->
+  <section id="paired" hidden>
+    <div class="card">
+      <h2 data-i18n="w_drive"></h2>
+      <div class="drive">
+        <div class="letter" id="driveLetter">–</div>
+        <div><b id="driveTitle">NASfone</b><small id="driveSub"></small></div>
+      </div>
+      <div class="row">
+        <button class="pri grow" id="btnOpenDrive" onclick="pnOpenDrive()" data-i18n="w_open_explorer"></button>
+        <button onclick="pnOpenWeb()" data-i18n="w_web"></button>
+        <button onclick="pnReconnect()" data-i18n-title="w_reconnect">⟳</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="w_connection"></h2>
+      <div class="kv">
+        <span data-i18n="w_server"></span><span class="mono" id="host"></span>
+        <span data-i18n="w_access"></span><span><span class="role" id="role"></span></span>
+        <span data-i18n="w_this_pc"></span><span id="deviceName"></span>
+        <span data-i18n="w_server_fp"></span><span class="mono" id="fp"></span>
+        <span data-i18n="w_paired_at"></span><span id="pairedAt"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Not paired -->
+  <section id="unpaired" hidden>
+    <div class="card">
+      <h2 data-i18n="w_pair_title"></h2>
+      <ol>
+        <li data-i18n-html="w_step1"></li>
+        <li data-i18n-html="w_step2"></li>
+        <li data-i18n-html="w_step3"></li>
+      </ol>
+      <p class="muted" data-i18n-html="w_or_paste"></p>
+      <textarea id="invite" placeholder="nasfone1:…" spellcheck="false"></textarea>
+      <div class="row">
+        <button onclick="pasteInvite()" data-i18n="w_paste"></button>
+        <button class="pri grow" id="btnPair" onclick="doPair()"></button>
+      </div>
+    </div>
+  </section>
+
+  <div class="card">
+    <h2 data-i18n="w_settings"></h2>
+    <div class="set">
+      <span data-i18n="w_drive_pref"></span>
+      <select id="drivePref" onchange="pnSetDrive(this.value)"></select>
+    </div>
+    <div class="set">
+      <span data-i18n="w_autostart"></span>
+      <label class="switch"><input type="checkbox" id="auto" onchange="setAuto(this.checked)"><span></span></label>
+    </div>
+    <div class="set">
+      <span data-i18n="w_language"></span>
+      <select id="langSel" onchange="setLang(this.value)">
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:8px"><button class="grow" onclick="if (confirm(tr('w_switch_server_q'))) pnSwitchRole()" data-i18n="w_switch_server"></button></div>
+  </div>
+
+  <footer>
+    <span><button onclick="pnOpenLogs()" data-i18n="w_logs"></button> <span class="muted" id="ver"></span></span>
+    <button class="danger" id="btnUnpair" onclick="pnUnpair()" hidden data-i18n="w_unpair"></button>
+  </footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let drivesKey = '';
+let T = {};
+const tr = k => T[k] || k;
+
+// applyI18n fills every element marked with data-i18n / -html / -title.
+async function applyI18n(){
+  T = await pnDict();
+  document.documentElement.lang = await pnLang();
+  document.querySelectorAll('[data-i18n]').forEach(e => e.textContent = tr(e.dataset.i18n));
+  document.querySelectorAll('[data-i18n-html]').forEach(e => e.innerHTML = tr(e.dataset.i18nHtml));
+  document.querySelectorAll('[data-i18n-title]').forEach(e => e.title = tr(e.dataset.i18nTitle));
+  $('langSel').value = document.documentElement.lang;
+}
+async function setLang(l){ await pnSetLang(l); await applyI18n(); }
+
+function render(s){
+  const pill = $('pill');
+  pill.className = 'pill ' + s.status;
+  $('statusText').textContent = s.statusText;
+  $('paired').hidden = !s.paired;
+  $('unpaired').hidden = s.paired;
+  $('btnUnpair').hidden = !s.paired;
+
+  $('repairRow').hidden = s.status !== 'revoked';
+  const n = $('notice');
+  n.hidden = !s.notice;
+  n.textContent = s.notice || '';
+
+  const missing = [];
+  if (!s.rcloneOK) missing.push('rclone (winget install Rclone.Rclone)');
+  if (!s.winfspOK) missing.push('WinFsp (winget install WinFsp.WinFsp)');
+  $('deps').hidden = !missing.length;
+  $('deps').textContent = tr('w_missing') + missing.join(', ');
+
+  if (s.paired) {
+    $('host').textContent = s.host;
+    const r = $('role');
+    r.className = 'role ' + (s.role === 'admin' ? 'admin' : 'user');
+    r.textContent = tr(s.role === 'admin' ? 'w_role_admin' : 'w_role_user');
+    $('deviceName').textContent = s.deviceName;
+    $('fp').textContent = s.serverFP;
+    $('pairedAt').textContent = s.pairedAt;
+    const L = $('driveLetter');
+    L.textContent = s.mounted ? s.drive.replace(':', '') : '–';
+    L.className = 'letter' + (s.mounted ? '' : ' off');
+    $('driveSub').textContent = s.mounted
+      ? tr(s.role === 'admin' ? 'w_rw' : 'w_ro') + ' • ' + tr('w_drive_n') + ' ' + s.drive
+      : tr(s.status === 'revoked' ? 'w_disconnected' : s.status === 'error' ? 'w_not_mounted' : 'w_mounting');
+    $('btnOpenDrive').disabled = !s.mounted;
+  }
+  $('btnPair').disabled = s.busy;
+  $('btnPair').textContent = tr(s.busy ? 'w_pairing' : 'w_pair');
+  $('auto').checked = s.autostart;
+  $('ver').textContent = 'v' + s.version;
+  $('updRow').hidden = !s.update;
+  if (s.update) {
+    $('updText').textContent = tr('w_update_avail').replace('%s', s.update);
+    $('btnUpd').textContent = tr(s.updating ? 'w_updating' : 'w_update_btn');
+    $('btnUpd').disabled = s.updating;
+  }
+
+  // Drive letter choices: free letters plus the current preference.
+  const opts = Array.from(new Set([s.prefDrive, ...(s.freeDrives || [])])).sort();
+  const key = opts.join() + '|' + s.prefDrive;
+  if (key !== drivesKey) {
+    drivesKey = key;
+    const sel = $('drivePref');
+    sel.innerHTML = '';
+    for (const l of opts) {
+      const o = document.createElement('option');
+      o.value = l; o.textContent = l + ':';
+      if (l === s.prefDrive) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+}
+
+async function tick(){
+  try { render(await pnState()); } catch (e) {}
+  setTimeout(tick, 1000);
+}
+async function pasteInvite(){ $('invite').value = (await pnClipboard()).trim(); }
+async function doPair(){
+  const v = $('invite').value.trim();
+  if (!v.includes('nasfone1:')) { $('invite').focus(); return; }
+  await pnPair(v);
+}
+async function setAuto(on){
+  const err = await pnSetAutostart(on);
+  if (err) alert(err);
+}
+applyI18n().then(tick);
+</script>
+</body>
+</html>

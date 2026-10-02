@@ -11,7 +11,7 @@ import (
 )
 
 func isServerAPK(name string) bool {
-	return strings.HasPrefix(name, "NASfone-Server-") && strings.HasSuffix(name, ".apk")
+	return strings.HasPrefix(name, "NASfone-Android-") && strings.HasSuffix(name, ".apk")
 }
 
 // CheckUpdate returns a JSON release {version, notes, pageURL, assetName, ...}

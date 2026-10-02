@@ -35,3 +35,10 @@ client-windows/rsrc_windows_*.syso
 server-windows/build/
 server-windows/dist/
 server-windows/rsrc_windows_*.syso
+
+# merged layout
+android/app/libs/
+windows/dist/
+windows/build/
+windows/installer/deps/
+windows/rsrc_windows_*.syso

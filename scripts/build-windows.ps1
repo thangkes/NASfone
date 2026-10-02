@@ -1,11 +1,11 @@
-# Build NASfone.exe and the installer client-windows\dist\NASfone-Windows-Client-Setup-<version>.exe
-#   .\scripts\build-windows.ps1                 # version from client-windows\VERSION
+# Build NASfone.exe (client + server roles) and the installer windows\dist\NASfone-Windows-Setup-<version>.exe
+#   .\scripts\build-windows.ps1                 # version from windows\VERSION
 #   .\scripts\build-windows.ps1 -Version 0.2.0
 param([string]$Version)
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path $PSScriptRoot -Parent
-$win = "$root\client-windows"
+$win = "$root\windows"
 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:USERPROFILE\go\bin"
 if (-not $Version) { $Version = (Get-Content "$win\VERSION" -Raw).Trim() }
 $v4 = "$Version.0"
@@ -44,7 +44,7 @@ try {
     if (-not $iscc) { throw "Inno Setup not found - winget install JRSoftware.InnoSetup" }
     & $iscc /Q "/DAppVersion=$Version" installer\nasfone.iss
     if ($LASTEXITCODE) { throw "ISCC failed ($LASTEXITCODE)" }
-    $out = Get-Item "dist\NASfone-Windows-Client-Setup-$Version.exe"
+    $out = Get-Item "dist\NASfone-Windows-Setup-$Version.exe"
     Write-Host ("Installer: {0} ({1:N1} MB)" -f $out.FullName, ($out.Length / 1MB)) -ForegroundColor Green
 } finally {
     Pop-Location
