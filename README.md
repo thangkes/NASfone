@@ -2,69 +2,67 @@
 
 **English** · [Tiếng Việt](README.vi.md)
 
-Turn a spare Android phone into a pocket NAS you can reach from anywhere.
+Turn a spare Android phone (or a Windows PC) into a NAS you can reach from anywhere.
 
-NASfone runs a small file server on the phone and puts it on your own
+NASfone is **one app per platform**. On first launch you pick what the device does:
+
+| | 📦 **Server** — stores the files | 📲💻 **Client** — uses a NAS elsewhere |
+|---|---|---|
+| **Android** | Shares the phone's storage | Browse, upload/download, NAS in the Files app, photo backup |
+| **Windows** | Shares a folder of the PC | Mounts the NAS as a drive letter (`P:`) |
+
+The role can be changed later in Settings. Servers join your own
 [Tailscale](https://tailscale.com) network (embedded, no separate Tailscale app needed).
-Open it in any browser, or map it as a drive letter on Windows.
+Any browser works as a client too.
 
-> Status: early (0.1.x). Works day to day on the author's phone; expect rough edges.
-> **Download:** [latest release](https://github.com/thangkes/NASfone/releases/latest)
-> (server APK for the phone, client installer for Windows). The **Windows server** has its
-> own releases tagged `windows-server-v…` on the [releases page](https://github.com/thangkes/NASfone/releases) (beta).
+> Status: early (0.x). Works day to day on the author's devices; expect rough edges.
+> **Download:** [latest release](https://github.com/thangkes/NASfone/releases/latest):
+> `NASfone-Android-<version>.apk` and `NASfone-Windows-Setup-<version>.exe`.
 
 ## Features
 
-- **Server app for Android** — runs as a foreground service, survives "clear all" in
-  recents, keeps running offline and reconnects as soon as Wi-Fi or mobile data returns.
-  A notification shows live status and traffic.
-- **Bring your own Tailscale account** — sign in, sign out or switch accounts inside the
-  app. A custom control server (e.g. [Headscale](https://github.com/juanfont/headscale))
-  is supported. Nothing is hardcoded.
-- **Public HTTPS link via Tailscale Funnel** (optional) — open your files from a browser
-  that is not on your tailnet.
-- **Web file browser** — upload, download, create folders, delete; asks what to do on
-  duplicate uploads (overwrite, keep both, skip). Also a standard WebDAV endpoint.
-- **No passwords** — browser login uses rolling 6-digit codes shown in the phone app:
-  - an **Admin** code (full access) and a **User** code (view and download only),
-    guaranteed never to be equal;
-  - sessions live only until the browser closes (24 h server-side cap).
-- **Paired devices with their own keys** — each client app gets its own key pair and a
-  role (Admin or User). Revoke or change roles from the phone at any time.
-- **Windows server (NASfone for Windows - Server, beta)** — share a folder of a PC the same
-  way: embedded Tailscale, Funnel, sign-in codes, paired apps, LAN access (LAN QR requests
-  are approved in its window), tray icon and start with Windows.
-- **Android client (NASfone Client, beta)** — use your servers from another phone: QR
-  pairing with a key held by the Android Keystore, browse/upload/download, the NAS as a
-  location in the Files app, automatic photo & video backup, fastest path (LAN, tailnet,
-  Funnel) chosen automatically. Releases tagged `android-client-v…`.
-- **Windows app (NASfone for Windows - Client)** — tray icon, mounts the phone as a drive (`P:` by default) with the
-  real free space, read-only for the User role, detects revocation. Pair in one click
-  from the web page ("Connect the app on this computer").
-- **LAN access, no internet needed** (optional switch) — browsers on the same Wi-Fi or on
-  the phone's hotspot open `http://<phone-ip>:8080` and sign in with a 6-digit code or by
-  **scanning the QR code** on the page with the phone app. QR sessions are view-only,
-  never saved, and end after 1 hour without traffic or when the phone's local IP changes.
-  (Plain HTTP: use it on networks you trust.)
-- **Automatic configuration backup** — the phone app keeps
-  `Download/NASfone-config-backup.zip` up to date (Tailscale sign-in, paired devices,
-  settings) and offers to restore it after a reinstall.
-- **Updates from GitHub Releases** — both apps check for new versions and update in one
-  tap (checksum-verified; Android asks you to confirm the install). Updates keep your setup.
-- **English and Vietnamese** everywhere (phone app, web, Windows app).
+**Server role**
+
+- **Runs in the background.** On Android it is a foreground service that survives "clear all", keeps running offline and reconnects as soon as the network returns. On Windows it is a tray app that starts with Windows.
+- **Bring your own Tailscale account.** Sign in, sign out or switch accounts in the app; a custom control server such as [Headscale](https://github.com/juanfont/headscale) works too. Nothing is hardcoded.
+- **Public HTTPS link via Tailscale Funnel** (optional).
+- **Web file browser and WebDAV.** When an upload already exists, you choose to overwrite, keep both or skip.
+- **No passwords.** Browsers sign in with rolling 6-digit codes:
+  - an **Admin** code (full access) and a **User** code (view and download only), never equal;
+  - sessions end when the browser closes (24 h server-side cap).
+- **Paired apps.** Each client device gets its own key and a role (Admin or User), which can be changed or revoked at any time.
+- **LAN access without internet** (optional). Browsers on the same network open `http://<server-ip>:8080` and sign in with a code or a **QR code**:
+  - on a phone server, the phone scans the browser's QR code;
+  - on a Windows server, you approve a 4-character check code in its window;
+  - QR sessions are view-only, never saved, and end after 1 h idle or when the server's IP changes;
+  - LAN traffic is plain HTTP, so use it on networks you trust.
+- **Automatic configuration backup** on Android (`Download/NASfone-config-backup.zip`), offered for restore after a reinstall.
+
+**Client role**
+
+- **Pairing.** Scan the server's QR code, click "Connect the app on this computer" on its web page, or paste an invite. The app always asks for confirmation.
+- **Fastest path.** The client picks LAN, then tailnet, then Funnel, and checks the server's identity on every sign-in.
+- **Android:**
+  - device key held by the Android Keystore;
+  - browse, open, share, download, and upload (Admin);
+  - the NAS appears in the **Files app** and in file pickers;
+  - **automatic photo & video backup**, optionally Wi-Fi only.
+- **Windows:** mounts the NAS as a drive with its real free space (read-only for the User role) and detects revocation.
+
+**Both:** updates from GitHub Releases in one tap, with checksums verified and your setup kept. English and Vietnamese everywhere.
 
 ## How it works
 
 ```
-                 ┌──────────────── core (Go) ─────────────────┐
-                 │ auth codes · pairing · WebDAV · web UI     │
-                 │ embedded Tailscale (tsnet) · Funnel        │
-                 └───────┬────────────────┬──────────────┬────┘
-                gomobile │       gomobile │     go build │
-          ┌──────────────▼───┐  ┌─────────▼────────┐  ┌──▼───────────────┐
-          │ server-android   │  │ client-android   │  │ client-windows   │
-          │ (APK, the NAS)   │  │ (APK, beta)      │  │ (EXE + installer)│
-          └──────────────────┘  └──────────────────┘  └──────────────────┘
+                ┌──────────────────── core (Go) ─────────────────────┐
+                │ codes · pairing · WebDAV · web UI · LAN · updates   │
+                │ embedded Tailscale (tsnet) · Funnel · client core   │
+                └──────────────┬───────────────────────┬─────────────┘
+                      gomobile │                        │ go build
+                 ┌─────────────▼──────────┐   ┌─────────▼──────────────┐
+                 │ android/  (one APK)    │   │ windows/  (one EXE)    │
+                 │ server · client roles  │   │ server · client roles  │
+                 └────────────────────────┘   └────────────────────────┘
 ```
 
 - [docs/DESIGN.md](docs/DESIGN.md) — architecture and decisions
@@ -72,38 +70,31 @@ Open it in any browser, or map it as a drive letter on Windows.
 
 ## Getting started
 
-1. Download `NASfone-Server-<version>.apk` from the
-   [latest release](https://github.com/thangkes/NASfone/releases/latest), install it on the
-   phone that will hold the files and open it.
-2. Grant the requested permissions (all-files access, notifications, ignore battery
-   optimisation).
-3. Under **Tailscale account**, tap **Sign in** and sign in with your own account.
-4. Open the address shown in the app from a device on the same tailnet (or turn on
-   Funnel for a public HTTPS link) and log in with the current Admin or User code.
-5. On Windows: install `NASfone-Windows-Client-Setup-<version>.exe`, then on the web page click
-   **Connect the app on this computer** and confirm in the NASfone dialog.
-
-6. Optional: under **LAN access**, switch it on to reach the phone directly from the same
-   network, even without internet.
+1. **Server:**
+   1. Install NASfone on the device that will hold the files and choose **Be the server**.
+   2. Grant the requested permissions.
+   3. Under **Tailscale account**, tap **Sign in** and use your own account.
+   4. Optionally turn on Funnel (public link) or LAN access.
+2. **Browser:** open the address shown by the server and sign in with the Admin or User code.
+3. **Client:** install NASfone on the other device, choose **Be a client**, and pair:
+   - scan the QR code from "Pair a new device" on the server, or
+   - on Windows, click **Connect the app on this computer** on the server's web page.
 
 > Some Android brands kill background apps aggressively. Allow NASfone to run in the
 > background / auto-launch in the phone's battery settings.
 
 ## Building from source
 
-Requirements: Go 1.27+, [gomobile](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile),
-Android SDK + NDK, the JDK bundled with Android Studio. For the Windows installer:
-[go-winres](https://github.com/tc-hib/go-winres), [Inno Setup 6](https://jrsoftware.org/isinfo.php),
-[rclone](https://rclone.org) (`winget install Rclone.Rclone`) and the signed
-[WinFsp](https://github.com/winfsp/winfsp/releases) MSI in `client-windows/installer/deps/`.
+**Requirements:**
+- Go 1.27+, [gomobile](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile), Android SDK + NDK, and the JDK bundled with Android Studio.
+- For the Windows installer: [go-winres](https://github.com/tc-hib/go-winres), [Inno Setup 6](https://jrsoftware.org/isinfo.php), [rclone](https://rclone.org) (`winget install Rclone.Rclone`), and the signed [WinFsp](https://github.com/winfsp/winfsp/releases) MSI in `windows/installer/deps/`.
 
 ```powershell
-.\scripts\build-server.ps1             # Go core -> AAR -> server APK
-.\scripts\build-server.ps1 -Install    # ...and install on a phone via adb
-.\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Windows-Client-Setup-<version>.exe
-.\scripts\release.ps1 0.2.0            # bump, build both, tag and publish a GitHub Release
-.\scripts\build-windows-server.ps1     # NASfoneServer.exe + server-windows\dist\NASfone-Windows-Server-Setup-<version>.exe
-.\scripts\release-windows-server.ps1 0.2.0-beta.1 -NotesFile notes.md   # Windows server release
+.\scripts\build-android.ps1                                  # Go core -> AAR -> APK
+.\scripts\build-android.ps1 -Install -Device <adb serial>    # ...and install it
+.\scripts\build-android.ps1 -Emulator -Install -Device emulator-5554   # with x86_64 for the emulator
+.\scripts\build-windows.ps1                                  # NASfone.exe + windows\dist\NASfone-Windows-Setup-<version>.exe
+.\scripts\release.ps1 0.2.1 -NotesFile notes.md              # bump, build both, tag v0.2.1, publish
 ```
 
 For quick web UI work there is a local dev server: `cd core; go run ./cmd/devserver`
@@ -117,12 +108,10 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 
 | Folder | What |
 |---|---|
-| [`core/`](core/) | Shared Go code: auth codes, pairing, LAN QR sign-in, WebDAV + web UI, updates, gomobile bindings |
-| [`server-android/`](server-android/) | Android server app (Kotlin shell around the Go core) |
-| [`client-windows/`](client-windows/) | Windows tray app, drive mount, installer |
-| [`server-windows/`](server-windows/) | Windows server app (beta) and its installer |
-| [`client-android/`](client-android/) | Android client (beta): pairing, browsing, Files app integration, photo backup |
-| [`scripts/`](scripts/) | Build scripts |
+| [`core/`](core/) | Shared Go code: server (`server`, `mobile`), client (`client`, `mobileclient`), pairing, auth, updates |
+| [`android/`](android/) | Android app: `com.nasfone.server` (server role, role chooser) and `com.nasfone.client` (client role) |
+| [`windows/`](windows/) | Windows app: client role (drive mount) and server role (`srv/`), installer |
+| [`scripts/`](scripts/) | Build and release scripts |
 | [`docs/`](docs/) | Design notes |
 
 ## Roadmap
@@ -133,5 +122,5 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 ## License
 
 [MIT](LICENSE). The Windows installer bundles rclone (MIT) and WinFsp (GPLv3 with FLOSS
-exception); see [THIRD-PARTY-NOTICES](client-windows/installer/THIRD-PARTY-NOTICES.txt).
+exception); see [THIRD-PARTY-NOTICES](windows/installer/THIRD-PARTY-NOTICES.txt).
 NASfone is not affiliated with Tailscale Inc.

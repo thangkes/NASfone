@@ -2,105 +2,105 @@
 
 [English](README.md) · **Tiếng Việt**
 
-Biến một chiếc điện thoại Android cũ thành NAS bỏ túi, truy cập được từ bất cứ đâu.
+Biến một chiếc điện thoại Android cũ (hoặc một máy tính Windows) thành NAS, truy cập được từ bất cứ đâu.
 
-NASfone chạy một server file nhỏ trên điện thoại và đưa nó vào mạng
+NASfone có **một app cho mỗi nền tảng**. Lần đầu mở app, bạn chọn máy đó dùng để làm gì:
+
+| | 📦 **Server**: chứa file | 📲💻 **Client**: dùng NAS ở máy khác |
+|---|---|---|
+| **Android** | Chia sẻ bộ nhớ điện thoại | Duyệt, tải lên/tải về, NAS hiện trong app Tệp, sao lưu ảnh |
+| **Windows** | Chia sẻ một thư mục của máy | Gắn NAS thành ổ đĩa (`P:`) |
+
+Vai trò đổi được sau này trong phần Cài đặt. Server tham gia mạng
 [Tailscale](https://tailscale.com) của chính bạn (nhúng sẵn, không cần cài app Tailscale riêng).
-Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên Windows.
+Trình duyệt bất kỳ cũng dùng làm client được.
 
-> Trạng thái: giai đoạn đầu (0.1.x). Đang dùng hằng ngày trên điện thoại của tác giả, có thể còn lỗi vặt.
-> **Tải về:** [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest)
-> (APK server cho điện thoại, bộ cài client cho Windows). **Server cho Windows** có bản phát
-> hành riêng, tag `windows-server-v…`, trên [trang Releases](https://github.com/thangkes/NASfone/releases) (beta).
+> Trạng thái: giai đoạn đầu (0.x). Đang dùng hằng ngày trên máy của tác giả, có thể còn lỗi vặt.
+> **Tải về:** [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest):
+> `NASfone-Android-<phiên bản>.apk` và `NASfone-Windows-Setup-<phiên bản>.exe`.
 
 ## Tính năng
 
-- **App server cho Android** — chạy dạng dịch vụ nền, không bị tắt khi "xoá tất cả" ứng
-  dụng gần đây, vẫn chạy khi mất mạng và kết nối lại ngay khi có Wi-Fi hoặc 3G/4G.
-  Thanh thông báo hiện trạng thái và lưu lượng trực tiếp.
-- **Dùng tài khoản Tailscale của bạn** — đăng nhập, đăng xuất, đổi tài khoản ngay trong
-  app. Hỗ trợ control server riêng (ví dụ [Headscale](https://github.com/juanfont/headscale)).
-  Không có gì gán cứng.
-- **Link HTTPS công khai qua Tailscale Funnel** (tuỳ chọn) — mở file từ trình duyệt
-  không nằm trong tailnet.
-- **Trình duyệt file trên web** — tải lên, tải xuống, tạo thư mục, xoá; khi tải lên file
-  trùng sẽ hỏi ghi đè, giữ cả hai hay bỏ qua. Có cả endpoint WebDAV chuẩn.
-- **Không dùng mật khẩu** — đăng nhập web bằng mã 6 số xoay vòng hiển thị trong app:
+**Vai trò server**
+
+- **Chạy nền:**
+  - Android: dịch vụ nền, không bị tắt khi "xoá tất cả" app gần đây, vẫn chạy khi mất mạng và kết nối lại ngay khi có mạng.
+  - Windows: chạy ở khay hệ thống và tự khởi động cùng Windows.
+- **Dùng tài khoản Tailscale của bạn:** đăng nhập, đăng xuất, đổi tài khoản ngay trong app. Hỗ trợ cả [Headscale](https://github.com/juanfont/headscale). Không có gì gán cứng.
+- **Link HTTPS công khai qua Tailscale Funnel** (tuỳ chọn).
+- **Trình duyệt file trên web và WebDAV:** khi tải lên file trùng tên thì hỏi ghi đè, giữ cả hai hay bỏ qua.
+- **Không dùng mật khẩu.** Trình duyệt đăng nhập bằng mã 6 số xoay vòng:
   - mã **Admin** (toàn quyền) và mã **User** (chỉ xem và tải về), không bao giờ trùng nhau;
-  - phiên đăng nhập mất khi tắt trình duyệt (tối đa 24 giờ phía server).
-- **Thiết bị ghép đôi có khoá riêng** — mỗi app client có cặp khoá riêng và một quyền
-  (Admin hoặc User). Thu hồi hay đổi quyền ngay trên điện thoại.
-- **Server cho Windows (NASfone for Windows - Server, beta)** — chia sẻ một thư mục của PC
-  theo cùng cách: Tailscale nhúng, Funnel, mã đăng nhập, app đã ghép, kết nối LAN (yêu cầu
-  đăng nhập QR qua LAN được duyệt ngay trong cửa sổ), biểu tượng khay, tự khởi động.
-- **App client Android (NASfone Client, beta)** — dùng server từ điện thoại khác: ghép đôi
-  bằng QR với khoá nằm trong Android Keystore, duyệt / tải lên / tải về, NAS hiện trong app
-  Tệp, tự sao lưu ảnh & video, tự chọn đường nhanh nhất (LAN, tailnet, Funnel). Bản phát
-  hành có tag `android-client-v…`.
-- **App Windows (NASfone for Windows - Client)** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
-  với dung lượng trống thật, chỉ đọc với quyền User, tự nhận biết khi bị thu hồi. Ghép
-  đôi một chạm từ trang web ("Kết nối app trên máy này").
-- **Kết nối LAN, không cần internet** (nút gạt tuỳ chọn) — trình duyệt cùng Wi-Fi hoặc
-  hotspot của điện thoại mở `http://<IP điện thoại>:8080`, đăng nhập bằng mã 6 số hoặc
-  **quét mã QR** trên trang bằng app điện thoại. Phiên QR chỉ xem, không lưu lại, tự kết
-  thúc sau 1 giờ không dùng hoặc khi IP LAN của điện thoại đổi. (HTTP thường: chỉ dùng ở
-  mạng tin cậy.)
-- **Tự sao lưu cấu hình** — app điện thoại luôn cập nhật `Download/NASfone-config-backup.zip`
-  (đăng nhập Tailscale, thiết bị đã ghép, cài đặt) và hỏi khôi phục khi cài lại app.
-- **Tự cập nhật từ GitHub Releases** — cả hai app tự tìm bản mới và cập nhật bằng một chạm
-  (kiểm tra SHA-256; Android sẽ hỏi xác nhận khi cài). Cập nhật giữ nguyên cấu hình.
-- **Tiếng Anh và tiếng Việt** ở mọi nơi (app điện thoại, web, app Windows).
+  - phiên đăng nhập mất khi tắt trình duyệt (tối đa 24 giờ).
+- **App đã ghép đôi:** mỗi thiết bị client có khoá riêng và một quyền (Admin hoặc User). Đổi quyền hay thu hồi lúc nào cũng được.
+- **Kết nối LAN không cần internet** (tuỳ chọn). Trình duyệt cùng mạng mở `http://<IP server>:8080`, đăng nhập bằng mã 6 số hoặc **mã QR**:
+  - server là điện thoại thì điện thoại quét QR trên trang;
+  - server là Windows thì bạn bấm cho phép trong cửa sổ server, sau khi đối chiếu mã 4 ký tự;
+  - phiên QR chỉ xem, không lưu lại, tự kết thúc sau 1 giờ không dùng hoặc khi IP của server đổi;
+  - kết nối LAN là HTTP thường, chỉ nên dùng ở mạng tin cậy.
+- **Tự sao lưu cấu hình** trên Android (`Download/NASfone-config-backup.zip`). Cài lại app là được hỏi khôi phục.
+
+**Vai trò client**
+
+- **Ghép đôi:** quét mã QR của server, bấm "Kết nối app trên máy này" trên trang web của server, hoặc dán lời mời. App luôn hỏi xác nhận trước khi ghép.
+- **Tự chọn đường nhanh nhất:** LAN, rồi tailnet, rồi Funnel. Mỗi lần đăng nhập đều kiểm tra danh tính server.
+- **Android:**
+  - khoá nằm trong Android Keystore;
+  - duyệt, mở, chia sẻ, tải về; tải lên với quyền Admin;
+  - NAS hiện trong **app Tệp** và trong mọi bộ chọn file;
+  - **tự sao lưu ảnh và video**, có tuỳ chọn chỉ khi có Wi-Fi.
+- **Windows:** gắn NAS thành ổ đĩa với dung lượng trống thật. Với quyền User thì ổ chỉ đọc. App tự nhận biết khi bị thu hồi.
+
+**Chung:** tự cập nhật từ GitHub bằng một chạm (kiểm tra SHA-256, giữ nguyên cấu hình). Giao diện tiếng Anh và tiếng Việt ở mọi nơi.
 
 ## Cách hoạt động
 
 ```
-                 ┌──────────────── core (Go) ─────────────────┐
-                 │ mã đăng nhập · ghép đôi · WebDAV · web UI  │
-                 │ Tailscale nhúng (tsnet) · Funnel           │
-                 └───────┬────────────────┬──────────────┬────┘
-                gomobile │       gomobile │     go build │
-          ┌──────────────▼───┐  ┌─────────▼────────┐  ┌──▼───────────────┐
-          │ server-android   │  │ client-android   │  │ client-windows   │
-          │ (APK, làm NAS)   │  │ (APK, beta)      │  │ (EXE + bộ cài)   │
-          └──────────────────┘  └──────────────────┘  └──────────────────┘
+                ┌──────────────────── core (Go) ─────────────────────┐
+                │ mã · ghép đôi · WebDAV · web UI · LAN · cập nhật    │
+                │ Tailscale nhúng (tsnet) · Funnel · lõi client       │
+                └──────────────┬───────────────────────┬─────────────┘
+                      gomobile │                        │ go build
+                 ┌─────────────▼──────────┐   ┌─────────▼──────────────┐
+                 │ android/  (một APK)    │   │ windows/  (một EXE)    │
+                 │ vai trò server · client│   │ vai trò server · client│
+                 └────────────────────────┘   └────────────────────────┘
 ```
 
-- [docs/DESIGN.md](docs/DESIGN.md) — kiến trúc và các quyết định thiết kế
-- [docs/PAIRING.md](docs/PAIRING.md) — giao thức ghép đôi và xác thực
+- [docs/DESIGN.md](docs/DESIGN.md): kiến trúc và các quyết định thiết kế
+- [docs/PAIRING.md](docs/PAIRING.md): giao thức ghép đôi và xác thực
 
 ## Bắt đầu
 
-1. Tải `NASfone-Server-<phiên bản>.apk` từ
-   [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest), cài lên
-   điện thoại dùng để chứa file và mở app.
-2. Cấp các quyền app yêu cầu (truy cập mọi file, thông báo, bỏ tối ưu pin).
-3. Trong mục **Tài khoản Tailscale**, bấm **Đăng nhập** và đăng nhập bằng tài khoản của bạn.
-4. Mở địa chỉ hiện trong app từ thiết bị cùng tailnet (hoặc bật Funnel để có link HTTPS
-   công khai) rồi đăng nhập bằng mã Admin hoặc User đang hiện.
-5. Trên Windows: cài `NASfone-Windows-Client-Setup-<phiên bản>.exe`, rồi trên trang web bấm
-   **Kết nối app trên máy này** và xác nhận trong hộp thoại NASfone.
-
-6. Tuỳ chọn: trong mục **Kết nối LAN**, gạt bật để vào thẳng điện thoại từ cùng mạng, kể cả
-   khi không có internet.
+1. **Server:**
+   1. Cài NASfone lên máy dùng để chứa file, chọn **Làm server**.
+   2. Cấp các quyền app yêu cầu.
+   3. Trong mục **Tài khoản Tailscale**, bấm **Đăng nhập** bằng tài khoản của bạn.
+   4. Tuỳ chọn: bật Funnel (link công khai) hoặc kết nối LAN.
+2. **Trình duyệt:** mở địa chỉ server hiện ra, đăng nhập bằng mã Admin hoặc User.
+3. **Client:** cài NASfone lên máy kia, chọn **Làm client**, rồi ghép đôi theo một trong hai cách:
+   - quét mã QR ở mục "Ghép thiết bị mới" trên server;
+   - trên Windows, bấm **Kết nối app trên máy này** ở trang web của server.
 
 > Một số hãng điện thoại tắt app nền rất mạnh tay. Hãy cho phép NASfone chạy nền / tự
 > khởi chạy trong phần cài đặt pin của máy.
 
 ## Build từ mã nguồn
 
-Cần: Go 1.27+, [gomobile](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile),
-Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần thêm
-[go-winres](https://github.com/tc-hib/go-winres), [Inno Setup 6](https://jrsoftware.org/isinfo.php),
-[rclone](https://rclone.org) (`winget install Rclone.Rclone`) và file MSI có chữ ký của
-[WinFsp](https://github.com/winfsp/winfsp/releases) đặt trong `client-windows/installer/deps/`.
+**Cần:**
+- Go 1.27+, [gomobile](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile), Android SDK + NDK, JDK đi kèm Android Studio.
+- Riêng bộ cài Windows cần thêm:
+  - [go-winres](https://github.com/tc-hib/go-winres);
+  - [Inno Setup 6](https://jrsoftware.org/isinfo.php);
+  - [rclone](https://rclone.org) (`winget install Rclone.Rclone`);
+  - file MSI có chữ ký của [WinFsp](https://github.com/winfsp/winfsp/releases), đặt trong `windows/installer/deps/`.
 
 ```powershell
-.\scripts\build-server.ps1             # lõi Go -> AAR -> APK server
-.\scripts\build-server.ps1 -Install    # ...và cài lên điện thoại qua adb
-.\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Windows-Client-Setup-<phiên bản>.exe
-.\scripts\release.ps1 0.2.0            # tăng phiên bản, build cả hai, gắn tag và tạo GitHub Release
-.\scripts\build-windows-server.ps1     # NASfoneServer.exe + server-windows\dist\NASfone-Windows-Server-Setup-<phiên bản>.exe
-.\scripts\release-windows-server.ps1 0.2.0-beta.1 -NotesFile notes.md   # phát hành server Windows
+.\scripts\build-android.ps1                                  # lõi Go -> AAR -> APK
+.\scripts\build-android.ps1 -Install -Device <adb serial>    # ...và cài lên máy
+.\scripts\build-android.ps1 -Emulator -Install -Device emulator-5554   # kèm x86_64 cho máy ảo
+.\scripts\build-windows.ps1                                  # NASfone.exe + windows\dist\NASfone-Windows-Setup-<phiên bản>.exe
+.\scripts\release.ps1 0.2.1 -NotesFile notes.md              # tăng phiên bản, build cả hai, tag v0.2.1, phát hành
 ```
 
 Để sửa giao diện web nhanh có server chạy local: `cd core; go run ./cmd/devserver`
@@ -114,12 +114,10 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 
 | Thư mục | Nội dung |
 |---|---|
-| [`core/`](core/) | Mã Go dùng chung: mã đăng nhập, ghép đôi, đăng nhập LAN bằng QR, WebDAV + web UI, cập nhật, gomobile |
-| [`server-android/`](server-android/) | App server Android (vỏ Kotlin bọc lõi Go) |
-| [`client-windows/`](client-windows/) | App khay Windows, gắn ổ đĩa, bộ cài |
-| [`server-windows/`](server-windows/) | App server cho Windows (beta) và bộ cài |
-| [`client-android/`](client-android/) | App client Android (beta): ghép đôi, duyệt file, app Tệp, sao lưu ảnh |
-| [`scripts/`](scripts/) | Script build |
+| [`core/`](core/) | Mã Go dùng chung: server (`server`, `mobile`), client (`client`, `mobileclient`), ghép đôi, xác thực, cập nhật |
+| [`android/`](android/) | App Android: `com.nasfone.server` (vai trò server, màn hình chọn vai trò) và `com.nasfone.client` (vai trò client) |
+| [`windows/`](windows/) | App Windows: vai trò client (gắn ổ) và vai trò server (`srv/`), bộ cài |
+| [`scripts/`](scripts/) | Script build và phát hành |
 | [`docs/`](docs/) | Ghi chú thiết kế |
 
 ## Lộ trình
@@ -130,5 +128,5 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 ## Giấy phép
 
 [MIT](LICENSE). Bộ cài Windows kèm rclone (MIT) và WinFsp (GPLv3 kèm ngoại lệ FLOSS);
-xem [THIRD-PARTY-NOTICES](client-windows/installer/THIRD-PARTY-NOTICES.txt).
+xem [THIRD-PARTY-NOTICES](windows/installer/THIRD-PARTY-NOTICES.txt).
 NASfone không liên kết với Tailscale Inc.
