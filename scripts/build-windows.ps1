@@ -17,7 +17,7 @@ try {
     go run ./tools/genicon
     if ($LASTEXITCODE) { throw "genicon failed" }
     # Stamp the version into the exe resources.
-    $j = Get-Content winres\winres.json -Raw | ConvertFrom-Json
+    $j = Get-Content winres\winres.json -Raw -Encoding UTF8 | ConvertFrom-Json
     $j.RT_MANIFEST.'#1'.'0409'.identity.version = $v4
     $vi = $j.RT_VERSION.'#1'.'0000'
     $vi.fixed.file_version = $v4; $vi.fixed.product_version = $v4
