@@ -27,3 +27,6 @@ client-android/app/libs/
 client-windows/dist/
 client-windows/installer/deps/
 client-windows/rsrc_windows_*.syso
+
+# Release assets staged by scripts/release.ps1
+/dist/
