@@ -207,7 +207,7 @@ class MainActivity : Activity() {
         }.also { col.addView(it) }
         col.addView(button(L("Lưu cài đặt", "Save settings")) { save() })
         col.addView(button(L("Kiểm tra cập nhật", "Check for updates") + " (v${Updater.currentVersion(this)})") { checkUpdate() })
-        col.addView(button(L("Sao lưu cấu hình (trước khi gỡ / cài lại app)", "Back up configuration (before reinstalling)")) { backupConfig() })
+        col.addView(button(L("Sao lưu cấu hình (tự động, hoặc bấm để làm ngay)", "Configuration backup (automatic, tap to run now)")) { backupConfig() })
         col.addView(button(L("Ngôn ngữ: ", "Language: ") + when (prefs.lang) {
             "vi" -> "Tiếng Việt"; "en" -> "English"; else -> L("theo máy", "follow the phone")
         }) { chooseLanguage() })
@@ -647,12 +647,11 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this)
             .setTitle(L("Sao lưu cấu hình?", "Back up configuration?"))
             .setMessage(L(
-                "Lưu tài khoản Tailscale, thiết bị đã ghép và cài đặt vào:\n${ConfigBackup.file().path}\n\nServer tạm dừng vài giây. File này chứa khoá bí mật: giữ kín, và nó sẽ tự xoá sau khi khôi phục. Sau khi cài lại app, mở app là được hỏi khôi phục.",
-                "Saves the Tailscale account, paired devices and settings to:\n${ConfigBackup.file().path}\n\nThe server pauses for a few seconds. The file holds secret keys: keep it private; it is deleted after a restore. After reinstalling, open the app and it offers to restore."
+                "Tài khoản Tailscale, thiết bị đã ghép và cài đặt được lưu vào:\n${ConfigBackup.file().path}\n\nApp đã TỰ sao lưu vài phút một lần khi cấu hình thay đổi; nút này sao lưu ngay lập tức. Gỡ rồi cài lại app thì mở app là được hỏi khôi phục.\n\nFile này chứa khoá bí mật: đừng chia sẻ, đừng xoá nếu muốn giữ cấu hình.",
+                "The Tailscale account, paired devices and settings are saved to:\n${ConfigBackup.file().path}\n\nThe app already backs this up AUTOMATICALLY every few minutes when the configuration changes; this button does it right now. After a reinstall, open the app and it offers to restore.\n\nThe file holds secret keys: do not share it, and keep it if you want to keep your setup."
             ))
-            .setPositiveButton(L("Sao lưu", "Back up")) { _, _ ->
-                val wasRunning = Core.running
-                withServerStopped(wasRunning) {
+            .setPositiveButton(L("Sao lưu ngay", "Back up now")) { _, _ ->
+                thread(name = "nasfone-backup") {
                     val msg = try {
                         val f = ConfigBackup.export(this)
                         L("Đã sao lưu: ${f.path}", "Backed up: ${f.path}")

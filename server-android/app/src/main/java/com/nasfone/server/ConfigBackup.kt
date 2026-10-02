@@ -2,8 +2,10 @@ package com.nasfone.server
 
 import android.content.Context
 import android.os.Environment
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -12,13 +14,15 @@ import java.util.zip.ZipOutputStream
  * Sao lưu / khôi phục toàn bộ cấu hình server: trạng thái Tailscale (tsnet/), khoá định
  * danh + thiết bị đã ghép (pair/), phiên đăng nhập (auth.json) và cài đặt (Prefs).
  *
- * Dùng khi phải gỡ app rồi cài lại (ví dụ đổi khoá ký APK): Android xoá dữ liệu app khi gỡ,
- * nhưng file sao lưu nằm ở thư mục Download nên vẫn còn. File chứa khoá bí mật → nằm NGOÀI
- * thư mục chia sẻ của NAS và bị xoá ngay sau khi khôi phục.
+ * Android xoá dữ liệu app khi gỡ, nhưng file sao lưu nằm ở thư mục Download nên vẫn còn:
+ * cài lại app là được hỏi khôi phục. Server tự sao lưu định kỳ khi cấu hình thay đổi
+ * (autoBackup), nên lúc nào cũng có bản mới nhất. File chứa khoá bí mật → nằm NGOÀI thư mục
+ * chia sẻ của NAS.
  */
 object ConfigBackup {
     private val PARTS = listOf("tsnet", "pair", "auth.json")
     private const val PREFS_ENTRY = "prefs.json"
+    private var lastSig: String? = null
 
     fun file(): File = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
@@ -32,43 +36,99 @@ object ConfigBackup {
         return fresh && file().isFile
     }
 
-    /** Ghi file sao lưu. Chỉ gọi khi server đã dừng để trạng thái không đổi giữa chừng. */
+    /** Ghi file sao lưu ngay. */
+    @Synchronized
     fun export(ctx: Context): File {
+        val snap = snapshot(ctx) ?: throw IllegalStateException("configuration is being written, try again")
+        write(snap)
+        lastSig = signature(snap)
+        return file()
+    }
+
+    /**
+     * Gọi định kỳ từ service (luồng nền): chỉ ghi khi cấu hình đổi so với lần trước, hoặc
+     * file sao lưu đã mất. Bỏ qua lượt này nếu đang có file ghi dở.
+     */
+    @Synchronized
+    fun autoBackup(ctx: Context) {
+        if (!File(ctx.filesDir, "tsnet/tailscaled.state").isFile) return // chưa có gì đáng giữ
+        val snap = snapshot(ctx) ?: return
+        val sig = signature(snap)
+        if (sig == lastSig && file().isFile) return
+        try {
+            write(snap)
+            lastSig = sig
+        } catch (e: Exception) {
+            Core.log(L("Tự sao lưu cấu hình lỗi: $e", "Automatic configuration backup failed: $e"))
+        }
+    }
+
+    /** Đọc toàn bộ cấu hình vào bộ nhớ (tên → nội dung). null nếu file JSON đang ghi dở. */
+    private fun snapshot(ctx: Context): Map<String, ByteArray>? {
+        val out = sortedMapOf<String, ByteArray>()
+        for (name in PARTS) {
+            val f = File(ctx.filesDir, name)
+            if (f.exists()) collect(ctx.filesDir, f, out)
+        }
+        for ((name, bytes) in out) {
+            if (name.endsWith(".json") && !validJson(bytes)) return null
+        }
+        val prefs = JSONObject()
+        for ((k, v) in ctx.getSharedPreferences("nasfone", Context.MODE_PRIVATE).all.toSortedMap()) {
+            if (k.startsWith("update")) continue // update-check bookkeeping, not configuration
+            if (v is String || v is Boolean || v is Int || v is Long) prefs.put(k, v)
+        }
+        out[PREFS_ENTRY] = prefs.toString().toByteArray()
+        return out
+    }
+
+    private fun collect(base: File, f: File, out: MutableMap<String, ByteArray>) {
+        if (f.isDirectory) {
+            f.listFiles()?.forEach { collect(base, it, out) }
+            return
+        }
+        // Nhật ký của Tailscale đổi liên tục và không cần để khôi phục.
+        if (f.name.startsWith("tailscaled.log") && f.name.endsWith(".txt")) return
+        out[f.relativeTo(base).invariantSeparatorsPath] = f.readBytes()
+    }
+
+    private fun validJson(b: ByteArray): Boolean {
+        val s = b.toString(Charsets.UTF_8).trim()
+        return try {
+            if (s.startsWith("[")) JSONArray(s) else JSONObject(s)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun signature(snap: Map<String, ByteArray>): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        for ((name, bytes) in snap) {
+            md.update(name.toByteArray()); md.update(0); md.update(bytes); md.update(0)
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun write(snap: Map<String, ByteArray>) {
         val out = file()
         out.parentFile?.mkdirs()
         val tmp = File(out.path + ".part")
         ZipOutputStream(tmp.outputStream().buffered()).use { zip ->
-            for (name in PARTS) {
-                val f = File(ctx.filesDir, name)
-                if (f.exists()) addTree(zip, ctx.filesDir, f)
+            for ((name, bytes) in snap) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
             }
-            val prefs = JSONObject()
-            for ((k, v) in ctx.getSharedPreferences("nasfone", Context.MODE_PRIVATE).all) {
-                if (k.startsWith("update")) continue // update-check bookkeeping, not configuration
-                if (v is String || v is Boolean || v is Int || v is Long) prefs.put(k, v)
-            }
-            zip.putNextEntry(ZipEntry(PREFS_ENTRY))
-            zip.write(prefs.toString().toByteArray())
-            zip.closeEntry()
         }
         if (!tmp.renameTo(out)) {
             out.delete()
             if (!tmp.renameTo(out)) throw IllegalStateException("cannot write ${out.path}")
         }
-        return out
     }
 
-    private fun addTree(zip: ZipOutputStream, base: File, f: File) {
-        if (f.isDirectory) {
-            f.listFiles()?.forEach { addTree(zip, base, it) }
-            return
-        }
-        zip.putNextEntry(ZipEntry(f.relativeTo(base).invariantSeparatorsPath))
-        f.inputStream().use { it.copyTo(zip) }
-        zip.closeEntry()
-    }
-
-    /** Khôi phục rồi xoá file sao lưu. Chỉ gọi khi server đang dừng. */
+    /** Khôi phục từ file sao lưu. Chỉ gọi khi server đang dừng. File được giữ lại (tự sao lưu ghi đè sau). */
+    @Synchronized
     fun restore(ctx: Context) {
         val src = file()
         val base = ctx.filesDir.canonicalFile
@@ -103,6 +163,6 @@ object ConfigBackup {
             }
             ed.commit()
         }
-        src.delete()
+        lastSig = null
     }
 }

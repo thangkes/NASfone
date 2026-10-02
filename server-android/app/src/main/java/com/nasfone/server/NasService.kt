@@ -41,10 +41,13 @@ class NasService : Service() {
     private var lastNetwork: Network? = null
     private val nudge = Runnable { thread(name = "nasfone-netchange") { Mobile.networkChanged() } }
     // Cập nhật định kỳ để tốc độ về 0 khi hết truyền (trạng thái khi đó không đổi nên không có sự kiện).
+    private var ticks = 0
     private val tick = object : Runnable {
         override fun run() {
             updateNotification()
             Updater.maybeCheck(this@NasService) // no-op unless the last check is a few hours old
+            // Tự sao lưu cấu hình ~2 phút một lần (chỉ ghi khi có thay đổi), lần đầu sau ~30 s.
+            if (++ticks % 60 == 15) thread(name = "nasfone-autobackup") { ConfigBackup.autoBackup(applicationContext) }
             main.postDelayed(this, 2000)
         }
     }
