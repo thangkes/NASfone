@@ -1,8 +1,18 @@
 # NASfone
 
+[![Latest release](https://img.shields.io/github/v/release/thangkes/NASfone?include_prereleases&label=release)](https://github.com/thangkes/NASfone/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/thangkes/NASfone/total)](https://github.com/thangkes/NASfone/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20iOS%20(beta)-blue)
+![Go](https://img.shields.io/badge/core-Go-00ADD8)
+
 **English** · [Tiếng Việt](README.vi.md)
 
 Turn a spare Android phone (or a Windows PC) into a NAS you can reach from anywhere.
+
+A free, open-source **self-hosted personal cloud**: a web file browser and WebDAV server, the NAS as a
+**drive letter on Windows**, and **automatic photo backup** from your phone. Access is private
+through your own **Tailscale** network, with no port forwarding and no passwords.
 
 NASfone is **one app per platform**. On first launch you pick what the device does:
 

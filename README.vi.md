@@ -1,8 +1,21 @@
 # NASfone
 
+[![Latest release](https://img.shields.io/github/v/release/thangkes/NASfone?include_prereleases&label=release)](https://github.com/thangkes/NASfone/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/thangkes/NASfone/total)](https://github.com/thangkes/NASfone/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20iOS%20(beta)-blue)
+![Go](https://img.shields.io/badge/core-Go-00ADD8)
+
 [English](README.md) · **Tiếng Việt**
 
 Biến một chiếc điện thoại Android cũ (hoặc một máy tính Windows) thành NAS, truy cập được từ bất cứ đâu.
+
+Một **đám mây cá nhân tự host**, miễn phí, mã nguồn mở. NASfone có:
+- trình duyệt file trên web và máy chủ WebDAV;
+- NAS hiện thành **ổ đĩa trên Windows**;
+- **tự sao lưu ảnh** từ điện thoại.
+
+Truy cập riêng tư qua mạng **Tailscale** của chính bạn, không cần mở port, không cần mật khẩu.
 
 NASfone có **một app cho mỗi nền tảng**. Lần đầu mở app, bạn chọn máy đó dùng để làm gì:
 
