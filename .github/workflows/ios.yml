@@ -15,6 +15,10 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build for and attach to (e.g. v0.2.0); empty = test build"
+        required: false
 
 permissions:
   contents: write
@@ -46,7 +50,10 @@ jobs:
       - name: Version
         id: v
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then V="${GITHUB_REF_NAME#v}"; else V="0.0.0-ci${{ github.run_number }}"; fi
+          TAG="${{ github.event.inputs.tag }}"
+          if [ "${{ github.event_name }}" = "release" ]; then TAG="$GITHUB_REF_NAME"; fi
+          if [ -n "$TAG" ]; then V="${TAG#v}"; else V="0.0.0-ci${{ github.run_number }}"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           NUM="${V%%-*}"
           sed -i '' "s/MARKETING_VERSION: \".*\"/MARKETING_VERSION: \"$NUM\"/" ios/project.yml
           sed -i '' "s/CURRENT_PROJECT_VERSION: \".*\"/CURRENT_PROJECT_VERSION: \"${{ github.run_number }}\"/" ios/project.yml
@@ -76,14 +83,14 @@ jobs:
           path: ios/*.ipa
 
       - name: Attach to the release
-        if: github.event_name == 'release'
+        if: steps.v.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         working-directory: ios
         run: |
           F="NASfone-iOS-${{ steps.v.outputs.version }}.ipa"
-          gh release download "$GITHUB_REF_NAME" -p SHA256SUMS.txt -O SHA256SUMS.txt || touch SHA256SUMS.txt
+          gh release download "${{ steps.v.outputs.tag }}" -p SHA256SUMS.txt -O SHA256SUMS.txt || touch SHA256SUMS.txt
           grep -v " $F\$" SHA256SUMS.txt > sums.tmp || true
           shasum -a 256 "$F" | sed 's/ \*/  /' >> sums.tmp
           mv sums.tmp SHA256SUMS.txt
-          gh release upload "$GITHUB_REF_NAME" "$F" SHA256SUMS.txt --clobber
+          gh release upload "${{ steps.v.outputs.tag }}" "$F" SHA256SUMS.txt --clobber
