@@ -42,6 +42,8 @@ import java.util.Date
 import java.util.Locale
 import kotlin.concurrent.thread
 
+private const val REQ_CAMERA = 7
+
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs
 
@@ -744,12 +746,24 @@ class MainActivity : Activity() {
     }
 
     private fun scanLanQr() {
+        // Xin quyền camera trước, ngay trong app (máy quét chỉ dùng quyền đã có).
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
+            return
+        }
         IntentIntegrator(this)
             .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
             .setPrompt(L("Quét mã QR trên trang đăng nhập NASfone", "Scan the QR code on the NASfone sign-in page"))
             .setOrientationLocked(false)
             .setBeepEnabled(false)
             .initiateScan()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQ_CAMERA) return
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) scanLanQr()
+        else toast(L("Cần quyền camera để quét mã QR", "Camera permission is needed to scan the QR code"))
     }
 
     @Deprecated("Activity result API needs AndroidX; this app uses the platform Activity")

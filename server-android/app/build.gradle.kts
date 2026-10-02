@@ -60,6 +60,8 @@ dependencies {
     implementation(files("libs/nasfonecore.aar"))
     // QR scanner for LAN sign-in (camera; no Google Play services needed)
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    // The scanner calls ContextCompat for the camera permission but does not bring it along
+    implementation("androidx.core:core:1.13.1")
 }
 
 kotlin {
