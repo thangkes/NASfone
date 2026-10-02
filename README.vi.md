@@ -33,6 +33,10 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
 - **Server cho Windows (NASfone for Windows - Server, beta)** — chia sẻ một thư mục của PC
   theo cùng cách: Tailscale nhúng, Funnel, mã đăng nhập, app đã ghép, kết nối LAN (yêu cầu
   đăng nhập QR qua LAN được duyệt ngay trong cửa sổ), biểu tượng khay, tự khởi động.
+- **App client Android (NASfone Client, beta)** — dùng server từ điện thoại khác: ghép đôi
+  bằng QR với khoá nằm trong Android Keystore, duyệt / tải lên / tải về, NAS hiện trong app
+  Tệp, tự sao lưu ảnh & video, tự chọn đường nhanh nhất (LAN, tailnet, Funnel). Bản phát
+  hành có tag `android-client-v…`.
 - **App Windows (NASfone for Windows - Client)** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
   với dung lượng trống thật, chỉ đọc với quyền User, tự nhận biết khi bị thu hồi. Ghép
   đôi một chạm từ trang web ("Kết nối app trên máy này").
@@ -57,7 +61,7 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
                 gomobile │       gomobile │     go build │
           ┌──────────────▼───┐  ┌─────────▼────────┐  ┌──▼───────────────┐
           │ server-android   │  │ client-android   │  │ client-windows   │
-          │ (APK, làm NAS)   │  │ (dự kiến)        │  │ (EXE + bộ cài)   │
+          │ (APK, làm NAS)   │  │ (APK, beta)      │  │ (EXE + bộ cài)   │
           └──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
@@ -114,13 +118,12 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 | [`server-android/`](server-android/) | App server Android (vỏ Kotlin bọc lõi Go) |
 | [`client-windows/`](client-windows/) | App khay Windows, gắn ổ đĩa, bộ cài |
 | [`server-windows/`](server-windows/) | App server cho Windows (beta) và bộ cài |
-| [`client-android/`](client-android/) | App client Android (dự kiến) |
+| [`client-android/`](client-android/) | App client Android (beta): ghép đôi, duyệt file, app Tệp, sao lưu ảnh |
 | [`scripts/`](scripts/) | Script build |
 | [`docs/`](docs/) | Ghi chú thiết kế |
 
 ## Lộ trình
 
-- App client Android (ghép đôi bằng QR, duyệt file, sao lưu ảnh)
 - Khoá truy cập WebDAV cho app bên thứ ba
 - Bộ cài Windows có chữ ký số
 

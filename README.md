@@ -34,6 +34,10 @@ Open it in any browser, or map it as a drive letter on Windows.
 - **Windows server (NASfone for Windows - Server, beta)** — share a folder of a PC the same
   way: embedded Tailscale, Funnel, sign-in codes, paired apps, LAN access (LAN QR requests
   are approved in its window), tray icon and start with Windows.
+- **Android client (NASfone Client, beta)** — use your servers from another phone: QR
+  pairing with a key held by the Android Keystore, browse/upload/download, the NAS as a
+  location in the Files app, automatic photo & video backup, fastest path (LAN, tailnet,
+  Funnel) chosen automatically. Releases tagged `android-client-v…`.
 - **Windows app (NASfone for Windows - Client)** — tray icon, mounts the phone as a drive (`P:` by default) with the
   real free space, read-only for the User role, detects revocation. Pair in one click
   from the web page ("Connect the app on this computer").
@@ -59,7 +63,7 @@ Open it in any browser, or map it as a drive letter on Windows.
                 gomobile │       gomobile │     go build │
           ┌──────────────▼───┐  ┌─────────▼────────┐  ┌──▼───────────────┐
           │ server-android   │  │ client-android   │  │ client-windows   │
-          │ (APK, the NAS)   │  │ (planned)        │  │ (EXE + installer)│
+          │ (APK, the NAS)   │  │ (APK, beta)      │  │ (EXE + installer)│
           └──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
@@ -117,13 +121,12 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 | [`server-android/`](server-android/) | Android server app (Kotlin shell around the Go core) |
 | [`client-windows/`](client-windows/) | Windows tray app, drive mount, installer |
 | [`server-windows/`](server-windows/) | Windows server app (beta) and its installer |
-| [`client-android/`](client-android/) | Android client (planned) |
+| [`client-android/`](client-android/) | Android client (beta): pairing, browsing, Files app integration, photo backup |
 | [`scripts/`](scripts/) | Build scripts |
 | [`docs/`](docs/) | Design notes |
 
 ## Roadmap
 
-- Android client app (QR pairing, file browser, photo backup)
 - WebDAV access keys for third-party apps
 - Code-signed Windows installer
 
