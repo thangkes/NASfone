@@ -8,7 +8,9 @@ NASfone chạy một server file nhỏ trên điện thoại và đưa nó vào 
 [Tailscale](https://tailscale.com) của chính bạn (nhúng sẵn, không cần cài app Tailscale riêng).
 Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên Windows.
 
-> Trạng thái: giai đoạn đầu (0.1). Đang dùng hằng ngày trên điện thoại của tác giả, có thể còn lỗi vặt.
+> Trạng thái: giai đoạn đầu (0.1.x). Đang dùng hằng ngày trên điện thoại của tác giả, có thể còn lỗi vặt.
+> **Tải về:** [bản phát hành mới nhất](https://github.com/thangkes/NASfone/releases/latest)
+> (APK server cho điện thoại, bộ cài cho Windows).
 
 ## Tính năng
 
@@ -30,8 +32,15 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
 - **App Windows (NASfone for Windows - Client)** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
   với dung lượng trống thật, chỉ đọc với quyền User, tự nhận biết khi bị thu hồi. Ghép
   đôi một chạm từ trang web ("Kết nối app trên máy này").
+- **Kết nối LAN, không cần internet** (nút gạt tuỳ chọn) — trình duyệt cùng Wi-Fi hoặc
+  hotspot của điện thoại mở `http://<IP điện thoại>:8080`, đăng nhập bằng mã 6 số hoặc
+  **quét mã QR** trên trang bằng app điện thoại. Phiên QR chỉ xem, không lưu lại, tự kết
+  thúc sau 1 giờ không dùng hoặc khi IP LAN của điện thoại đổi. (HTTP thường: chỉ dùng ở
+  mạng tin cậy.)
+- **Tự sao lưu cấu hình** — app điện thoại luôn cập nhật `Download/NASfone-config-backup.zip`
+  (đăng nhập Tailscale, thiết bị đã ghép, cài đặt) và hỏi khôi phục khi cài lại app.
 - **Tự cập nhật từ GitHub Releases** — cả hai app tự tìm bản mới và cập nhật bằng một chạm
-  (kiểm tra SHA-256; Android sẽ hỏi xác nhận khi cài).
+  (kiểm tra SHA-256; Android sẽ hỏi xác nhận khi cài). Cập nhật giữ nguyên cấu hình.
 - **Tiếng Anh và tiếng Việt** ở mọi nơi (app điện thoại, web, app Windows).
 
 ## Cách hoạt động
@@ -100,7 +109,8 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 
 - App client Android (ghép đôi bằng QR, duyệt file, sao lưu ảnh)
 - Khoá truy cập WebDAV cho app bên thứ ba
-- Bản phát hành có chữ ký trên GitHub
+- NASfone server cho Windows
+- Bộ cài Windows có chữ ký số
 
 ## Giấy phép
 

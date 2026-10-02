@@ -8,7 +8,9 @@ NASfone runs a small file server on the phone and puts it on your own
 [Tailscale](https://tailscale.com) network (embedded, no separate Tailscale app needed).
 Open it in any browser, or map it as a drive letter on Windows.
 
-> Status: early (0.1). Works day to day on the author's phone; expect rough edges.
+> Status: early (0.1.x). Works day to day on the author's phone; expect rough edges.
+> **Download:** [latest release](https://github.com/thangkes/NASfone/releases/latest)
+> (server APK for the phone, installer for Windows).
 
 ## Features
 
@@ -31,8 +33,16 @@ Open it in any browser, or map it as a drive letter on Windows.
 - **Windows app (NASfone for Windows - Client)** — tray icon, mounts the phone as a drive (`P:` by default) with the
   real free space, read-only for the User role, detects revocation. Pair in one click
   from the web page ("Connect the app on this computer").
+- **LAN access, no internet needed** (optional switch) — browsers on the same Wi-Fi or on
+  the phone's hotspot open `http://<phone-ip>:8080` and sign in with a 6-digit code or by
+  **scanning the QR code** on the page with the phone app. QR sessions are view-only,
+  never saved, and end after 1 hour without traffic or when the phone's local IP changes.
+  (Plain HTTP: use it on networks you trust.)
+- **Automatic configuration backup** — the phone app keeps
+  `Download/NASfone-config-backup.zip` up to date (Tailscale sign-in, paired devices,
+  settings) and offers to restore it after a reinstall.
 - **Updates from GitHub Releases** — both apps check for new versions and update in one
-  tap (checksum-verified; Android asks you to confirm the install).
+  tap (checksum-verified; Android asks you to confirm the install). Updates keep your setup.
 - **English and Vietnamese** everywhere (phone app, web, Windows app).
 
 ## How it works
@@ -54,7 +64,9 @@ Open it in any browser, or map it as a drive letter on Windows.
 
 ## Getting started
 
-1. Install the **server APK** on the phone that will hold the files and open it.
+1. Download `NASfone-Server-<version>.apk` from the
+   [latest release](https://github.com/thangkes/NASfone/releases/latest), install it on the
+   phone that will hold the files and open it.
 2. Grant the requested permissions (all-files access, notifications, ignore battery
    optimisation).
 3. Under **Tailscale account**, tap **Sign in** and sign in with your own account.
@@ -62,6 +74,9 @@ Open it in any browser, or map it as a drive letter on Windows.
    Funnel for a public HTTPS link) and log in with the current Admin or User code.
 5. On Windows: install `NASfone-Windows-Client-Setup-<version>.exe`, then on the web page click
    **Connect the app on this computer** and confirm in the NASfone dialog.
+
+6. Optional: under **LAN access**, switch it on to reach the phone directly from the same
+   network, even without internet.
 
 > Some Android brands kill background apps aggressively. Allow NASfone to run in the
 > background / auto-launch in the phone's battery settings.
@@ -81,7 +96,8 @@ Android SDK + NDK, the JDK bundled with Android Studio. For the Windows installe
 .\scripts\release.ps1 0.2.0            # bump, build both, tag and publish a GitHub Release
 ```
 
-For quick web UI work there is a local dev server: `cd core; go run ./cmd/devserver`.
+For quick web UI work there is a local dev server: `cd core; go run ./cmd/devserver`
+(add `-lan` to try the QR sign-in page).
 
 > Release APKs are signed with the key in `~/.nasfone-signing/keystore.properties`
 > (kept outside the repo). Without it, builds fall back to the debug key. Android only
@@ -91,7 +107,7 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 
 | Folder | What |
 |---|---|
-| [`core/`](core/) | Shared Go code: auth codes, pairing, WebDAV + web UI, gomobile bindings |
+| [`core/`](core/) | Shared Go code: auth codes, pairing, LAN QR sign-in, WebDAV + web UI, updates, gomobile bindings |
 | [`server-android/`](server-android/) | Android server app (Kotlin shell around the Go core) |
 | [`client-windows/`](client-windows/) | Windows tray app, drive mount, installer |
 | [`client-android/`](client-android/) | Android client (planned) |
@@ -102,7 +118,8 @@ For quick web UI work there is a local dev server: `cd core; go run ./cmd/devser
 
 - Android client app (QR pairing, file browser, photo backup)
 - WebDAV access keys for third-party apps
-- Signed releases on GitHub
+- NASfone server for Windows
+- Code-signed Windows installer
 
 ## License
 
