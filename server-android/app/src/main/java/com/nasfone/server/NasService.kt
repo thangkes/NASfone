@@ -44,6 +44,7 @@ class NasService : Service() {
     private val tick = object : Runnable {
         override fun run() {
             updateNotification()
+            Updater.maybeCheck(this@NasService) // no-op unless the last check is a few hours old
             main.postDelayed(this, 2000)
         }
     }

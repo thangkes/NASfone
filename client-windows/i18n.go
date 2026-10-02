@@ -49,6 +49,9 @@ var msgs = map[string][2]string{
 	"m_auto":          {"Start with Windows", "Khởi động cùng Windows"},
 	"m_forget":        {"Unpair from this server", "Hủy ghép đôi với server này"},
 	"m_quit":          {"Quit", "Thoát"},
+	"m_update":        {"⬆ Update to v%s", "⬆ Cập nhật lên v%s"},
+	"m_updating":      {"Downloading v%s…", "Đang tải v%s…"},
+	"update_fail":     {"Could not update NASfone: %s", "Không cập nhật được NASfone: %s"},
 	"drive_not_ready": {"The NASfone drive is not ready.\n\n%s", "Ổ NASfone chưa sẵn sàng.\n\n%s"},
 	"no_invite_clip":  {"The clipboard has no NASfone invite.\n\nOn the phone or the NASfone web page choose \"Pair new device\" → \"Copy invite\", then click this item again.", "Clipboard không có lời mời NASfone.\n\nTrên điện thoại hoặc trang web NASfone, chọn \"Ghép thiết bị\" → \"Sao chép lời mời\", rồi bấm lại mục này."},
 	"autostart_fail":  {"Could not change the startup setting: %s", "Không đổi được cài đặt khởi động: %s"},
@@ -74,6 +77,9 @@ var msgs = map[string][2]string{
 	},
 	"w_disconnected": {"Disconnected", "Đã ngắt"},
 	"w_repair":       {"Pair again", "Ghép đôi lại"},
+	"w_update_avail": {"NASfone v%s is available.", "Đã có NASfone v%s."},
+	"w_update_btn":   {"Update", "Cập nhật"},
+	"w_updating":     {"Downloading…", "Đang tải…"},
 
 	// window (ui.html)
 	"w_drive":         {"Drive", "Ổ đĩa"},

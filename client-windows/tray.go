@@ -15,6 +15,7 @@ import (
 
 	"nasfone/core/auth"
 	"nasfone/core/client"
+	"nasfone/core/update"
 )
 
 type app struct {
@@ -26,13 +27,15 @@ type app struct {
 	cfgStamp  time.Time
 	connected bool
 	connErr   string
-	revoked   bool   // the server revoked this computer; drive stopped
-	busy      bool   // pairing in progress
-	notice    string // message for the window
+	revoked   bool            // the server revoked this computer; drive stopped
+	busy      bool            // pairing in progress
+	notice    string          // message for the window
+	update    *update.Release // newer release offered to the user, if any
+	updating  bool
 
 	showAtStart bool
 
-	mWindow, mStatus, mOpen, mWeb, mPair, mAuto, mForget, mQuit *systray.MenuItem
+	mWindow, mStatus, mUpdate, mOpen, mWeb, mPair, mAuto, mForget, mQuit *systray.MenuItem
 }
 
 // runTray runs the tray icon; showWindow opens the app window right away
@@ -52,6 +55,8 @@ func (a *app) onReady() {
 	systray.AddSeparator()
 	a.mStatus = systray.AddMenuItem(t("m_starting"), "")
 	a.mStatus.Disable()
+	a.mUpdate = systray.AddMenuItem("", "")
+	a.mUpdate.Hide() // shown once a newer release is found
 	systray.AddSeparator()
 	a.mOpen = systray.AddMenuItem(t("m_open"), t("m_open_tip"))
 	a.mWeb = systray.AddMenuItem(t("m_web"), "")
@@ -68,6 +73,7 @@ func (a *app) onReady() {
 	go waitShowRequests(a.openWindow) // a second launch of the exe opens this window
 	a.serveLocalPairing()             // the web page hands invites over via 127.0.0.1
 	go waitQuitRequests(systray.Quit) // installer/uninstaller asks us to exit cleanly
+	go a.updateLoop()
 	if a.showAtStart {
 		a.openWindow()
 	}
@@ -79,6 +85,8 @@ func (a *app) menuLoop() {
 		select {
 		case <-a.mWindow.ClickedCh:
 			a.openWindow()
+		case <-a.mUpdate.ClickedCh:
+			go a.applyUpdate()
 		case <-a.mOpen.ClickedCh:
 			if d, ok, _ := a.mount.status(); ok && d != "" {
 				exec.Command("explorer.exe", d+`\`).Start()
@@ -274,5 +282,10 @@ func (a *app) relabel() {
 	a.mAuto.SetTitle(t("m_auto"))
 	a.mForget.SetTitle(t("m_forget"))
 	a.mQuit.SetTitle(t("m_quit"))
+	a.mu.Lock()
+	if r := a.update; r != nil {
+		a.mUpdate.SetTitle(t("m_update", r.Version))
+	}
+	a.mu.Unlock()
 	a.refreshMenu()
 }

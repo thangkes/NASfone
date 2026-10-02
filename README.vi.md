@@ -30,6 +30,8 @@ Mở bằng bất kỳ trình duyệt nào, hoặc gắn thành ổ đĩa trên 
 - **App Windows** — biểu tượng khay hệ thống, gắn điện thoại thành ổ đĩa (mặc định `P:`)
   với dung lượng trống thật, chỉ đọc với quyền User, tự nhận biết khi bị thu hồi. Ghép
   đôi một chạm từ trang web ("Kết nối app trên máy này").
+- **Tự cập nhật từ GitHub Releases** — cả hai app tự tìm bản mới và cập nhật bằng một chạm
+  (kiểm tra SHA-256; Android sẽ hỏi xác nhận khi cài).
 - **Tiếng Anh và tiếng Việt** ở mọi nơi (app điện thoại, web, app Windows).
 
 ## Cách hoạt động
@@ -74,11 +76,14 @@ Android SDK + NDK, JDK đi kèm Android Studio. Riêng bộ cài Windows cần t
 .\scripts\build-server.ps1             # lõi Go -> AAR -> APK server
 .\scripts\build-server.ps1 -Install    # ...và cài lên điện thoại qua adb
 .\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Setup-<phiên bản>.exe
+.\scripts\release.ps1 0.2.0            # tăng phiên bản, build cả hai, gắn tag và tạo GitHub Release
 ```
 
 Để sửa giao diện web nhanh có server chạy local: `cd core; go run ./cmd/devserver`.
 
-> APK release hiện đang ký bằng debug key. Hãy tạo keystore riêng trước khi phát hành.
+> APK release được ký bằng khoá trong `~/.nasfone-signing/keystore.properties` (nằm ngoài
+> repo). Không có khoá này thì build dùng debug key. Android chỉ nhận bản cập nhật ký cùng
+> khoá, nên hãy sao lưu khoá.
 
 ## Cấu trúc thư mục
 

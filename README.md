@@ -31,6 +31,8 @@ Open it in any browser, or map it as a drive letter on Windows.
 - **Windows app** — tray icon, mounts the phone as a drive (`P:` by default) with the
   real free space, read-only for the User role, detects revocation. Pair in one click
   from the web page ("Connect the app on this computer").
+- **Updates from GitHub Releases** — both apps check for new versions and update in one
+  tap (checksum-verified; Android asks you to confirm the install).
 - **English and Vietnamese** everywhere (phone app, web, Windows app).
 
 ## How it works
@@ -76,12 +78,14 @@ Android SDK + NDK, the JDK bundled with Android Studio. For the Windows installe
 .\scripts\build-server.ps1             # Go core -> AAR -> server APK
 .\scripts\build-server.ps1 -Install    # ...and install on a phone via adb
 .\scripts\build-windows.ps1            # NASfone.exe + client-windows\dist\NASfone-Setup-<version>.exe
+.\scripts\release.ps1 0.2.0            # bump, build both, tag and publish a GitHub Release
 ```
 
 For quick web UI work there is a local dev server: `cd core; go run ./cmd/devserver`.
 
-> Release APKs are currently signed with the debug key. Create your own keystore
-> before distributing builds.
+> Release APKs are signed with the key in `~/.nasfone-signing/keystore.properties`
+> (kept outside the repo). Without it, builds fall back to the debug key. Android only
+> accepts updates signed with the same key, so keep a backup of it.
 
 ## Project layout
 

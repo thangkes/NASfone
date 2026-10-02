@@ -72,6 +72,7 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
   <div class="notice" id="notice" hidden></div>
   <div class="row" id="repairRow" hidden style="margin:-4px 0 12px"><button class="pri grow" onclick="pnRepair()" data-i18n="w_repair"></button></div>
   <div class="notice" id="deps" hidden></div>
+  <div class="notice info row" id="updRow" hidden style="align-items:center;gap:10px"><span class="grow" id="updText"></span><button class="pri" id="btnUpd" onclick="pnUpdate()"></button></div>
 
   <!-- Paired -->
   <section id="paired" hidden>
@@ -198,6 +199,12 @@ function render(s){
   $('btnPair').textContent = tr(s.busy ? 'w_pairing' : 'w_pair');
   $('auto').checked = s.autostart;
   $('ver').textContent = 'v' + s.version;
+  $('updRow').hidden = !s.update;
+  if (s.update) {
+    $('updText').textContent = tr('w_update_avail').replace('%s', s.update);
+    $('btnUpd').textContent = tr(s.updating ? 'w_updating' : 'w_update_btn');
+    $('btnUpd').disabled = s.updating;
+  }
 
   // Drive letter choices: free letters plus the current preference.
   const opts = Array.from(new Set([s.prefDrive, ...(s.freeDrives || [])])).sort();

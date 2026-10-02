@@ -98,10 +98,16 @@ type uiState struct {
 	WinFspOK   bool     `json:"winfspOK"`
 	Computer   string   `json:"computer"`
 	Version    string   `json:"version"`
+	Update     string   `json:"update"` // newer version on offer, "" if none
+	Updating   bool     `json:"updating"`
 }
 
 func (a *app) state() uiState {
 	a.mu.Lock()
+	updating, upd := a.updating, ""
+	if a.update != nil {
+		upd = a.update.Version
+	}
 	cfg, paired, connErr, busy, notice, revoked := a.cfg, a.paired, a.connErr, a.busy, a.notice, a.revoked
 	a.mu.Unlock()
 	drive, mounted, mErr := a.mount.status()
@@ -111,6 +117,7 @@ func (a *app) state() uiState {
 		Drive: drive, Mounted: mounted, Autostart: autostartEnabled(),
 		PrefDrive: getSettings().Drive, FreeDrives: freeLetters(), Busy: busy, Notice: notice,
 		DataDir: dataDir(), RcloneOK: rcErr == nil, WinFspOK: winfspInstalled(), Computer: computerName(), Version: appVersion,
+		Updating: updating, Update: upd,
 	}
 	if paired {
 		s.Host = cfg.URL
@@ -219,6 +226,7 @@ func (a *app) bind(w webview2.WebView) {
 	})
 	// After a revocation: drop the dead pairing at once (no question) so the
 	// pairing steps show again.
+	w.Bind("pnUpdate", func() { go a.applyUpdate() })
 	w.Bind("pnRepair", func() {
 		a.mount.stopMount()
 		forget()

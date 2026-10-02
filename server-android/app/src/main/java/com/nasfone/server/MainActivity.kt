@@ -48,6 +48,7 @@ class MainActivity : Activity() {
     private lateinit var accountBox: LinearLayout
     private lateinit var addrBox: LinearLayout
     private lateinit var toggleBtn: Button
+    private lateinit var updateBtn: Button
     private lateinit var loginBtn: Button
     private lateinit var logoutBtn: Button
     private lateinit var funnelSw: Switch
@@ -137,6 +138,7 @@ class MainActivity : Activity() {
         // Tên app đã có trên thanh tiêu đề của hệ thống; không lặp lại ở đây.
         stateTv = text("", 16f, bold = true).also { col.addView(it) }
         toggleBtn = button("") { toggle() }.also { col.addView(it) }
+        updateBtn = button("") { startUpdate() }.apply { visibility = View.GONE }.also { col.addView(it) }
 
         section(col, L("Mã đăng nhập web (6 số, đổi mỗi phút)", "Web sign-in codes (6 digits, change every minute)"))
         // Hai mã luôn khác nhau; màu và nhãn tách biệt để không đưa nhầm mã Admin.
@@ -201,6 +203,7 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, on -> prefs.autoStart = on }
         }.also { col.addView(it) }
         col.addView(button(L("Lưu cài đặt", "Save settings")) { save() })
+        col.addView(button(L("Kiểm tra cập nhật", "Check for updates") + " (v${Updater.currentVersion(this)})") { checkUpdate() })
         col.addView(button(L("Ngôn ngữ: ", "Language: ") + when (prefs.lang) {
             "vi" -> "Tiếng Việt"; "en" -> "English"; else -> L("theo máy", "follow the phone")
         }) { chooseLanguage() })
@@ -303,6 +306,13 @@ class MainActivity : Activity() {
         }
         stateTv.setTextColor(Color.parseColor(if (running) "#1F9D55" else "#D64545"))
         toggleBtn.text = if (running) L("Dừng server", "Stop server") else L("Khởi động server", "Start server")
+        val upd = Updater.available
+        updateBtn.visibility = if (upd != null) View.VISIBLE else View.GONE
+        if (upd != null) {
+            updateBtn.isEnabled = !Updater.busy
+            updateBtn.text = if (Updater.busy) L("Đang tải bản cập nhật…", "Downloading the update…")
+            else L("⬆ Cập nhật lên v${upd.optString("version")}", "⬆ Update to v${upd.optString("version")}")
+        }
 
         val newAccountKey = listOf(running, backend, st.optString("loginName"), st.optString("tailnetName"), st.optString("authURL")).joinToString("|")
         if (newAccountKey != accountKey) {
@@ -611,6 +621,29 @@ class MainActivity : Activity() {
             }
             .setNegativeButton(L("Hủy", "Cancel"), null)
             .show()
+    }
+
+    private fun checkUpdate() {
+        toast(L("Đang kiểm tra…", "Checking…"))
+        Updater.maybeCheck(this, force = true) { rel, err ->
+            runOnUiThread {
+                when {
+                    err != null -> toast(L("Không kiểm tra được: ", "Could not check: ") + err.message)
+                    rel == null -> toast(L("Đang dùng bản mới nhất.", "You have the latest version."))
+                    else -> render()
+                }
+            }
+        }
+    }
+
+    private fun startUpdate() {
+        // Android yêu cầu cho phép "cài ứng dụng không rõ nguồn" cho chính NASfone một lần.
+        if (!packageManager.canRequestPackageInstalls()) {
+            toast(L("Hãy cho phép NASfone cài ứng dụng, rồi bấm Cập nhật lần nữa.", "Allow NASfone to install apps, then tap Update again."))
+            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+            return
+        }
+        Updater.install(this) { msg -> runOnUiThread { toast(L("Cập nhật lỗi: ", "Update failed: ") + msg) } }
     }
 
     private fun chooseLanguage() {

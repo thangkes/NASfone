@@ -71,6 +71,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\NASfone.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent runasoriginaluser
+; In-app updates run the installer with /SILENT: reopen the app afterwards.
+Filename: "{app}\NASfone.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent
 
 [UninstallRun]
 ; Stop the app (unmounting the drive) and remove the per-user nasfone:// handler.
