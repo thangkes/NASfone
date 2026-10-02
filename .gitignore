@@ -30,3 +30,8 @@ client-windows/rsrc_windows_*.syso
 
 # Release assets staged by scripts/release.ps1
 /dist/
+
+# Windows server build outputs
+server-windows/build/
+server-windows/dist/
+server-windows/rsrc_windows_*.syso

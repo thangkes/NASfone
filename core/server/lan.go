@@ -138,6 +138,48 @@ func parseLANQR(text string) (string, bool) {
 	return strings.TrimPrefix(text, LANPrefix), true
 }
 
+// LANShort is the 4-character code shown next to a ticket's QR code, so a
+// server without a camera (Windows) can match a waiting browser to a request.
+func LANShort(ticket string) string {
+	if len(ticket) < 4 {
+		return strings.ToUpper(ticket)
+	}
+	return strings.ToUpper(ticket[:4])
+}
+
+// LANPending is a browser waiting for approval.
+type LANPending struct {
+	Ticket  string    `json:"ticket"`
+	Short   string    `json:"short"`
+	IP      string    `json:"ip"`
+	Agent   string    `json:"agent"`
+	Created time.Time `json:"created"`
+}
+
+// Pending lists browsers that show a QR code and wait for approval, newest first.
+func (l *LAN) Pending() []LANPending {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.gc(l.Now())
+	out := []LANPending{}
+	for id, t := range l.tickets {
+		if t.token == "" {
+			out = append(out, LANPending{Ticket: id, Short: LANShort(id), IP: t.ip, Agent: t.ua, Created: t.created})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Created.After(out[j].Created) })
+	return out
+}
+
+// Reject drops a waiting ticket; the browser then shows a fresh QR code.
+func (l *LAN) Reject(ticket string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if t := l.tickets[ticket]; t != nil && t.token == "" {
+		delete(l.tickets, ticket)
+	}
+}
+
 // TicketInfo returns who is asking (browser IP and user agent) so the phone
 // can show it before approving.
 func (l *LAN) TicketInfo(qrText string) (ip, agent string, err error) {
@@ -305,6 +347,7 @@ func (h *handler) lanEndpoints(w http.ResponseWriter, r *http.Request) bool {
 			"ticket":  ticket,
 			"qr":      "data:image/png;base64," + base64.StdEncoding.EncodeToString(c.PNG()),
 			"expires": h.opt.LAN.Now().Add(lanTicketTTL).UnixMilli(),
+			"short":   LANShort(ticket),
 		})
 	case lanWaitPath:
 		token, pending := h.opt.LAN.claim(r.URL.Query().Get("t"), clientIP(r))

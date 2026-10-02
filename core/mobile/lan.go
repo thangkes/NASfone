@@ -149,6 +149,29 @@ func (n *node) lanOff() bool {
 	return n.lanSrv == nil
 }
 
+// LanPending lists browsers waiting for LAN approval as JSON
+// [{"ticket","short","ip","agent","created"}] (for servers without a camera).
+func LanPending() string {
+	n := get()
+	if n == nil || n.lanOff() {
+		return "[]"
+	}
+	b, _ := json.Marshal(n.lan.Pending())
+	return string(b)
+}
+
+// ApproveLanTicket approves a waiting browser by ticket (from LanPending).
+func ApproveLanTicket(ticket string) error {
+	return ApproveLan(server.LANPrefix + ticket)
+}
+
+// RejectLanTicket drops a waiting browser's request.
+func RejectLanTicket(ticket string) {
+	if n := get(); n != nil {
+		n.lan.Reject(ticket)
+	}
+}
+
 // IsLanQR reports whether scanned text is a NASfone LAN sign-in code.
 func IsLanQR(text string) bool {
 	return strings.HasPrefix(strings.TrimSpace(text), server.LANPrefix)

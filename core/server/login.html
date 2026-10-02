@@ -55,6 +55,7 @@ button:disabled{opacity:.6;cursor:default}
   <div class="lan">
     <div class="or"><span>{{.T.lan_or}}</span></div>
     <img id="lanQR" alt="QR" width="200" height="200">
+    <div class="small">{{.T.lan_short}} <b id="lanShort" style="font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.15em;color:var(--fg)"></b></div>
     <div class="small" id="lanMsg">{{.T.lan_wait}}</div>
     <div class="small">{{.T.lan_hint}}</div>
   </div>
@@ -112,7 +113,7 @@ if ({{.LAN}}) {
       const r = await fetch('/__nasfone/lan/start', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { $('lanMsg').textContent = j.error || tr('err_status', r.status); ticket = ''; renewAt = Date.now() + 30000; return; }
-      ticket = j.ticket; $('lanQR').src = j.qr;
+      ticket = j.ticket; $('lanQR').src = j.qr; $('lanShort').textContent = j.short || '';
       renewAt = j.expires - 15000; // fresh code shortly before this one expires
       $('lanMsg').textContent = tr('lan_wait');
     } catch (e) { $('lanMsg').textContent = tr('err_network'); renewAt = Date.now() + 10000; }

@@ -169,3 +169,24 @@ func TestLANRevokeAllAndPublicIP(t *testing.T) {
 		t.Fatal("QR shown off the LAN")
 	}
 }
+
+func TestLANPendingShortCode(t *testing.T) {
+	e := newLANEnv(t)
+	w := e.do(ViaLAN, "192.168.1.40", "POST", lanStartPath, "", "{}")
+	var j struct{ Ticket, Short string }
+	json.Unmarshal(w.Body.Bytes(), &j)
+	if len(j.Short) != 4 || j.Short != LANShort(j.Ticket) {
+		t.Fatalf("short code %q for ticket %q", j.Short, j.Ticket)
+	}
+	p := e.lan.Pending()
+	if len(p) != 1 || p[0].Short != j.Short || p[0].IP != "192.168.1.40" {
+		t.Fatalf("pending = %+v", p)
+	}
+	e.lan.Reject(j.Ticket)
+	if len(e.lan.Pending()) != 0 {
+		t.Fatal("rejected ticket still pending")
+	}
+	if w := e.do(ViaLAN, "192.168.1.40", "GET", lanWaitPath+"?t="+j.Ticket, "", ""); w.Code != http.StatusGone {
+		t.Fatalf("rejected ticket: %d", w.Code)
+	}
+}
