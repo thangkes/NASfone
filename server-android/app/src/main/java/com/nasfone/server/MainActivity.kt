@@ -59,7 +59,8 @@ class MainActivity : Activity() {
     private lateinit var controlEt: EditText
     private lateinit var rootEt: EditText
     private lateinit var verboseCb: CheckBox
-    private lateinit var lanCb: CheckBox
+    private lateinit var lanSw: Switch
+    private lateinit var lanTv: TextView
     private lateinit var lanPortEt: EditText
     private lateinit var lanScanBtn: Button
     private lateinit var autoCb: CheckBox
@@ -202,15 +203,21 @@ class MainActivity : Activity() {
             }
         }.also { col.addView(it) }
 
+        section(col, L("Kết nối LAN (cùng mạng Wi-Fi / hotspot, không cần internet)", "LAN access (same Wi-Fi / hotspot, no internet needed)"))
+        lanPortEt = field(col, L("Cổng LAN", "LAN port"), prefs.lanPort.toString(), InputType.TYPE_CLASS_NUMBER)
+        lanSw = Switch(this).apply {
+            text = L("Bật kết nối LAN", "Enable LAN access")
+            isChecked = prefs.lanEnabled
+            setOnCheckedChangeListener { sw, on -> setLan(sw as Switch, on) }
+        }.also { col.addView(it) }
+        lanTv = text(L("Trình duyệt cùng mạng mở địa chỉ LAN ở trên, đăng nhập bằng mã 6 số hoặc quét QR (chỉ xem). Đổi cổng: tắt rồi bật lại.",
+            "Browsers on the same network open the LAN address above and sign in with a 6-digit code or a QR scan (view only). To change the port, switch off and on."), 13f)
+            .also { col.addView(it) }
+
         section(col, L("Cài đặt (áp dụng khi khởi động lại)", "Settings (applied on restart)"))
         hostEt = field(col, L("Tên máy trong tailnet", "Machine name in the tailnet"), prefs.hostname)
         controlEt = field(col, L("Máy chủ điều khiển (để trống = Tailscale; điền URL nếu dùng Headscale)", "Control server (empty = Tailscale; enter a URL for Headscale)"), prefs.controlUrl)
         rootEt = field(col, L("Thư mục lưu trữ", "Storage folder"), prefs.rootDir)
-        lanCb = CheckBox(this).apply {
-            text = L("Bật kết nối LAN (trình duyệt cùng mạng Wi-Fi/hotspot, không cần internet)", "Enable LAN access (browsers on the same Wi-Fi/hotspot, no internet needed)")
-            isChecked = prefs.lanEnabled
-        }.also { col.addView(it) }
-        lanPortEt = field(col, L("Cổng LAN", "LAN port"), prefs.lanPort.toString(), InputType.TYPE_CLASS_NUMBER)
         verboseCb = CheckBox(this).apply { text = L("Ghi log chi tiết của Tailscale", "Verbose Tailscale logs"); isChecked = prefs.verboseLog }.also { col.addView(it) }
         autoCb = CheckBox(this).apply {
             text = L("Tự chạy khi khởi động máy", "Start when the phone boots")
@@ -615,10 +622,6 @@ class MainActivity : Activity() {
         prefs.hostname = host
         prefs.controlUrl = control
         prefs.rootDir = rootEt.text.toString().trim()
-        val port = lanPortEt.text.toString().trim().toIntOrNull()
-        if (port == null || port !in 1024..65535) return toast(L("Cổng LAN phải từ 1024 đến 65535", "The LAN port must be between 1024 and 65535"))
-        prefs.lanEnabled = lanCb.isChecked
-        prefs.lanPort = port
         prefs.verboseLog = verboseCb.isChecked
         if (Core.running) toast(L("Đã lưu. Khởi động lại server để áp dụng.", "Saved. Restart the server to apply.")) else toast(L("Đã lưu", "Saved"))
         return true
@@ -716,6 +719,29 @@ class MainActivity : Activity() {
     }
 
     // ---------------------------------------------------------------- LAN QR sign-in
+
+    /** Nút gạt LAN: mở/đóng cổng ngay, không cần khởi động lại server. */
+    private fun setLan(sw: Switch, on: Boolean) {
+        val port = lanPortEt.text.toString().trim().toIntOrNull()
+        if (on && (port == null || port !in 1024..65535)) {
+            toast(L("Cổng LAN phải từ 1024 đến 65535", "The LAN port must be between 1024 and 65535"))
+            sw.setOnCheckedChangeListener(null); sw.isChecked = false
+            sw.setOnCheckedChangeListener { s, v -> setLan(s as Switch, v) }
+            return
+        }
+        prefs.lanEnabled = on
+        if (port != null) prefs.lanPort = port
+        if (!Core.running) return // áp dụng khi server khởi động
+        thread {
+            val err = try { Mobile.setLan(if (on) port!!.toLong() else 0L); null } catch (e: Exception) { e.message ?: e.toString() }
+            if (err != null) runOnUiThread {
+                toast(L("Không mở được cổng LAN: ", "Could not open the LAN port: ") + err)
+                prefs.lanEnabled = false
+                sw.setOnCheckedChangeListener(null); sw.isChecked = false
+                sw.setOnCheckedChangeListener { s, v -> setLan(s as Switch, v) }
+            }
+        }
+    }
 
     private fun scanLanQr() {
         IntentIntegrator(this)

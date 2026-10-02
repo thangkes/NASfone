@@ -11,24 +11,54 @@ import (
 	"nasfone/core/server"
 )
 
-// startLAN opens the local-network listener (plain HTTP on cfg.LANPort) used
-// by browsers that sign in with a 6-digit code or a QR code scanned by the
-// phone. It works without internet, e.g. over the phone's own hotspot.
-func (n *node) startLAN() {
-	if n.cfg.LANPort <= 0 {
-		return
+// setLAN opens the local-network listener (plain HTTP on port) used by
+// browsers that sign in with a 6-digit code or a QR code scanned by the phone,
+// or closes it when port is 0. It works without internet, e.g. over the
+// phone's own hotspot. Closing it ends every LAN session.
+func (n *node) setLAN(port int) error {
+	n.mu.Lock()
+	old, oldPort := n.lanSrv, n.lanPort
+	n.lanSrv, n.lanPort = nil, 0
+	n.lanIPs, n.lanIPsSet = "", false
+	n.status.LANURLs, n.status.LANError = nil, ""
+	n.mu.Unlock()
+	if old != nil {
+		old.Close()
+		if k := n.lan.RevokeAll(); k > 0 {
+			n.logf("Đã tắt cổng LAN %d, kết thúc %d phiên LAN", oldPort, k)
+		} else {
+			n.logf("Đã tắt cổng LAN %d", oldPort)
+		}
 	}
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", n.cfg.LANPort))
+	if port <= 0 {
+		n.publish()
+		return nil
+	}
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		n.mu.Lock()
 		n.status.LANError = err.Error()
 		n.mu.Unlock()
-		n.logf("Không mở được cổng LAN %d: %v", n.cfg.LANPort, err)
-		return
+		n.publish()
+		n.logf("Không mở được cổng LAN %d: %v", port, err)
+		return err
 	}
-	n.serve(ln, server.ViaLAN)
-	n.logf("Kết nối LAN: đang nghe cổng %d", n.cfg.LANPort)
+	srv := n.serve(ln, server.ViaLAN)
+	n.mu.Lock()
+	n.lanSrv, n.lanPort = srv, port
+	n.mu.Unlock()
+	n.logf("Kết nối LAN: đang nghe cổng %d", port)
 	n.checkLAN()
+	return nil
+}
+
+// SetLan switches the LAN listener on (port > 0) or off (0) while running.
+func SetLan(port int) error {
+	n := get()
+	if n == nil {
+		return nil // applied at the next start from the saved setting
+	}
+	return n.setLAN(port)
 }
 
 // localIPv4s lists the phone's own private IPv4 addresses (Wi-Fi, hotspot,
@@ -60,17 +90,24 @@ func localIPv4s() []string {
 // checkLAN publishes the LAN addresses and ends every LAN session when the
 // phone's local IP changes (new Wi-Fi, hotspot toggled, DHCP renewal).
 func (n *node) checkLAN() {
-	if n.cfg.LANPort <= 0 || n.lan == nil {
+	n.mu.Lock()
+	port := n.lanPort
+	n.mu.Unlock()
+	if port <= 0 || n.lan == nil {
 		return
 	}
 	ips := localIPv4s()
 	key := strings.Join(ips, ",")
 	n.mu.Lock()
+	if n.lanPort != port { // switched off or moved meanwhile
+		n.mu.Unlock()
+		return
+	}
 	prev, first := n.lanIPs, !n.lanIPsSet
 	n.lanIPs, n.lanIPsSet = key, true
 	n.status.LANURLs = n.status.LANURLs[:0]
 	for _, ip := range ips {
-		n.status.LANURLs = append(n.status.LANURLs, fmt.Sprintf("http://%s:%d", ip, n.cfg.LANPort))
+		n.status.LANURLs = append(n.status.LANURLs, fmt.Sprintf("http://%s:%d", ip, port))
 	}
 	n.mu.Unlock()
 	if !first && key != prev {
@@ -85,7 +122,7 @@ func (n *node) checkLAN() {
 // browser asking, for the confirmation dialog.
 func LanTicketInfo(qrText string) (string, error) {
 	n := get()
-	if n == nil || n.lan == nil {
+	if n == nil || n.lanOff() {
 		return "", fmt.Errorf("LAN is off")
 	}
 	ip, agent, err := n.lan.TicketInfo(qrText)
@@ -99,11 +136,17 @@ func LanTicketInfo(qrText string) (string, error) {
 // ApproveLan lets the browser that shows this QR code in (read-only, LAN only).
 func ApproveLan(qrText string) error {
 	n := get()
-	if n == nil || n.lan == nil {
+	if n == nil || n.lanOff() {
 		return fmt.Errorf("LAN is off")
 	}
 	_, err := n.lan.Approve(qrText)
 	return err
+}
+
+func (n *node) lanOff() bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.lanSrv == nil
 }
 
 // IsLanQR reports whether scanned text is a NASfone LAN sign-in code.

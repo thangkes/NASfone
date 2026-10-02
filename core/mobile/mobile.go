@@ -100,6 +100,8 @@ type node struct {
 	loginRequested bool
 	funnelSrv      *http.Server
 	funnelErrAt    time.Time
+	lanSrv         *http.Server // local-network listener, nil when off
+	lanPort        int
 	lanIPs         string // local IPv4s last seen; a change ends LAN sessions
 	lanIPsSet      bool
 }
@@ -187,10 +189,9 @@ func Start(configJSON string, host Host) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store, pairs: pairs}
-	if cfg.LANPort > 0 {
-		n.lan = server.NewLAN()
-		n.lan.Logf = n.logf
-	}
+	// Always present so the LAN listener can be switched on later (SetLan).
+	n.lan = server.NewLAN()
+	n.lan.Logf = n.logf
 	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
 	n.handler = server.NewHandler(server.Options{
 		Root: cfg.RootDir, Auth: store, Pair: pairs, LAN: n.lan, Logf: n.logf,
@@ -223,7 +224,9 @@ func Start(configJSON string, host Host) error {
 		return fmt.Errorf("tailscale listen: %w", err)
 	}
 	n.serve(tsLn, "Tailnet")
-	n.startLAN()
+	if cfg.LANPort > 0 {
+		n.setLAN(cfg.LANPort)
+	}
 
 	current = n
 	go n.loop()
