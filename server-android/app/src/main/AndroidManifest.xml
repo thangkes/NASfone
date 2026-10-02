@@ -51,6 +51,12 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- QR scanner (zxing-android-embedded): follow the phone's orientation -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="screenOrientation" />
+
         <receiver
             android:name=".InstallResultReceiver"
             android:exported="false" />

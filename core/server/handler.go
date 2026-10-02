@@ -41,7 +41,9 @@ type Options struct {
 	// invites (the Funnel https:// address, reachable from anywhere)
 	// instead of whatever address the browser happened to use.
 	PublicURL func() string
-	Logf      func(format string, args ...any)
+	// LAN, if set, enables QR sign-in for browsers on the LAN listener (ViaLAN).
+	LAN  *LAN
+	Logf func(format string, args ...any)
 }
 
 type handler struct {
@@ -78,6 +80,13 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	if viaFrom(r) == ViaLAN && !isPrivateIP(clientIP(r)) {
+		http.Error(w, "local network only", http.StatusForbidden)
+		return
+	}
+	if h.lanEndpoints(w, r) {
+		return
+	}
 	switch r.URL.Path {
 	case loginPath:
 		h.login(w, r)
@@ -90,6 +99,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	who, ok := h.authenticate(r)
+	if !ok {
+		var end func()
+		if who, end, ok = h.lanSession(r); ok {
+			defer end() // the session counts as active until this request finishes
+		}
+	}
 	if !ok {
 		if r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/html") {
 			http.Redirect(w, r, loginPath+"?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusFound)

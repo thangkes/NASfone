@@ -107,6 +107,22 @@ func (h *handler) authenticate(r *http.Request) (Who, bool) {
 	return Who{}, false
 }
 
+// lanSession authenticates a QR-approved LAN browser (only on the LAN listener).
+func (h *handler) lanSession(r *http.Request) (Who, func(), bool) {
+	if h.opt.LAN == nil || viaFrom(r) != ViaLAN {
+		return Who{}, nil, false
+	}
+	c, err := r.Cookie(lanCookie)
+	if err != nil {
+		return Who{}, nil, false
+	}
+	s, end, ok := h.opt.LAN.begin(c.Value, clientIP(r))
+	if !ok {
+		return Who{}, nil, false
+	}
+	return Who{Name: "LAN " + s.IP, DeviceID: "lan:" + s.ID, Role: auth.RoleUser}, end, true
+}
+
 type loginRequest struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
@@ -122,7 +138,8 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		lang := pickLang(r)
-		loginTmpl.Execute(w, map[string]any{"Next": next, "L": lang, "T": dict(lang)})
+		lan := h.opt.LAN != nil && viaFrom(r) == ViaLAN
+		loginTmpl.Execute(w, map[string]any{"Next": next, "L": lang, "T": dict(lang), "LAN": lan})
 	case http.MethodPost:
 		// JSON-only: a cross-site HTML form cannot send this content type without CORS.
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -179,6 +196,10 @@ func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	if c, err := r.Cookie(cookieName); err == nil && h.opt.Auth != nil {
 		h.opt.Auth.Logout(c.Value)
+	}
+	if c, err := r.Cookie(lanCookie); err == nil && h.opt.LAN != nil {
+		h.opt.LAN.logout(c.Value)
+		http.SetCookie(w, &http.Cookie{Name: lanCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	}
 	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode})
 	w.WriteHeader(http.StatusNoContent)

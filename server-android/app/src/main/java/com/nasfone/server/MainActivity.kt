@@ -33,6 +33,7 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import com.google.zxing.integration.android.IntentIntegrator
 import com.nasfone.core.mobile.Mobile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -58,6 +59,9 @@ class MainActivity : Activity() {
     private lateinit var controlEt: EditText
     private lateinit var rootEt: EditText
     private lateinit var verboseCb: CheckBox
+    private lateinit var lanCb: CheckBox
+    private lateinit var lanPortEt: EditText
+    private lateinit var lanScanBtn: Button
     private lateinit var autoCb: CheckBox
     private lateinit var permTv: TextView
     private lateinit var logTv: TextView
@@ -153,6 +157,9 @@ class MainActivity : Activity() {
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
         codeInfoTv = text("", 13f).apply { gravity = Gravity.CENTER }
             .also { col.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) }
+        // Trình duyệt trong mạng LAN hiện mã QR; quét để cho vào (chỉ xem & tải về).
+        lanScanBtn = button(L("📷 Quét QR đăng nhập LAN", "📷 Scan LAN sign-in QR")) { scanLanQr() }
+            .apply { visibility = View.GONE }.also { col.addView(it) }
 
         section(col, L("Ứng dụng đã ghép (Windows / Android)", "Paired apps (Windows / Android)"))
         pairedBox = vbox().also { col.addView(it) }
@@ -199,6 +206,11 @@ class MainActivity : Activity() {
         hostEt = field(col, L("Tên máy trong tailnet", "Machine name in the tailnet"), prefs.hostname)
         controlEt = field(col, L("Máy chủ điều khiển (để trống = Tailscale; điền URL nếu dùng Headscale)", "Control server (empty = Tailscale; enter a URL for Headscale)"), prefs.controlUrl)
         rootEt = field(col, L("Thư mục lưu trữ", "Storage folder"), prefs.rootDir)
+        lanCb = CheckBox(this).apply {
+            text = L("Bật kết nối LAN (trình duyệt cùng mạng Wi-Fi/hotspot, không cần internet)", "Enable LAN access (browsers on the same Wi-Fi/hotspot, no internet needed)")
+            isChecked = prefs.lanEnabled
+        }.also { col.addView(it) }
+        lanPortEt = field(col, L("Cổng LAN", "LAN port"), prefs.lanPort.toString(), InputType.TYPE_CLASS_NUMBER)
         verboseCb = CheckBox(this).apply { text = L("Ghi log chi tiết của Tailscale", "Verbose Tailscale logs"); isChecked = prefs.verboseLog }.also { col.addView(it) }
         autoCb = CheckBox(this).apply {
             text = L("Tự chạy khi khởi động máy", "Start when the phone boots")
@@ -310,6 +322,7 @@ class MainActivity : Activity() {
         }
         stateTv.setTextColor(Color.parseColor(if (running) "#1F9D55" else "#D64545"))
         toggleBtn.text = if (running) L("Dừng server", "Stop server") else L("Khởi động server", "Start server")
+        lanScanBtn.visibility = if (running && (st.optJSONArray("lanURLs")?.length() ?: 0) > 0) View.VISIBLE else View.GONE
         val upd = Updater.available
         updateBtn.visibility = if (upd != null) View.VISIBLE else View.GONE
         if (upd != null) {
@@ -326,7 +339,8 @@ class MainActivity : Activity() {
         loginBtn.isEnabled = running && backend != "Running"
         logoutBtn.isEnabled = running && backend == "Running"
 
-        val newAddrKey = listOf(running, st.optString("dnsName"), st.optJSONArray("tailscaleIPs")?.toString(), st.optString("funnelURL")).joinToString("|")
+        val newAddrKey = listOf(running, st.optString("dnsName"), st.optJSONArray("tailscaleIPs")?.toString(), st.optString("funnelURL"),
+            st.optJSONArray("lanURLs")?.toString(), st.optString("lanError")).joinToString("|")
         if (newAddrKey != addrKey) {
             addrKey = newAddrKey
             renderAddresses(st, running)
@@ -380,6 +394,10 @@ class MainActivity : Activity() {
             if (ips != null && ips.length() > 0) addrBox.addView(row("Tailnet IP", "http://${ips.getString(0)}"))
             val funnel = st.optString("funnelURL")
             if (funnel.isNotEmpty()) addrBox.addView(row(L("Funnel (công khai)", "Funnel (public)"), funnel))
+            val lan = st.optJSONArray("lanURLs")
+            for (i in 0 until (lan?.length() ?: 0)) addrBox.addView(row(L("LAN (cùng mạng)", "LAN (same network)"), lan!!.getString(i)))
+            val lanErr = st.optString("lanError")
+            if (lanErr.isNotEmpty()) addrBox.addView(text("⚠ LAN: $lanErr", 13f))
         } else {
             addrBox.addView(text("—", 14f))
         }
@@ -597,6 +615,10 @@ class MainActivity : Activity() {
         prefs.hostname = host
         prefs.controlUrl = control
         prefs.rootDir = rootEt.text.toString().trim()
+        val port = lanPortEt.text.toString().trim().toIntOrNull()
+        if (port == null || port !in 1024..65535) return toast(L("Cổng LAN phải từ 1024 đến 65535", "The LAN port must be between 1024 and 65535"))
+        prefs.lanEnabled = lanCb.isChecked
+        prefs.lanPort = port
         prefs.verboseLog = verboseCb.isChecked
         if (Core.running) toast(L("Đã lưu. Khởi động lại server để áp dụng.", "Saved. Restart the server to apply.")) else toast(L("Đã lưu", "Saved"))
         return true
@@ -690,6 +712,60 @@ class MainActivity : Activity() {
                 }
             }
             .setNegativeButton(L("Bắt đầu mới", "Start fresh")) { _, _ -> toggle() }
+            .show()
+    }
+
+    // ---------------------------------------------------------------- LAN QR sign-in
+
+    private fun scanLanQr() {
+        IntentIntegrator(this)
+            .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+            .setPrompt(L("Quét mã QR trên trang đăng nhập NASfone", "Scan the QR code on the NASfone sign-in page"))
+            .setOrientationLocked(false)
+            .setBeepEnabled(false)
+            .initiateScan()
+    }
+
+    @Deprecated("Activity result API needs AndroidX; this app uses the platform Activity")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val res = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+        if (res == null) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+        val text = res.contents ?: return // cancelled
+        if (!Mobile.isLanQR(text)) {
+            toast(L("Đây không phải mã đăng nhập LAN của NASfone", "This is not a NASfone LAN sign-in code"))
+            return
+        }
+        thread {
+            val info = try { JSONObject(Mobile.lanTicketInfo(text)) } catch (e: Exception) {
+                runOnUiThread { toast(e.message ?: e.toString()) }
+                return@thread
+            }
+            runOnUiThread { confirmLan(text, info) }
+        }
+    }
+
+    private fun confirmLan(text: String, info: JSONObject) {
+        AlertDialog.Builder(this)
+            .setTitle(L("Cho phép trình duyệt này?", "Allow this browser?"))
+            .setMessage(L(
+                "Máy: ${info.optString("ip")}\n${info.optString("agent")}\n\nQuyền: chỉ xem và tải về.\nPhiên tự kết thúc sau 1 giờ không dùng, khi IP LAN của điện thoại đổi, hoặc khi server khởi động lại.",
+                "Computer: ${info.optString("ip")}\n${info.optString("agent")}\n\nAccess: view and download only.\nThe session ends after 1 hour without use, when the phone's local IP changes, or when the server restarts."
+            ))
+            .setPositiveButton(L("Cho phép", "Allow")) { _, _ ->
+                thread {
+                    val msg = try {
+                        Mobile.approveLan(text)
+                        L("Đã cho phép, trình duyệt sẽ tự vào.", "Allowed; the browser signs in by itself.")
+                    } catch (e: Exception) {
+                        e.message ?: e.toString()
+                    }
+                    runOnUiThread { toast(msg); lastDevicesJson = ""; renderDevices() }
+                }
+            }
+            .setNegativeButton(L("Không", "No"), null)
             .show()
     }
 

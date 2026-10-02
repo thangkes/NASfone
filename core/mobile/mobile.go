@@ -51,6 +51,7 @@ type Config struct {
 	ControlURL string `json:"controlURL"` // empty = Tailscale's default; set for Headscale
 	Funnel     bool   `json:"funnel"`
 	Verbose    bool   `json:"verbose"`
+	LANPort    int    `json:"lanPort"` // 0 = no local-network listener
 }
 
 // Status is reported to the host as JSON.
@@ -67,6 +68,8 @@ type Status struct {
 	FunnelError  string   `json:"funnelError,omitempty"`
 	FunnelHelp   string   `json:"funnelHelpURL,omitempty"` // admin page that fixes FunnelError
 	Error        string   `json:"error,omitempty"`
+	LANURLs      []string `json:"lanURLs,omitempty"`
+	LANError     string   `json:"lanError,omitempty"`
 
 	// Activity, for the notification. Byte counters are cumulative since
 	// start; the app turns deltas into speeds.
@@ -86,6 +89,7 @@ type node struct {
 	ts      *tsnet.Server
 	auth    *auth.Store
 	pairs   *pair.Store
+	lan     *server.LAN
 	traffic traffic
 	handler http.Handler
 	servers []*http.Server
@@ -96,6 +100,8 @@ type node struct {
 	loginRequested bool
 	funnelSrv      *http.Server
 	funnelErrAt    time.Time
+	lanIPs         string // local IPv4s last seen; a change ends LAN sessions
+	lanIPsSet      bool
 }
 
 // funnelRetry is how often a failed Funnel listen is retried, so enabling
@@ -118,8 +124,9 @@ func SetCrashFile(path string) error {
 	return debug.SetCrashOutput(f, debug.CrashOptions{})
 }
 
-// Start launches the embedded Tailscale node. The server is reachable only
-// through the tailnet (and Funnel when enabled); there is no LAN listener.
+// Start launches the embedded Tailscale node. The server is reachable
+// through the tailnet (and Funnel when enabled), plus a local-network
+// listener when cfg.LANPort is set (see lan.go).
 func Start(configJSON string, host Host) error {
 	var cfg Config
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
@@ -180,9 +187,13 @@ func Start(configJSON string, host Host) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	n := &node{cfg: cfg, host: host, ctx: ctx, cancel: cancel, auth: store, pairs: pairs}
+	if cfg.LANPort > 0 {
+		n.lan = server.NewLAN()
+		n.lan.Logf = n.logf
+	}
 	n.status = Status{FunnelWanted: cfg.Funnel, BackendState: "Starting"}
 	n.handler = server.NewHandler(server.Options{
-		Root: cfg.RootDir, Auth: store, Pair: pairs, Logf: n.logf,
+		Root: cfg.RootDir, Auth: store, Pair: pairs, LAN: n.lan, Logf: n.logf,
 		PublicURL: func() string {
 			n.mu.Lock()
 			defer n.mu.Unlock()
@@ -212,6 +223,7 @@ func Start(configJSON string, host Host) error {
 		return fmt.Errorf("tailscale listen: %w", err)
 	}
 	n.serve(tsLn, "Tailnet")
+	n.startLAN()
 
 	current = n
 	go n.loop()
@@ -315,20 +327,29 @@ func Devices() string {
 	if n == nil {
 		return "[]"
 	}
-	b, _ := json.Marshal(n.auth.List())
+	b, _ := json.Marshal(append(n.auth.List(), n.lanDevices()...))
 	return string(b)
 }
 
 // RevokeDevice signs one device out.
 func RevokeDevice(id string) bool {
 	n := get()
-	return n != nil && n.auth.Revoke(id)
+	if n == nil {
+		return false
+	}
+	if lanID, ok := strings.CutPrefix(id, "lan:"); ok {
+		return n.lan != nil && n.lan.Revoke(lanID)
+	}
+	return n.auth.Revoke(id)
 }
 
 // RevokeAllDevices signs every browser device out.
 func RevokeAllDevices() {
 	if n := get(); n != nil {
 		n.auth.RevokeAll()
+		if n.lan != nil {
+			n.lan.RevokeAll()
+		}
 	}
 }
 
@@ -481,6 +502,7 @@ func (n *node) loop() {
 	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
 	for {
+		n.checkLAN()
 		n.refresh()
 		select {
 		case <-n.ctx.Done():

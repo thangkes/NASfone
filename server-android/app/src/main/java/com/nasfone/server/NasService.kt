@@ -79,6 +79,7 @@ class NasService : Service() {
                 .put("controlURL", prefs.controlUrl)
                 .put("funnel", prefs.funnel)
                 .put("verbose", prefs.verboseLog)
+                .put("lanPort", if (prefs.lanEnabled) prefs.lanPort else 0)
             thread(name = "nasfone-start") {
                 try {
                     if (!File(prefs.rootDir).let { it.isDirectory || it.mkdirs() }) {

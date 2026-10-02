@@ -30,6 +30,15 @@ class Prefs(private val ctx: Context) {
         get() = sp.getBoolean("funnel", false)
         set(v) = sp.edit().putBoolean("funnel", v).apply()
 
+    /** Kết nối LAN: trình duyệt cùng mạng mở http://IP:cổng, đăng nhập bằng mã 6 số hoặc QR. */
+    var lanEnabled: Boolean
+        get() = sp.getBoolean("lanEnabled", false)
+        set(v) = sp.edit().putBoolean("lanEnabled", v).apply()
+
+    var lanPort: Int
+        get() = sp.getInt("lanPort", 8080)
+        set(v) = sp.edit().putInt("lanPort", v).apply()
+
     var verboseLog: Boolean
         get() = sp.getBoolean("verboseLog", false)
         set(v) = sp.edit().putBoolean("verboseLog", v).apply()

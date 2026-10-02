@@ -26,6 +26,11 @@ button{width:100%;margin-top:20px;border:0;border-radius:9px;padding:12px;font:i
 button:disabled{opacity:.6;cursor:default}
 .msg{margin-top:12px;font-size:14px;min-height:1.5em;color:var(--bad)}
 .msg.ok{color:var(--ok)}
+.lan{text-align:center;margin-top:18px}
+.lan .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-bottom:12px}
+.lan .or::before,.lan .or::after{content:"";flex:1;border-top:1px solid var(--line)}
+.lan img{background:#fff;padding:8px;border-radius:10px;image-rendering:pixelated;max-width:100%}
+.lan .small{margin-top:6px}
 </style>
 </head>
 <body>
@@ -46,6 +51,14 @@ button:disabled{opacity:.6;cursor:default}
   <button id="btn" type="submit">{{.T.login_btn}}</button>
   <div class="msg" id="msg"></div>
   <div class="small">{{.T.login_session}}</div>
+  {{if .LAN}}
+  <div class="lan">
+    <div class="or"><span>{{.T.lan_or}}</span></div>
+    <img id="lanQR" alt="QR" width="200" height="200">
+    <div class="small" id="lanMsg">{{.T.lan_wait}}</div>
+    <div class="small">{{.T.lan_hint}}</div>
+  </div>
+  {{end}}
 </form>
 
 <script>
@@ -90,6 +103,33 @@ $('form').addEventListener('submit', async e => {
   }
   btn.disabled = false;
 });
+
+// LAN: show a one-time QR code; the phone app scans it and approves this browser.
+if ({{.LAN}}) {
+  let ticket = '', renewAt = 0;
+  async function newTicket(){
+    try {
+      const r = await fetch('/__nasfone/lan/start', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { $('lanMsg').textContent = j.error || tr('err_status', r.status); ticket = ''; renewAt = Date.now() + 30000; return; }
+      ticket = j.ticket; $('lanQR').src = j.qr;
+      renewAt = j.expires - 15000; // fresh code shortly before this one expires
+      $('lanMsg').textContent = tr('lan_wait');
+    } catch (e) { $('lanMsg').textContent = tr('err_network'); renewAt = Date.now() + 10000; }
+  }
+  async function poll(){
+    if (!ticket || Date.now() > renewAt) await newTicket();
+    if (ticket) {
+      try {
+        const r = await fetch('/__nasfone/lan/wait?t=' + encodeURIComponent(ticket), {cache: 'no-store'});
+        if (r.status === 200) { $('lanMsg').className = 'small msg ok'; $('lanMsg').textContent = tr('login_ok'); location.replace(NEXT); return; }
+        if (r.status === 410) ticket = '';
+      } catch (e) {}
+    }
+    setTimeout(poll, 1500);
+  }
+  poll();
+}
 </script>
 </body>
 </html>

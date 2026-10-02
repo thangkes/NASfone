@@ -58,6 +58,8 @@ android {
 dependencies {
     // Lõi Go (tsnet + WebDAV), build bằng: core> gomobile bind -target=android/arm64 -androidapi 29 -javapkg com.nasfone.core -o ../server-android/app/libs/nasfonecore.aar ./mobile
     implementation(files("libs/nasfonecore.aar"))
+    // QR scanner for LAN sign-in (camera; no Google Play services needed)
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }
 
 kotlin {
