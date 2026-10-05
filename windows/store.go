@@ -216,10 +216,115 @@ func newDriveLetter(except string) string {
 	return "P"
 }
 
-// forget removes one pairing (config, private key and drive preference).
+// cacheDir is rclone's cache for one server: %LOCALAPPDATA%\NASfone\cache\<id>.
+// Kept across restarts so pending uploads resume; removed on unpair.
+func cacheDir(id string) string {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "NASfone", "cache", id)
+}
+
+// forget removes one pairing (config, private key, drive preference) and its
+// cache, unless the cache still holds files that never reached the server:
+// those stay in cacheDir(id) so they can be recovered by hand.
 func forget(id string) {
 	if validID(id) {
 		os.RemoveAll(serverDir(id))
+		if n, _ := pendingUploads(id); n == 0 {
+			os.RemoveAll(cacheDir(id))
+		}
+	}
+}
+
+// cleanLegacyCache deletes the rclone caches left by NASfone ≤ 0.2.1, which
+// mounted with rclone's default cache dir (%LOCALAPPDATA%\rclone\vfs\：webdav{…}
+// plus vfsMeta) and "full" mode, so they could grow by the size of everything
+// read and were never removed. A cache still holding unsent changes ("Dirty"
+// in its metadata) is kept. It returns the bytes freed.
+func cleanLegacyCache() (freed int64) {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		return 0
+	}
+	vfs := filepath.Join(base, "rclone", "vfs")
+	meta := filepath.Join(base, "rclone", "vfsMeta")
+	ents, _ := os.ReadDir(vfs)
+	for _, e := range ents {
+		// on-the-fly ":webdav:" remotes get names like "：webdav{4taxW}"
+		if !e.IsDir() || !strings.Contains(e.Name(), "webdav{") {
+			continue
+		}
+		if hasDirty(filepath.Join(meta, e.Name())) {
+			continue
+		}
+		dir := filepath.Join(vfs, e.Name())
+		filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() {
+				if fi, err := d.Info(); err == nil {
+					freed += fi.Size()
+				}
+			}
+			return nil
+		})
+		os.RemoveAll(dir)
+		os.RemoveAll(filepath.Join(meta, e.Name()))
+	}
+	return freed
+}
+
+// hasDirty reports whether any rclone cache metadata file under dir marks a
+// file as changed but not uploaded yet.
+func hasDirty(dir string) bool {
+	n, _ := countDirty(dir)
+	return n > 0
+}
+
+// countDirty counts the files rclone still has to upload (metadata with
+// "Dirty": true under dir) and their total size.
+func countDirty(dir string) (files int, bytes int64) {
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		var it struct {
+			Dirty bool
+			Size  int64
+		}
+		if b, err := os.ReadFile(p); err == nil && json.Unmarshal(b, &it) == nil && it.Dirty {
+			files++
+			bytes += it.Size
+		}
+		return nil
+	})
+	return
+}
+
+// pendingUploads is what one server's drive still has to upload: files
+// written to the drive that are only in the local cache so far.
+func pendingUploads(id string) (files int, bytes int64) {
+	return countDirty(filepath.Join(cacheDir(id), "vfsMeta"))
+}
+
+// cleanCaches removes the caches of servers that are no longer paired, and
+// with all=true (uninstall) every cache, except ones with unsent changes.
+func cleanCaches(all bool) {
+	paired := map[string]bool{}
+	if !all {
+		for _, id := range listServers() {
+			paired[id] = true
+		}
+	}
+	root := filepath.Dir(cacheDir("x"))
+	ents, _ := os.ReadDir(root)
+	for _, e := range ents {
+		if !e.IsDir() || paired[e.Name()] {
+			continue
+		}
+		if n, _ := pendingUploads(e.Name()); n == 0 {
+			os.RemoveAll(filepath.Join(root, e.Name()))
+		}
 	}
 }
 

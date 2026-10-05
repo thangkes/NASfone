@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
@@ -30,6 +31,9 @@ type server struct {
 	connected bool
 	connErr   string
 	revoked   bool // the server revoked this computer; drive stopped
+
+	upFiles int   // files written to the drive but not uploaded yet
+	upBytes int64 // and their size
 }
 
 func (s *server) host() string { return hostOf(s.cfg.URL) }
@@ -125,6 +129,10 @@ func (a *app) onReady() {
 	a.serveLocalPairing()             // the web page hands invites over via 127.0.0.1
 	go waitQuitRequests(systray.Quit) // installer/uninstaller asks us to exit cleanly
 	go a.updateLoop()
+	go func() {
+		cleanLegacyCache() // caches of NASfone <= 0.2.1 (never cleaned, could be huge)
+		cleanCaches(false) // caches of servers unpaired since
+	}()
 	if a.showAtStart {
 		a.openWindow()
 	}
@@ -189,6 +197,9 @@ func (a *app) menuLoop() {
 				a.openWindow()
 			}
 		case <-a.mQuit.ClickedCh:
+			if !a.confirmQuit() {
+				continue
+			}
 			systray.Quit()
 			return
 		}
@@ -291,6 +302,10 @@ func (a *app) watch() {
 			if n%8 == 0 || (!revoked && !running && n%2 == 0) { // ~15 s, or ~4 s while the drive is down
 				go a.checkConnection(s.id)
 			}
+			files, bytes := pendingUploads(s.id)
+			a.mu.Lock()
+			s.upFiles, s.upBytes = files, bytes
+			a.mu.Unlock()
 		}
 		a.refreshMenu()
 	}
@@ -355,8 +370,46 @@ func (a *app) serverStatus(s *server) (code, errText string) {
 	}
 }
 
-// statusText is the one-line summary for the tray menu and tooltip.
+// uploads totals what all drives still have to upload.
+func (a *app) uploads() (files int, bytes int64) {
+	for _, s := range a.list() {
+		a.mu.Lock()
+		files += s.upFiles
+		bytes += s.upBytes
+		a.mu.Unlock()
+	}
+	return
+}
+
+// confirmQuit asks before quitting while files are still uploading. They are
+// not lost (the upload resumes on the next start), but until then they exist
+// only on this computer.
+func (a *app) confirmQuit() bool {
+	files, bytes := a.uploads()
+	return files == 0 || ask(t("quit_pending_q", files, humanBytes(bytes)))
+}
+
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	default:
+		return fmt.Sprintf("%d KB", (n+1023)/1024)
+	}
+}
+
+// statusText is the one-line summary for the tray menu and tooltip; files
+// still uploading come first, since the drive alone does not show them.
 func (a *app) statusText() string {
+	if files, bytes := a.uploads(); files > 0 {
+		return t("st_uploading", files, humanBytes(bytes))
+	}
+	return a.baseStatusText()
+}
+
+func (a *app) baseStatusText() string {
 	l := a.list()
 	if len(l) == 0 {
 		return t("st_unpaired_hint")

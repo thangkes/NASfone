@@ -68,5 +68,6 @@ func cleanup(removeData bool) {
 	}
 	if removeData {
 		os.RemoveAll(dataDir())
+		cleanCaches(true) // keeps any cache that still has files to upload
 	}
 }

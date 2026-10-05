@@ -135,6 +135,7 @@ summary{cursor:pointer;color:var(--muted);font-size:12px;margin-bottom:6px}
       </div>
     </div>
     <div class="notice" data-f="err" hidden></div>
+    <div class="notice info" data-f="up" hidden></div>
     <div class="row" data-f="actions">
       <button class="pri grow" data-f="open" data-i18n="w_open_explorer"></button>
       <button data-f="web" data-i18n="w_web"></button>
@@ -206,6 +207,8 @@ function renderServer(c, s, free){
     : s.statusText;
   f.letter.textContent = s.mounted ? s.drive.replace(':', '') : (s.prefDrive || '–');
   f.letter.className = 'letter' + (s.mounted ? '' : ' off');
+  f.up.hidden = !s.uploading;
+  f.up.textContent = s.uploading || '';
   f.err.hidden = !s.error;
   f.err.textContent = s.error || '';
   const revoked = s.status === 'revoked';

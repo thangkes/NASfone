@@ -190,14 +190,22 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 		"--webdav-vendor=other",
 		"--webdav-bearer-token-command=" + tokenCmd,
 		"--volname=" + volumeName(cfg),
-		"--vfs-cache-mode=full",
-		"--vfs-cache-max-size=2G",
+		"--cache-dir=" + cacheDir(m.id),
 		"--dir-cache-time=15s",
 		"--log-file=" + logFile,
 		"--log-level=INFO",
 	}
-	if cfg.Role != auth.RoleAdmin {
-		args = append(args, "--read-only") // user role: browse and download only
+	if cfg.Role == auth.RoleAdmin {
+		// "minimal": files opened write-only (a copy in File Explorer) are
+		// streamed straight to the server, so the copy only finishes once the
+		// data is there and its progress is the real upload; reads stream
+		// with range requests. Only files opened read+write (editing in
+		// place) are staged in the cache and uploaded on close. "full" put
+		// every copy in the cache first: Windows reported it done while the
+		// upload had barely started, and every file read was downloaded whole.
+		args = append(args, "--vfs-cache-mode=minimal", "--vfs-cache-max-size=2G", "--vfs-cache-max-age=1h")
+	} else {
+		args = append(args, "--read-only", "--vfs-cache-mode=off") // user role: browse and download only
 	}
 	cmd := exec.Command(rclone, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}

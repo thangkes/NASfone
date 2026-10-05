@@ -89,6 +89,7 @@ type uiServer struct {
 	Drive      string `json:"drive"` // mounted drive, e.g. "P:"
 	Mounted    bool   `json:"mounted"`
 	PrefDrive  string `json:"prefDrive"` // preferred letter, e.g. "P"
+	Uploading  string `json:"uploading"` // "12 files (3.4 GB)" still to upload, "" if none
 }
 
 // uiState is everything the window renders; the page polls it.
@@ -128,12 +129,15 @@ func (a *app) state() uiState {
 		code, errText := a.serverStatus(sv)
 		drive, mounted, _ := sv.mount.status()
 		a.mu.Lock()
-		cfg, connErr := sv.cfg, sv.connErr
+		cfg, connErr, upFiles, upBytes := sv.cfg, sv.connErr, sv.upFiles, sv.upBytes
 		a.mu.Unlock()
 		u := uiServer{
 			ID: sv.id, Host: hostOf(cfg.URL), URL: cfg.URL, Role: string(cfg.Role), DeviceName: cfg.Name,
 			ServerFP: pair.ShortFP(cfg.ServerFP), PairedAt: cfg.PairedAt.Local().Format("15:04 02/01/2006"),
 			Status: code, Error: errText, Drive: drive, Mounted: mounted, PrefDrive: serverDrive(sv.id),
+		}
+		if upFiles > 0 {
+			u.Uploading = t("w_upload_n", upFiles, humanBytes(upBytes))
 		}
 		switch code {
 		case "ok":
@@ -300,7 +304,11 @@ func (a *app) unpair(id string) {
 	a.mu.Lock()
 	host := s.host()
 	a.mu.Unlock()
-	if !ask(t("unpair_q", host)) {
+	msg := t("unpair_q", host)
+	if n, b := pendingUploads(id); n > 0 {
+		msg += t("unpair_pending", n, humanBytes(b), cacheDir(id))
+	}
+	if !ask(msg) {
 		return
 	}
 	s.mount.stopMount()
