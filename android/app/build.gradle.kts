@@ -22,8 +22,8 @@ android {
         applicationId = "com.nasfone.server"
         minSdk = 29
         targetSdk = 36
-        versionCode = 20199
-        versionName = "0.2.1"
+        versionCode = 20299
+        versionName = "0.2.2"
         ndk {
             abiFilters += "arm64-v8a"
             // -PwithX86 adds the emulator ABI for testing (build-android.ps1 -Emulator)
