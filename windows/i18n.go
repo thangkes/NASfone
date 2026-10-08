@@ -65,6 +65,11 @@ var msgs = map[string][2]string{
 	"st_role_admin":    {"Admin", "Admin"},
 	"st_conn_err":      {"⚠ Cannot reach the server: %s", "⚠ Không kết nối được server: %s"},
 	"st_ok":            {"✔ Connected • %s • drive %s", "✔ Đã kết nối • %s • ổ %s"},
+	"st_writing":       {"⬆ Writing %d file(s) to the server…", "⬆ Đang ghi %d file lên server…"},
+	"quit_writing_q":   {"%d file(s) are still being copied to a NASfone drive. Quitting now stops those copies and leaves them incomplete on the server.\n\nQuit anyway?", "Còn %d file đang được chép vào ổ NASfone. Thoát bây giờ sẽ dừng các lần chép đó và file trên server sẽ bị dở dang.\n\nVẫn thoát?"},
+	"write_failed":     {"A file could not be written completely to the NASfone server:\n\n%s\n\n%s\n\nKeep the original and copy it again.", "Không ghi trọn được một file lên NASfone server:\n\n%s\n\n%s\n\nHãy giữ bản gốc và chép lại."},
+	"mount_failed":     {"could not mount the drive (is WinFsp installed?)", "không gắn được ổ đĩa (đã cài WinFsp chưa?)"},
+	"mount_lost":       {"the drive was unmounted", "ổ đĩa đã bị gỡ"},
 	"st_uploading":     {"⬆ Uploading %d file(s), %s left — keep the originals until done", "⬆ Đang tải lên %d file, còn %s — giữ bản gốc tới khi xong"},
 	"quit_pending_q": {
 		"%d file(s) (%s) copied to a NASfone drive have not reached the server yet.\n\nIf you quit now they stay on this computer and the upload continues the next time NASfone starts. Do not delete the originals until it has finished.\n\nQuit anyway?",

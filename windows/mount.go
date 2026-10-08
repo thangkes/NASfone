@@ -16,6 +16,7 @@ import (
 
 	"nasfone/core/auth"
 	"nasfone/core/client"
+	"nasfone/winclient/drive"
 )
 
 const createNoWindow = 0x08000000
@@ -109,6 +110,7 @@ func volumeName(cfg client.Config) string {
 type mounter struct {
 	id      string
 	mu      sync.Mutex
+	fs      *drive.FS // NASfone's own drive while mounted (nil with rclone)
 	cmd     *exec.Cmd
 	drive   string
 	stop    chan struct{}
@@ -163,21 +165,35 @@ func (m *mounter) loop(cfg client.Config, stop chan struct{}) {
 	}
 }
 
+// runOnce mounts the server once and returns when the drive is gone. It uses
+// NASfone's own drive, which writes straight to the server; rclone is only
+// the fallback for servers that predate that (NASfone <= 0.2.1).
 func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
+	if !winfspInstalled() {
+		return errors.New(t("no_winfsp"))
+	}
+	letter := claimDrive(m.id, serverDrive(m.id))
+	if letter == "" {
+		return errors.New(t("no_drive"))
+	}
+	defer releaseDrive(m.id)
+	err := m.runNative(cfg, letter, stop)
+	if !errors.Is(err, errOldServer) {
+		return err
+	}
+	return m.runRclone(cfg, letter, stop)
+}
+
+// runRclone mounts through rclone (servers without the direct-write API).
+// Copies are staged in a local cache there and uploaded afterwards.
+func (m *mounter) runRclone(cfg client.Config, drive string, stop chan struct{}) error {
 	rclone, err := findRclone()
 	if err != nil {
 		return err
 	}
-	if !winfspInstalled() {
-		return errors.New(t("no_winfsp"))
-	}
 	exe, err := os.Executable()
 	if err != nil {
 		return err
-	}
-	drive := claimDrive(m.id, serverDrive(m.id))
-	if drive == "" {
-		return errors.New(t("no_drive"))
 	}
 	tokenCmd := exe + " token " + m.id
 	if strings.ContainsRune(exe, ' ') {
@@ -196,13 +212,9 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 		"--log-level=INFO",
 	}
 	if cfg.Role == auth.RoleAdmin {
-		// "minimal": files opened write-only (a copy in File Explorer) are
-		// streamed straight to the server, so the copy only finishes once the
-		// data is there and its progress is the real upload; reads stream
-		// with range requests. Only files opened read+write (editing in
-		// place) are staged in the cache and uploaded on close. "full" put
-		// every copy in the cache first: Windows reported it done while the
-		// upload had barely started, and every file read was downloaded whole.
+		// rclone needs a local cache for writes on Windows (CopyFile opens
+		// read+write); "minimal" keeps reads streaming instead of downloading
+		// whole files, and the cache is bounded.
 		args = append(args, "--vfs-cache-mode=minimal", "--vfs-cache-max-size=2G", "--vfs-cache-max-age=1h")
 	} else {
 		args = append(args, "--read-only", "--vfs-cache-mode=off") // user role: browse and download only
@@ -210,7 +222,6 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 	cmd := exec.Command(rclone, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
 	if err := cmd.Start(); err != nil {
-		releaseDrive(m.id)
 		return errors.New(t("rclone_start", err))
 	}
 	m.mu.Lock()
@@ -219,7 +230,6 @@ func (m *mounter) runOnce(cfg client.Config, stop chan struct{}) error {
 
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	defer releaseDrive(m.id)
 	select {
 	case <-stop:
 		cmd.Process.Kill()
@@ -250,9 +260,9 @@ func (m *mounter) stopMount() {
 	// Wait briefly for the drive to disappear.
 	for i := 0; i < 20; i++ {
 		m.mu.Lock()
-		cmd := m.cmd
+		cmd, fs := m.cmd, m.fs
 		m.mu.Unlock()
-		if cmd == nil || cmd.ProcessState != nil {
+		if (cmd == nil || cmd.ProcessState != nil) && fs == nil {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)

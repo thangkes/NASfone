@@ -149,6 +149,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPut:
 		h.put(w, r)
 		return
+	case r.Method == http.MethodPatch:
+		h.patch(w, r)
+		return
 	}
 	if h.quotaPropfind(w, r) {
 		return

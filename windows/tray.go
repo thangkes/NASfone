@@ -381,10 +381,23 @@ func (a *app) uploads() (files int, bytes int64) {
 	return
 }
 
-// confirmQuit asks before quitting while files are still uploading. They are
-// not lost (the upload resumes on the next start), but until then they exist
-// only on this computer.
+// writing counts files being copied straight to a server right now.
+func (a *app) writing() int {
+	n := 0
+	for _, s := range a.list() {
+		n += s.mount.writing()
+	}
+	return n
+}
+
+// confirmQuit asks before quitting while files are being written to a
+// server (quitting cuts those copies short) or, on an rclone drive, still
+// wait in its cache (they upload on the next start; until then they exist
+// only on this computer).
 func (a *app) confirmQuit() bool {
+	if n := a.writing(); n > 0 && !ask(t("quit_writing_q", n)) {
+		return false
+	}
 	files, bytes := a.uploads()
 	return files == 0 || ask(t("quit_pending_q", files, humanBytes(bytes)))
 }
@@ -403,6 +416,9 @@ func humanBytes(n int64) string {
 // statusText is the one-line summary for the tray menu and tooltip; files
 // still uploading come first, since the drive alone does not show them.
 func (a *app) statusText() string {
+	if n := a.writing(); n > 0 {
+		return t("st_writing", n)
+	}
 	if files, bytes := a.uploads(); files > 0 {
 		return t("st_uploading", files, humanBytes(bytes))
 	}
