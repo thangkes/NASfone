@@ -66,6 +66,7 @@ Any browser works as a client too.
 - **Several servers at once** (Android, iPhone and Windows): pair with your phone and your PC server, for example, and switch between them.
 - **Windows:**
   - each server becomes its own drive (`P:`, `Q:`…) with its real free space; the letter can be changed per server;
+  - **writes go straight to the server**: nothing is staged on your disk, File Explorer shows the real upload speed, and a copy only finishes once the server has the data (a lost connection makes the copy fail instead of silently finishing later). Servers older than 0.2.2 fall back to an rclone cache;
   - read-only for the User role; a revoked server is disconnected without touching the others.
 
 **Both:** updates from GitHub Releases in one tap, with checksums verified and your setup kept. English and Vietnamese everywhere.

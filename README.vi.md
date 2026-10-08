@@ -71,6 +71,11 @@ Trình duyệt bất kỳ cũng dùng làm client được.
 - **Kết nối nhiều server cùng lúc** (Android, iPhone và Windows): ví dụ ghép cả điện thoại lẫn PC server rồi chuyển qua lại.
 - **Windows:**
   - mỗi server là một ổ đĩa riêng (`P:`, `Q:`…) với dung lượng trống thật; đổi được ký tự ổ cho từng server;
+  - **ghi thẳng lên server**:
+    - không lưu tạm gì trên ổ đĩa của máy;
+    - Explorer hiện đúng tốc độ tải lên thật;
+    - chép chỉ xong khi server đã nhận đủ dữ liệu, mất mạng thì báo lỗi chứ không âm thầm tải sau;
+    - server cũ hơn 0.2.2 thì app quay về dùng cache của rclone;
   - quyền User thì ổ chỉ đọc; server nào thu hồi máy này thì chỉ ổ đó bị ngắt, các ổ khác vẫn chạy.
 
 **Chung:** tự cập nhật từ GitHub bằng một chạm (kiểm tra SHA-256, giữ nguyên cấu hình). Giao diện tiếng Anh và tiếng Việt ở mọi nơi.
