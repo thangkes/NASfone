@@ -52,6 +52,9 @@ type Config struct {
 	Funnel     bool   `json:"funnel"`
 	Verbose    bool   `json:"verbose"`
 	LANPort    int    `json:"lanPort"` // 0 = no local-network listener
+	// HiddenDirs are folders kept out of the share even when RootDir contains
+	// them (the Windows server passes its own data folders here).
+	HiddenDirs []string `json:"hiddenDirs"`
 }
 
 // Status is reported to the host as JSON.
@@ -196,6 +199,7 @@ func Start(configJSON string, host Host) error {
 	n.handler = server.NewHandler(server.Options{
 		Root: cfg.RootDir, Auth: store, Pair: pairs, LAN: n.lan, Logf: n.logf,
 		Addresses: n.addresses,
+		Hidden:    hiddenList(cfg.HiddenDirs),
 		PublicURL: func() string {
 			n.mu.Lock()
 			defer n.mu.Unlock()
@@ -233,6 +237,15 @@ func Start(configJSON string, host Host) error {
 	go n.loop()
 	n.logf("Đã khởi động, tên máy tailnet %q", cfg.Hostname)
 	return nil
+}
+
+// hiddenList turns the configured hidden folders into server.Options.Hidden
+// (nil when there are none, so nothing is checked).
+func hiddenList(dirs []string) func() []string {
+	if len(dirs) == 0 {
+		return nil
+	}
+	return func() []string { return dirs }
 }
 
 // Stop shuts everything down. Safe to call when not running.

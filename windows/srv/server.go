@@ -153,6 +153,7 @@ func (a *app) start() {
 		"funnel":     s.Funnel,
 		"verbose":    s.Verbose,
 		"lanPort":    lanPort,
+		"hiddenDirs": hiddenDirs(),
 	}
 	b, _ := json.Marshal(cfg)
 	mobile.SetCrashFile(filepath.Join(dataDir(), "crash.txt"))

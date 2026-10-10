@@ -48,12 +48,16 @@ type Options struct {
 	// AddrsPath to pick the best path; each path is still verified by the
 	// server's signature when the app signs in.
 	Addresses func() []string
-	Logf      func(format string, args ...any)
+	// Hidden, if set, lists absolute folders kept out of the share even when
+	// Root contains them (see hide.go). It is called again from time to time.
+	Hidden func() []string
+	Logf   func(format string, args ...any)
 }
 
 type handler struct {
 	opt   Options
 	dav   *webdav.Handler
+	hide  *hider // nil when nothing is hidden
 	noise []byte // 1 MiB of random bytes for the download speed test
 }
 
@@ -64,22 +68,27 @@ func NewHandler(opt Options) http.Handler {
 	}
 	noise := make([]byte, 1<<20)
 	rand.Read(noise)
-	return &handler{
-		opt:   opt,
-		noise: noise,
-		dav: &webdav.Handler{
-			FileSystem: webdav.Dir(opt.Root),
-			LockSystem: webdav.NewMemLS(),
-			Logger: func(r *http.Request, err error) {
-				if err != nil {
-					opt.Logf("webdav %s %s: %v", r.Method, r.URL.Path, err)
-				}
-			},
+	h := &handler{opt: opt, noise: noise, hide: newHider(opt.Hidden)}
+	var fsys webdav.FileSystem = webdav.Dir(opt.Root)
+	if h.hide != nil {
+		fsys = hidingFS{Dir: webdav.Dir(opt.Root), h: h}
+	}
+	h.dav = &webdav.Handler{
+		FileSystem: fsys,
+		LockSystem: webdav.NewMemLS(),
+		Logger: func(r *http.Request, err error) {
+			if err != nil {
+				opt.Logf("webdav %s %s: %v", r.Method, r.URL.Path, err)
+			}
 		},
 	}
+	return h
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Never let a browser guess a type: a file served as text/plain or
+	// application/octet-stream must not turn into a page that runs scripts.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	// Links from before the rename (PocketNAS used /__pnas/...) go to the start page.
 	if strings.HasPrefix(r.URL.Path, "/__pnas/") {
 		http.Redirect(w, r, "/", http.StatusFound)
@@ -126,6 +135,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, tr(pickLang(r), "err_read_only"), http.StatusForbidden)
 		return
 	}
+	// Before PUT/PATCH and WebDAV: no method reaches a hidden folder.
+	if !strings.HasPrefix(r.URL.Path, "/__nasfone/") && h.hidden(r.URL.Path) {
+		http.NotFound(w, r)
+		return
+	}
 	switch {
 	case r.URL.Path == invitePath:
 		h.invite(w, r)
@@ -156,9 +170,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.quotaPropfind(w, r) {
 		return
 	}
-	if (r.Method == http.MethodGet || r.Method == http.MethodHead) && h.isDir(r.URL.Path) {
-		h.browse(w, r)
-		return
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		if h.isDir(r.URL.Path) {
+			h.browse(w, r)
+			return
+		}
+		sandboxFile(w, r.URL.Path)
 	}
 	h.dav.ServeHTTP(w, r)
 }
@@ -202,10 +219,14 @@ func (h *handler) browse(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasSuffix(base, "/") {
 		base += "/"
 	}
+	skip := h.hide.entryFilter(h.localPath(urlPath))
 	var entries []entry
 	for _, de := range des {
 		if strings.HasPrefix(de.Name(), tmpPrefix) {
 			continue // upload in progress
+		}
+		if skip != nil && skip(de.Name(), de.Type()) {
+			continue // hidden folder
 		}
 		fi, err := de.Info()
 		if err != nil {
@@ -280,6 +301,18 @@ func (h *handler) speed(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// sandboxFile makes a file opened in the browser run in a sandbox: an HTML or
+// SVG file stored on the NAS must not run scripts on the NASfone origin, where
+// they would act with the viewer's session (an admin's included). PDFs are
+// left alone because browsers refuse to show a sandboxed PDF; their type comes
+// from the extension and nosniff stops a fake .pdf from being read as HTML.
+func sandboxFile(w http.ResponseWriter, urlPath string) {
+	if strings.EqualFold(path.Ext(urlPath), ".pdf") {
+		return
+	}
+	w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'")
 }
 
 func escapePath(p string) string {
