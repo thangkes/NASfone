@@ -204,7 +204,8 @@ func (a *app) bind(w webview2.WebView) {
 			a.mu.Lock()
 			u := s.cfg.URL
 			a.mu.Unlock()
-			if u != "" {
+			// Only web addresses: ShellExecute would also run a program or open a file.
+			if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
 				openURL(u)
 			}
 		}

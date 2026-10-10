@@ -46,6 +46,7 @@ var messages = map[string][2]string{
 	"err_global_lock": {"Sign-in is paused after too many wrong attempts. Please wait a few minutes.", "Đăng nhập tạm khóa do có quá nhiều lần thử sai. Vui lòng đợi vài phút."},
 	"err_disabled":    {"Code sign-in is not enabled.", "Đăng nhập bằng mã chưa được bật."},
 	"err_read_only":   {"This account can only view and download.", "Tài khoản chỉ có quyền xem và tải về."},
+	"err_locked":      {"This session was locked for requesting protected folders. Sign in again.", "Phiên này đã bị khóa vì truy cập thư mục được bảo vệ. Hãy đăng nhập lại."},
 
 	// browse page
 	"role_admin":      {"ADMIN", "ADMIN"},

@@ -55,10 +55,11 @@ type Options struct {
 }
 
 type handler struct {
-	opt   Options
-	dav   *webdav.Handler
-	hide  *hider // nil when nothing is hidden
-	noise []byte // 1 MiB of random bytes for the download speed test
+	opt    Options
+	dav    *webdav.Handler
+	hide   *hider // nil when nothing is hidden
+	probes probes // hidden-folder requests per session
+	noise  []byte // 1 MiB of random bytes for the download speed test
 }
 
 // NewHandler returns the NASfone HTTP handler.
@@ -130,14 +131,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = r.WithContext(context.WithValue(r.Context(), whoKey{}, who))
+	// Before the role check, PUT/PATCH and WebDAV: no method reaches a hidden
+	// folder, and every try counts towards locking the session (probe.go).
+	if h.probesHidden(r) {
+		h.refuseHidden(w, r, who)
+		return
+	}
 	if !who.CanWrite() && !readOnlyAllowed(r) {
 		// Read-only (user) sessions may browse and download, nothing else.
 		http.Error(w, tr(pickLang(r), "err_read_only"), http.StatusForbidden)
-		return
-	}
-	// Before PUT/PATCH and WebDAV: no method reaches a hidden folder.
-	if !strings.HasPrefix(r.URL.Path, "/__nasfone/") && h.hidden(r.URL.Path) {
-		http.NotFound(w, r)
 		return
 	}
 	switch {

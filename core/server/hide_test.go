@@ -36,6 +36,7 @@ func TestHiddenFolders(t *testing.T) {
 	adminTok, _, _ := store.Redeem(adminCode, "Owner", "1.1.1.1", "Funnel")
 
 	do := func(tok, method, path string, hdr map[string]string, body string) (int, string) {
+		h.(*handler).probes = probes{} // this test is about hiding; locking is tested in probe_test.go
 		req, _ := http.NewRequest(method, srv.URL+path, strings.NewReader(body))
 		req.AddCookie(&http.Cookie{Name: "nasfone_s", Value: tok})
 		for k, v := range hdr {

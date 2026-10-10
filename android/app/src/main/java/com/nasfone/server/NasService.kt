@@ -19,6 +19,7 @@ import android.os.Looper
 import android.os.IBinder
 import android.os.PowerManager
 import com.nasfone.core.mobile.Mobile
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import kotlin.concurrent.thread
@@ -80,6 +81,7 @@ class NasService : Service() {
                 .put("funnel", prefs.funnel)
                 .put("verbose", prefs.verboseLog)
                 .put("lanPort", if (prefs.lanEnabled) prefs.lanPort else 0)
+                .put("hiddenDirs", hiddenDirs())
             thread(name = "nasfone-start") {
                 try {
                     if (!File(prefs.rootDir).let { it.isDirectory || it.mkdirs() }) {
@@ -237,6 +239,19 @@ class NasService : Service() {
         } else {
             startForeground(NOTIF_ID, n)
         }
+    }
+
+    // The app's own folders (sign-in list, server key, paired apps, logs) are
+    // kept out of the share even if the storage folder is set to "/" or to
+    // the whole shared storage. The core matches them by identity, so the
+    // /data/data and /data/user/0 spellings are both covered.
+    private fun hiddenDirs(): JSONArray {
+        val dirs = linkedSetOf(applicationInfo.dataDir, filesDir.parent)
+        if (Build.VERSION.SDK_INT >= 24) dirs.add(applicationInfo.deviceProtectedDataDir)
+        (getExternalFilesDirs(null) + externalCacheDirs).filterNotNull()
+            .mapNotNull { it.parentFile?.path } // .../Android/data/com.nasfone.server
+            .forEach { dirs.add(it) }
+        return JSONArray(dirs.filterNotNull())
     }
 
     companion object {
