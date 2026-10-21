@@ -190,6 +190,8 @@ class NasService : Service() {
         val net = Core.networkType
         when {
             net == "" -> parts += L("⚠ Mất mạng, đang chờ kết nối lại", "⚠ No network, waiting to reconnect")
+            st.optString("backendState") == "Running" && st.optString("netProblem").isNotEmpty() ->
+                parts += L("⚠ Không truy cập được, đang tự nối lại", "⚠ Unreachable, reconnecting")
             st.optString("backendState") == "Running" -> parts += "Tailnet ✓" + (net?.let { " ($it)" } ?: "")
             st.optString("backendState") == "NeedsLogin" -> parts += L("Chờ đăng nhập Tailscale", "Waiting for Tailscale sign-in")
             st.optString("backendState").isEmpty() -> parts += L("Đang khởi động…", "Starting…")

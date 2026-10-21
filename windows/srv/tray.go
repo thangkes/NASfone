@@ -112,6 +112,7 @@ func (a *app) statusText() (code, text string) {
 	running, starting, startErr := a.running, a.starting, a.startErr
 	backend, _ := a.status["backendState"].(string)
 	stErr, _ := a.status["error"].(string)
+	netProblem, _ := a.status["netProblem"].(string)
 	a.mu.Unlock()
 	switch {
 	case starting:
@@ -120,6 +121,8 @@ func (a *app) statusText() (code, text string) {
 		return "error", t("st_error", startErr)
 	case !running:
 		return "stopped", t("st_stopped")
+	case backend == "Running" && netProblem != "":
+		return "error", t("st_unreachable")
 	case backend == "Running":
 		return "ok", t("st_running")
 	case backend == "NeedsLogin":

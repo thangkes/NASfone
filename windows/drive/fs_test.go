@@ -201,3 +201,45 @@ func TestUserRoleReadOnly(t *testing.T) {
 		t.Fatal("user role reported as able to write")
 	}
 }
+
+// A server that goes away must not freeze Explorer: known folders come from
+// the cache, unknown ones fail at once, and free space never waits.
+func TestServerGoneAnswersFast(t *testing.T) {
+	fs, root := newTestFS(t, auth.RoleAdmin)
+	os.WriteFile(filepath.Join(root, "a.txt"), []byte("hi"), 0o644)
+	var st fuse.Stat_t
+	if rc := fs.Getattr("/a.txt", &st, ^uint64(0)); rc != 0 {
+		t.Fatalf("getattr %d", rc)
+	}
+	var sf fuse.Statfs_t
+	fs.Statfs("/", &sf)
+
+	dead := httptest.NewServer(http.NotFoundHandler())
+	dead.Close() // connections are refused from now on
+	fs.R.Base = dead.URL
+	fs.mu.Lock()
+	fs.dirs[key("/")].at = time.Now().Add(-time.Hour) // force a refetch
+	fs.quotaAt = time.Now().Add(-time.Hour)
+	fs.mu.Unlock()
+
+	if rc := fs.Getattr("/a.txt", &st, ^uint64(0)); rc != 0 {
+		t.Fatalf("stale listing not used: %d", rc)
+	}
+	for name, op := range map[string]func() int{
+		"unknown folder": func() int { return fs.Getattr("/nope/x", &st, ^uint64(0)) },
+		"known file":     func() int { return fs.Getattr("/a.txt", &st, ^uint64(0)) },
+		"free space":     func() int { return fs.Statfs("/", &sf) },
+	} {
+		start := time.Now()
+		rc := op()
+		if d := time.Since(start); d > 200*time.Millisecond {
+			t.Errorf("%s took %v while the server is down", name, d)
+		}
+		if name == "unknown folder" && rc == 0 {
+			t.Errorf("%s: want an error", name)
+		}
+		if name != "unknown folder" && rc != 0 {
+			t.Errorf("%s: rc %d", name, rc)
+		}
+	}
+}

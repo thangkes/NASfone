@@ -19,6 +19,13 @@ const (
 	blockSize   = 4 << 20 // read granularity; the next block is fetched ahead
 	listTTL     = 10 * time.Second
 	opTimeout   = 2 * time.Minute
+	// metaTimeout bounds folder listings and free-space queries. Explorer,
+	// "This PC" and every Open/Save dialog wait on these, so a server that
+	// went away must not freeze them for minutes.
+	metaTimeout = 20 * time.Second
+	// downFor is how long after a failed request the server counts as
+	// unreachable: listings then come from the cache, or fail at once.
+	downFor = 15 * time.Second
 )
 
 // FS implements fuse.FileSystemInterface over a Remote.
@@ -36,6 +43,11 @@ type FS struct {
 
 	quotaAt               time.Time
 	quotaAvail, quotaUsed int64
+	quotaBusy             bool // a free-space refresh is running
+	quotaTried            bool // asked at least once (later refreshes never block)
+
+	downUntil time.Time                // server unreachable until then (see downFor)
+	fetching  map[string]chan struct{} // folder listings being fetched right now
 }
 
 type dirCache struct {
@@ -44,11 +56,43 @@ type dirCache struct {
 }
 
 func New(r *Remote, readOnly bool) *FS {
-	return &FS{R: r, ReadOnly: readOnly, dirs: map[string]*dirCache{}, handles: map[uint64]*handle{}}
+	return &FS{R: r, ReadOnly: readOnly, dirs: map[string]*dirCache{}, handles: map[uint64]*handle{},
+		fetching: map[string]chan struct{}{}}
 }
 
 func ctx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), opTimeout)
+}
+
+func metaCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), metaTimeout)
+}
+
+// ErrOffline is returned while the server counts as unreachable.
+var ErrOffline = errors.New("server unreachable")
+
+// netFailure reports whether err means the server could not be reached (as
+// opposed to an answer such as "not found").
+func netFailure(err error) bool {
+	return err != nil && !errors.Is(err, ErrNotFound) && !errors.Is(err, ErrExists) &&
+		!errors.Is(err, ErrDenied) && !errors.Is(err, ErrNoSpace)
+}
+
+func (fs *FS) offline() bool {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	return time.Now().Before(fs.downUntil)
+}
+
+// noteResult remembers whether the server answered.
+func (fs *FS) noteResult(err error) {
+	fs.mu.Lock()
+	if netFailure(err) {
+		fs.downUntil = time.Now().Add(downFor)
+	} else {
+		fs.downUntil = time.Time{}
+	}
+	fs.mu.Unlock()
 }
 
 func errno(err error) int {
@@ -74,29 +118,59 @@ func key(p string) string { return strings.ToLower(path.Clean("/" + p)) }
 
 // ---- metadata ----
 
-// listing returns a folder's cached listing, fetching it when stale.
+// listing returns a folder's cached listing, fetching it when stale. While
+// the server is unreachable it answers from the cache (even a stale one) or
+// fails at once, so Explorer never hangs on a server that is gone. Requests
+// for the same folder at the same time share one fetch.
 func (fs *FS) listing(dir string) (*dirCache, error) {
 	k := key(dir)
-	fs.mu.Lock()
-	dc := fs.dirs[k]
-	fs.mu.Unlock()
-	if dc != nil && time.Since(dc.at) < listTTL {
+	for {
+		fs.mu.Lock()
+		dc := fs.dirs[k]
+		down := time.Now().Before(fs.downUntil)
+		wait, busy := fs.fetching[k]
+		switch {
+		case dc != nil && time.Since(dc.at) < listTTL:
+			fs.mu.Unlock()
+			return dc, nil
+		case down && dc != nil:
+			fs.mu.Unlock()
+			return dc, nil
+		case down:
+			fs.mu.Unlock()
+			return nil, ErrOffline
+		case busy:
+			fs.mu.Unlock()
+			<-wait // another request is fetching this folder: use its result
+			continue
+		}
+		done := make(chan struct{})
+		fs.fetching[k] = done
+		fs.mu.Unlock()
+
+		c, cancel := metaCtx()
+		list, err := fs.R.List(c, fs.real(dir))
+		cancel()
+		fs.noteResult(err)
+		fs.mu.Lock()
+		delete(fs.fetching, k)
+		close(done)
+		if err != nil {
+			if dc != nil && netFailure(err) {
+				fs.mu.Unlock()
+				return dc, nil // unreachable: the last known listing beats an error
+			}
+			fs.mu.Unlock()
+			return nil, err
+		}
+		dc = &dirCache{at: time.Now(), entries: map[string]Entry{}}
+		for _, e := range list {
+			dc.entries[strings.ToLower(e.Name)] = e
+		}
+		fs.dirs[k] = dc
+		fs.mu.Unlock()
 		return dc, nil
 	}
-	c, cancel := ctx()
-	defer cancel()
-	list, err := fs.R.List(c, fs.real(dir))
-	if err != nil {
-		return nil, err
-	}
-	dc = &dirCache{at: time.Now(), entries: map[string]Entry{}}
-	for _, e := range list {
-		dc.entries[strings.ToLower(e.Name)] = e
-	}
-	fs.mu.Lock()
-	fs.dirs[k] = dc
-	fs.mu.Unlock()
-	return dc, nil
 }
 
 // real maps a path in any letter case to the server's actual names, using
@@ -234,18 +308,23 @@ func (fs *FS) flushPath(p string) error {
 
 // ---- fuse operations ----
 
+// Statfs reports the server's free space. Windows asks for it constantly
+// (Explorer, "This PC", file dialogs), so it never waits on the network
+// once a value is known: a stale value is refreshed in the background.
 func (fs *FS) Statfs(p string, st *fuse.Statfs_t) int {
 	fs.mu.Lock()
-	stale := time.Since(fs.quotaAt) > 30*time.Second
+	known := fs.quotaTried
+	refresh := time.Since(fs.quotaAt) > 30*time.Second && !fs.quotaBusy &&
+		!time.Now().Before(fs.downUntil)
+	if refresh {
+		fs.quotaBusy = true
+	}
 	fs.mu.Unlock()
-	if stale {
-		c, cancel := ctx()
-		avail, used, err := fs.R.Quota(c)
-		cancel()
-		if err == nil {
-			fs.mu.Lock()
-			fs.quotaAt, fs.quotaAvail, fs.quotaUsed = time.Now(), avail, used
-			fs.mu.Unlock()
+	if refresh {
+		if known {
+			go fs.refreshQuota()
+		} else {
+			fs.refreshQuota() // first time: wait briefly for a real value
 		}
 	}
 	fs.mu.Lock()
@@ -255,6 +334,19 @@ func (fs *FS) Statfs(p string, st *fuse.Statfs_t) int {
 	*st = fuse.Statfs_t{Bsize: bs, Frsize: bs, Namemax: 255,
 		Blocks: uint64(avail+used) / bs, Bfree: uint64(avail) / bs, Bavail: uint64(avail) / bs}
 	return 0
+}
+
+func (fs *FS) refreshQuota() {
+	c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	avail, used, err := fs.R.Quota(c)
+	cancel()
+	fs.noteResult(err)
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	fs.quotaBusy, fs.quotaTried = false, true
+	if err == nil {
+		fs.quotaAt, fs.quotaAvail, fs.quotaUsed = time.Now(), avail, used
+	}
 }
 
 func (fs *FS) Getattr(p string, st *fuse.Stat_t, fh uint64) int {

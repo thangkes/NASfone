@@ -341,6 +341,8 @@ class MainActivity : Activity() {
         stateTv.text = when {
             !running && Core.startError != null -> L("⛔ Lỗi: ${Core.startError}", "⛔ Error: ${Core.startError}")
             !running -> L("○ Đã dừng", "○ Stopped")
+            backend == "Running" && st.optString("netProblem").isNotEmpty() ->
+                L("⚠ Đang chạy • không truy cập được từ Internet, đang tự nối lại…", "⚠ Running • not reachable from the Internet, reconnecting…")
             backend == "Running" -> L("● Đang chạy • tailnet đã kết nối", "● Running • tailnet connected")
             backend == "NeedsLogin" -> L("● Đang chạy • chờ đăng nhập Tailscale", "● Running • waiting for Tailscale sign-in")
             backend.isEmpty() -> L("● Đang khởi động…", "● Starting…")

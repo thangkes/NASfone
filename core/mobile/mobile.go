@@ -73,6 +73,9 @@ type Status struct {
 	Error        string   `json:"error,omitempty"`
 	LANURLs      []string `json:"lanURLs,omitempty"`
 	LANError     string   `json:"lanError,omitempty"`
+	// NetProblem is set while the server looks unreachable although
+	// Tailscale reports Running; the watchdog is repairing it (watchdog.go).
+	NetProblem string `json:"netProblem,omitempty"`
 
 	// Activity, for the notification. Byte counters are cumulative since
 	// start; the app turns deltas into speeds.
@@ -107,6 +110,7 @@ type node struct {
 	lanPort        int
 	lanIPs         string // local IPv4s last seen; a change ends LAN sessions
 	lanIPsSet      bool
+	wd             watchdog
 }
 
 // funnelRetry is how often a failed Funnel listen is retried, so enabling
@@ -132,7 +136,11 @@ func SetCrashFile(path string) error {
 // Start launches the embedded Tailscale node. The server is reachable
 // through the tailnet (and Funnel when enabled), plus a local-network
 // listener when cfg.LANPort is set (see lan.go).
-func Start(configJSON string, host Host) error {
+func Start(configJSON string, host Host) error { return start(configJSON, host, -1) }
+
+// start is Start; with wantEpoch >= 0 (an automatic restart) it gives up if
+// Stop was called since.
+func start(configJSON string, host Host, wantEpoch int) error {
 	var cfg Config
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
 		return fmt.Errorf("config: %w", err)
@@ -146,8 +154,11 @@ func Start(configJSON string, host Host) error {
 
 	mu.Lock()
 	defer mu.Unlock()
+	if wantEpoch >= 0 && epoch != wantEpoch {
+		return errStopped
+	}
 	if current != nil {
-		return errors.New("already running")
+		return errRunning
 	}
 
 	hostRef = host
@@ -253,6 +264,7 @@ func Stop() {
 	mu.Lock()
 	n := current
 	current = nil
+	epoch++ // cancels an automatic restart in progress
 	mu.Unlock()
 	if n != nil {
 		n.shutdown()
@@ -521,6 +533,7 @@ func (n *node) loop() {
 	for {
 		n.checkLAN()
 		n.refresh()
+		n.maybeCheckHealth()
 		select {
 		case <-n.ctx.Done():
 			return

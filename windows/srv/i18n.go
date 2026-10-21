@@ -22,6 +22,7 @@ var msgs = map[string][2]string{
 	"st_stopped":          {"○ Stopped", "○ Đã dừng"},
 	"st_starting":         {"● Starting…", "● Đang khởi động…"},
 	"st_running":          {"● Running • tailnet connected", "● Đang chạy • tailnet đã kết nối"},
+	"st_unreachable":      {"⚠ Running • not reachable from the Internet, reconnecting…", "⚠ Đang chạy • không truy cập được từ Internet, đang tự nối lại…"},
 	"st_login":            {"● Running • waiting for Tailscale sign-in", "● Đang chạy • chờ đăng nhập Tailscale"},
 	"st_error":            {"⛔ Error: %s", "⛔ Lỗi: %s"},
 	"already_running":     {"NASfone Server is already running (see the tray icon).", "NASfone Server đang chạy (xem biểu tượng ở khay hệ thống)."},

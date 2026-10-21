@@ -24,6 +24,9 @@ var uiHTML string
 var (
 	winMu  sync.Mutex
 	winRef webview2.WebView // the open window, if any
+	// winOpening is set while a window is being created (WebView2 takes a
+	// moment), so a second click or launch meanwhile opens no second window.
+	winOpening bool
 )
 
 // openWindow shows the window, or brings the existing one to the front.
@@ -39,6 +42,11 @@ func (a *app) openWindow() {
 		})
 		return
 	}
+	if winOpening {
+		winMu.Unlock()
+		return // the window is on its way
+	}
+	winOpening = true
 	winMu.Unlock()
 
 	go func() {
@@ -56,13 +64,16 @@ func (a *app) openWindow() {
 			},
 		})
 		if w == nil {
+			winMu.Lock()
+			winOpening = false
+			winMu.Unlock()
 			fail(t("no_webview"))
 			return
 		}
 		a.bind(w)
 		w.SetHtml(strings.Replace(uiHTML, "{{ICON}}", iconDataURL(), 1))
 		winMu.Lock()
-		winRef = w
+		winRef, winOpening = w, false
 		winMu.Unlock()
 		w.Run()
 		winMu.Lock()

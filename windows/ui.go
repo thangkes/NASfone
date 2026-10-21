@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	webview2 "github.com/jchv/go-webview2"
 	"golang.org/x/sys/windows"
@@ -22,6 +23,9 @@ var uiHTML string
 var (
 	winMu  sync.Mutex
 	winRef webview2.WebView // the open window, if any
+	// winOpening is set while a window is being created (WebView2 takes a
+	// moment), so a second click or launch meanwhile opens no second window.
+	winOpening bool
 
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procShowWindow          = user32.NewProc("ShowWindow")
@@ -41,6 +45,11 @@ func (a *app) openWindow() {
 		})
 		return
 	}
+	if winOpening {
+		winMu.Unlock()
+		return // the window is on its way
+	}
+	winOpening = true
 	winMu.Unlock()
 
 	go func() {
@@ -58,13 +67,16 @@ func (a *app) openWindow() {
 			},
 		})
 		if w == nil {
+			winMu.Lock()
+			winOpening = false
+			winMu.Unlock()
 			fail(t("no_webview"))
 			return
 		}
 		a.bind(w)
 		w.SetHtml(strings.Replace(uiHTML, "{{ICON}}", iconDataURL(), 1))
 		winMu.Lock()
-		winRef = w
+		winRef, winOpening = w, false
 		winMu.Unlock()
 		w.Run() // returns when the window is closed
 		winMu.Lock()
@@ -118,10 +130,10 @@ func (a *app) state() uiState {
 	}
 	busy, notice := a.busy, a.notice
 	a.mu.Unlock()
-	_, rcErr := findRclone()
+	rcloneOK, winfspOK := toolsFound()
 	s := uiState{
 		Autostart: autostartEnabled(), FreeDrives: freeLetters(), Busy: busy, Notice: notice,
-		DataDir: dataDir(), RcloneOK: rcErr == nil, WinFspOK: winfspInstalled(), Computer: computerName(), Version: appVersion,
+		DataDir: dataDir(), RcloneOK: rcloneOK, WinFspOK: winfspOK, Computer: computerName(), Version: appVersion,
 		Updating: updating, Update: upd, Servers: []uiServer{},
 	}
 	counts := map[string]int{}
@@ -176,6 +188,25 @@ func (a *app) state() uiState {
 		s.Status, s.StatusText = "connecting", t("s_connecting")
 	}
 	return s
+}
+
+var (
+	toolsMu            sync.Mutex
+	toolsAt            time.Time
+	rcloneOK, winfspOK bool
+)
+
+// toolsFound reports whether rclone and WinFsp are installed. The window
+// polls every second on its UI thread and looking for rclone searches the
+// whole PATH, so the answer is reused for a while.
+func toolsFound() (rclone, winfsp bool) {
+	toolsMu.Lock()
+	defer toolsMu.Unlock()
+	if time.Since(toolsAt) > 15*time.Second {
+		_, err := findRclone()
+		rcloneOK, winfspOK, toolsAt = err == nil, winfspInstalled(), time.Now()
+	}
+	return rcloneOK, winfspOK
 }
 
 func freeLetters() []string {
